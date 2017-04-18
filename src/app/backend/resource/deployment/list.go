@@ -22,6 +22,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
@@ -47,6 +48,9 @@ type Deployment struct {
 	// Aggregate information about pods belonging to this Deployment.
 	Pods common.PodInfo `json:"pods"`
 
+	// Detailed information about Pods belonging to this Deployment.
+	PodList pod.PodList `json:"podList"`
+
 	// Container images of the Deployment.
 	ContainerImages []string `json:"containerImages"`
 }
@@ -65,7 +69,7 @@ func GetDeploymentList(client client.Interface, nsQuery *common.NamespaceQuery,
 	return GetDeploymentListFromChannels(channels, dsQuery, heapsterClient)
 }
 
-// GetDeploymentList returns a list of all Deployments in the cluster
+// GetDeploymentListFromChannels returns a list of all Deployments in the cluster
 // reading required resource list once from the channels.
 func GetDeploymentListFromChannels(channels *common.ResourceChannels,
 	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*DeploymentList, error) {
@@ -121,12 +125,15 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 			matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 
+		podList, _ := getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+
 		deploymentList.Deployments = append(deploymentList.Deployments,
 			Deployment{
 				ObjectMeta:      common.NewObjectMeta(deployment.ObjectMeta),
 				TypeMeta:        common.NewTypeMeta(common.ResourceKindDeployment),
 				ContainerImages: common.GetContainerImages(&deployment.Spec.Template.Spec),
 				Pods:            podInfo,
+				PodList:         *podList,
 			})
 	}
 
@@ -137,4 +144,15 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 	}
 
 	return deploymentList
+}
+
+// getDeploymentPods returns list of pods targeting deployment.
+func getDeploymentPods(deployment extensions.Deployment, heapsterClient heapster.HeapsterClient,
+	dsQuery *dataselect.DataSelectQuery, podlist []api.Pod) (*pod.PodList, error) {
+
+	pods := common.FilterNamespacedPodsBySelector(podlist, deployment.ObjectMeta.Namespace,
+		deployment.Spec.Selector.MatchLabels)
+
+	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	return &podList, nil
 }
