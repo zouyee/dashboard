@@ -1119,6 +1119,7 @@ func (apiHandler *APIHandler) handleGetDeployments(
 	namespace := parseNamespacePathParameter(request)
 	dataSelect := parseDataSelectPathParameter(request)
 	dataSelect.MetricQuery = dataselect.StandardMetrics
+	fmt.Printf("handleGetDeployments========== %#v", dataSelect)
 	result, err := deployment.GetDeploymentList(apiHandler.client, namespace, dataSelect, &apiHandler.heapsterClient)
 	if err != nil {
 		handleInternalError(response, err)
@@ -1834,18 +1835,21 @@ func parseNamespacePathParameter(request *restful.Request) *common.NamespaceQuer
 }
 
 func parsePaginationPathParameter(request *restful.Request) *dataselect.PaginationQuery {
-	itemsPerPage, err := strconv.ParseInt(request.QueryParameter("itemsPerPage"), 10, 0)
-	if err != nil {
-		return dataselect.NoPagination
-	}
+	/*
+		itemsPerPage, err := strconv.ParseInt(request.QueryParameter("itemsPerPage"), 10, 0)
+		if err != nil {
+			return dataselect.NoPagination
+		}
 
-	page, err := strconv.ParseInt(request.QueryParameter("page"), 10, 0)
-	if err != nil {
-		return dataselect.NoPagination
-	}
+		page, err := strconv.ParseInt(request.QueryParameter("page"), 10, 0)
+		if err != nil {
+			return dataselect.NoPagination
+		}
 
-	// Frontend pages start from 1 and backend starts from 0
-	return dataselect.NewPaginationQuery(int(itemsPerPage), int(page-1))
+		// Frontend pages start from 1 and backend starts from 0
+		return dataselect.NewPaginationQuery(int(itemsPerPage), int(page-1))
+	*/
+	return dataselect.NoPagination
 }
 
 func parseFilterPathParameter(request *restful.Request) *dataselect.FilterQuery {

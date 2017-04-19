@@ -15,6 +15,7 @@
 package daemonset
 
 import (
+	"fmt"
 	"log"
 
 	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
@@ -22,6 +23,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
@@ -44,6 +46,9 @@ type DaemonSet struct {
 
 	// Aggregate information about pods belonging to this Daemon Set.
 	Pods common.PodInfo `json:"pods"`
+
+	// Detailed information about Pods belonging to this DaemonSet.
+	PodList pod.PodList `json:"podList"`
 
 	// Container images of the Daemon Set.
 	ContainerImages []string `json:"containerImages"`
@@ -109,12 +114,16 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 		podInfo := common.GetPodInfo(daemonSet.Status.CurrentNumberScheduled,
 			daemonSet.Status.DesiredNumberScheduled, matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
-
+		podList, err := getDaemonSetPods(daemonSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
+		}
 		daemonSetList.DaemonSets = append(daemonSetList.DaemonSets,
 			DaemonSet{
 				ObjectMeta:      common.NewObjectMeta(daemonSet.ObjectMeta),
 				TypeMeta:        common.NewTypeMeta(common.ResourceKindDaemonSet),
 				Pods:            podInfo,
+				PodList:         *podList,
 				ContainerImages: common.GetContainerImages(&daemonSet.Spec.Template.Spec),
 			})
 	}
@@ -126,4 +135,13 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 	}
 
 	return daemonSetList
+}
+
+// getDaemonSetPods return list of pods targeting daemon set.
+func getDaemonSetPods(daemonSets extensions.DaemonSet, heapsterClient heapster.HeapsterClient,
+	dsQuery *dataselect.DataSelectQuery, pods []api.Pod) (*pod.PodList, error) {
+	pods = common.FilterNamespacedPodsBySelector(pods, daemonSets.ObjectMeta.Namespace,
+		daemonSets.Spec.Selector.MatchLabels)
+	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	return &podList, nil
 }

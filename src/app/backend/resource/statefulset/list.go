@@ -15,6 +15,7 @@
 package statefulset
 
 import (
+	"fmt"
 	"log"
 
 	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
@@ -22,6 +23,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
@@ -46,6 +48,9 @@ type StatefulSet struct {
 
 	// Aggregate information about pods belonging to this Pet Set.
 	Pods common.PodInfo `json:"pods"`
+
+	// Detailed information about Pods belonging to this StatefulSet.
+	PodList pod.PodList `json:"podList"`
 
 	// Container images of the Pet Set.
 	ContainerImages []string `json:"containerImages"`
@@ -121,7 +126,11 @@ func CreateStatefulSetList(statefulSets []apps.StatefulSet, pods []api.Pod, even
 			matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 
-		statefulSetList.StatefulSets = append(statefulSetList.StatefulSets, ToStatefulSet(&statefulSet, &podInfo))
+		podList, err := getStatefulSetPods(statefulSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
+		}
+		statefulSetList.StatefulSets = append(statefulSetList.StatefulSets, ToStatefulSet(&statefulSet, &podInfo, podList))
 	}
 
 	cumulativeMetrics, err := metricPromises.GetMetrics()
@@ -134,11 +143,19 @@ func CreateStatefulSetList(statefulSets []apps.StatefulSet, pods []api.Pod, even
 }
 
 // ToStatefulSet transforms pet set into StatefulSet object returned by API.
-func ToStatefulSet(statefulSet *apps.StatefulSet, podInfo *common.PodInfo) StatefulSet {
+func ToStatefulSet(statefulSet *apps.StatefulSet, podInfo *common.PodInfo, pods *pod.PodList) StatefulSet {
 	return StatefulSet{
 		ObjectMeta:      common.NewObjectMeta(statefulSet.ObjectMeta),
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindStatefulSet),
 		ContainerImages: common.GetContainerImages(&statefulSet.Spec.Template.Spec),
 		Pods:            *podInfo,
+		PodList:         *pods,
 	}
+}
+
+// getStatefulSetPods return list of pods targeting pet set.
+func getStatefulSetPods(statefulSets apps.StatefulSet, heapsterClient heapster.HeapsterClient,
+	dsQuery *dataselect.DataSelectQuery, pods []api.Pod) (*pod.PodList, error) {
+	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	return &podList, nil
 }

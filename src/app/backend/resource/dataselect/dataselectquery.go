@@ -91,8 +91,8 @@ var NoDataSelect = NewDataSelectQuery(NoPagination, NoSort, NoFilter, NoMetrics)
 // StdMetricsDataSelect does not perform any data select, just downloads standard metrics.
 var StdMetricsDataSelect = NewDataSelectQuery(NoPagination, NoSort, NoFilter, StandardMetrics)
 
-// DefaultDataSelect downloads first 10 items from page 1 with no sort and no metrics.
-var DefaultDataSelect = NewDataSelectQuery(DefaultPagination, NoSort, NoFilter, NoMetrics)
+// DefaultDataSelect downloads all items  with no sort and no metrics.
+var DefaultDataSelect = NewDataSelectQuery(NoPagination, NoSort, NoFilter, NoMetrics)
 
 // DefaultDataSelectWithMetrics downloads first 10 items from page 1 with no sort. Also downloads and includes standard metrics.
 var DefaultDataSelectWithMetrics = NewDataSelectQuery(DefaultPagination, NoSort, NoFilter, StandardMetrics)

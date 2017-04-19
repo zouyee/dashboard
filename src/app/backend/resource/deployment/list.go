@@ -15,6 +15,7 @@
 package deployment
 
 import (
+	"fmt"
 	"log"
 
 	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
@@ -125,8 +126,10 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 			matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 
-		podList, _ := getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
-
+		podList, err := getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
+		}
 		deploymentList.Deployments = append(deploymentList.Deployments,
 			Deployment{
 				ObjectMeta:      common.NewObjectMeta(deployment.ObjectMeta),
@@ -149,10 +152,10 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 // getDeploymentPods returns list of pods targeting deployment.
 func getDeploymentPods(deployment extensions.Deployment, heapsterClient heapster.HeapsterClient,
 	dsQuery *dataselect.DataSelectQuery, podlist []api.Pod) (*pod.PodList, error) {
-
+	fmt.Println("monitor getDeploymentPods pods before")
 	pods := common.FilterNamespacedPodsBySelector(podlist, deployment.ObjectMeta.Namespace,
 		deployment.Spec.Selector.MatchLabels)
-
+	fmt.Println("monitor getDeploymentPods pods after")
 	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
 	return &podList, nil
 }

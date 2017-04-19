@@ -101,27 +101,28 @@ func GetWorkloadsFromChannels(channels *common.ResourceChannels,
 	}()
 
 	go func() {
-		deploymentList, err := deployment.GetDeploymentListFromChannels(channels, dataselect.DefaultDataSelect, nil)
+		deploymentList, err := deployment.GetDeploymentListFromChannels(channels, dataselect.DefaultDataSelect, &heapsterClient)
 		errChan <- err
 		deploymentChan <- deploymentList
 	}()
 
 	go func() {
+
 		podList, err := pod.GetPodListFromChannels(channels,
-			dataselect.NewDataSelectQuery(dataselect.DefaultPagination, dataselect.NoSort, dataselect.NoFilter, metricQuery),
+			dataselect.NewDataSelectQuery(dataselect.NoPagination, dataselect.NoSort, dataselect.NoFilter, metricQuery),
 			heapsterClient)
 		errChan <- err
 		podChan <- podList
 	}()
 
 	go func() {
-		dsList, err := daemonset.GetDaemonSetListFromChannels(channels, dataselect.DefaultDataSelect, nil)
+		dsList, err := daemonset.GetDaemonSetListFromChannels(channels, dataselect.DefaultDataSelect, &heapsterClient)
 		errChan <- err
 		dsChan <- dsList
 	}()
 
 	go func() {
-		psList, err := statefulset.GetStatefulSetListFromChannels(channels, dataselect.DefaultDataSelect, nil)
+		psList, err := statefulset.GetStatefulSetListFromChannels(channels, dataselect.DefaultDataSelect, &heapsterClient)
 		errChan <- err
 		psChan <- psList
 	}()
