@@ -151,13 +151,16 @@ func GetDeploymentDetail(client client.Interface, heapsterClient heapster.Heapst
 	for i := range rawRs.Items {
 		rawRepSets = append(rawRepSets, &rawRs.Items[i])
 	}
+
 	newRs, err := FindNewReplicaSet(deployment, rawRepSets)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf(" newRs is %#v, the value is %#v", newRs, newRs != nil)
 	var newReplicaSet replicaset.ReplicaSet
 	if newRs != nil {
 		newRsPodInfo := common.GetPodInfo(newRs.Status.Replicas, *newRs.Spec.Replicas, rawPods.Items)
+		log.Printf("pod warning is %#v, pod warning lenth is %#v", newRsPodInfo.Warnings, len(newRsPodInfo.Warnings))
 		newReplicaSet = replicaset.ToReplicaSet(newRs, &newRsPodInfo)
 	}
 

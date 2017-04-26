@@ -19,8 +19,15 @@ import (
 
 	"github.com/kubernetes/dashboard/src/app/backend/client"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/prometheus/common/model"
 	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
+
+// QueryData return prometheus
+type QueryData struct {
+	ResultType model.ValueType `json:"resultType"`
+	Result     model.Value     `json:"result"`
+}
 
 // HeapsterAllInOneDownloadConfig holds config information specifying whether given native heapster resource type supports list download.
 var HeapsterAllInOneDownloadConfig = map[common.ResourceKind]bool{

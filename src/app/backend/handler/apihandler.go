@@ -77,11 +77,12 @@ const (
 // APIHandler is a representation of API handler. Structure contains client, Heapster client and
 // client configuration.
 type APIHandler struct {
-	client         *clientK8s.Clientset
-	heapsterClient client.HeapsterClient
-	config         *restclient.Config
-	verber         common.ResourceVerber
-	csrfKey        string
+	client           *clientK8s.Clientset
+	heapsterClient   client.HeapsterClient
+	config           *restclient.Config
+	prometheusClient client.PrometheusClient
+	verber           common.ResourceVerber
+	csrfKey          string
 }
 
 type CsrfToken struct {
@@ -181,7 +182,7 @@ func formatResponseLog(response *restful.Response, request *restful.Request) str
 
 // CreateHTTPAPIHandler creates a new HTTP handler that handles all requests to the API of the backend.
 func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.HeapsterClient,
-	clientConfig *restclient.Config) (http.Handler, error) {
+	prometheusClient client.PrometheusClient, clientConfig *restclient.Config) (http.Handler, error) {
 
 	verber := common.NewResourceVerber(client.CoreV1().RESTClient(),
 		client.ExtensionsV1beta1().RESTClient(), client.AppsV1beta1().RESTClient(),
@@ -204,7 +205,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		csrfKey = string(bytes)
 	}
 
-	apiHandler := APIHandler{client, heapsterClient, clientConfig, verber, csrfKey}
+	apiHandler := APIHandler{client, heapsterClient, clientConfig, prometheusClient, verber, csrfKey}
 	wsContainer := restful.NewContainer()
 	wsContainer.EnableContentEncoding(true)
 
@@ -564,7 +565,17 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.GET("/node/{name}/pod").
 			To(apiHandler.handleGetNodePods).
 			Writes(pod.PodList{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/node/{name}/{kind}/{query}").
+			To(apiHandler.handleGetPrometheusMetrics).
+			Writes(metric.QueryData{}))
 
+	apiV1Ws.Route(
+		apiV1Ws.GET("/_raw/{kind}/namespace/{namespace}").
+			To(apiHandler.handleGetResourceList))
+	apiV1Ws.Route(
+		apiV1Ws.POST("/_raw/{kind}/namespace/{namespace}").
+			To(apiHandler.handlePostResource))
 	apiV1Ws.Route(
 		apiV1Ws.DELETE("/_raw/{kind}/namespace/{namespace}/name/{name}").
 			To(apiHandler.handleDeleteResource))
@@ -575,6 +586,12 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.PUT("/_raw/{kind}/namespace/{namespace}/name/{name}").
 			To(apiHandler.handlePutResource))
 
+	apiV1Ws.Route(
+		apiV1Ws.GET("/_raw/{kind}").
+			To(apiHandler.handleGetResourceList))
+	apiV1Ws.Route(
+		apiV1Ws.POST("/_raw/{kind}").
+			To(apiHandler.handlePostResource))
 	apiV1Ws.Route(
 		apiV1Ws.DELETE("/_raw/{kind}/name/{name}").
 			To(apiHandler.handleDeleteResource))
@@ -669,6 +686,7 @@ func (apiHandler *APIHandler) handleGetCsrfToken(request *restful.Request,
 	response *restful.Response) {
 	action := request.PathParameter("action")
 	token := xsrftoken.Generate(apiHandler.csrfKey, "none", action)
+	log.Printf("action is %#v, token is %#v", action, token)
 
 	response.WriteHeaderAndEntity(http.StatusOK, CsrfToken{Token: token})
 }
@@ -853,6 +871,19 @@ func (apiHandler *APIHandler) handleGetNodePods(request *restful.Request, respon
 	dataSelect := parseDataSelectPathParameter(request)
 
 	result, err := node.GetNodePods(apiHandler.client, apiHandler.heapsterClient, dataSelect, name)
+	if err != nil {
+		handleInternalError(response, err)
+		return
+	}
+	response.WriteHeaderAndEntity(http.StatusOK, result)
+}
+
+// handle get prometheus metrics
+func (apiHandler *APIHandler) handleGetPrometheusMetrics(request *restful.Request, response *restful.Response) {
+
+	query := request.PathParameter("query")
+
+	result, err := apiHandler.prometheusClient.Get(query).DoRaw()
 	if err != nil {
 		handleInternalError(response, err)
 		return
@@ -1119,7 +1150,6 @@ func (apiHandler *APIHandler) handleGetDeployments(
 	namespace := parseNamespacePathParameter(request)
 	dataSelect := parseDataSelectPathParameter(request)
 	dataSelect.MetricQuery = dataselect.StandardMetrics
-	fmt.Printf("handleGetDeployments========== %#v", dataSelect)
 	result, err := deployment.GetDeploymentList(apiHandler.client, namespace, dataSelect, &apiHandler.heapsterClient)
 	if err != nil {
 		handleInternalError(response, err)
@@ -1244,6 +1274,20 @@ func (apiHandler *APIHandler) handleUpdateReplicasCount(
 	response.WriteHeader(http.StatusAccepted)
 }
 
+func (apiHandler *APIHandler) handleGetResourceList(
+	request *restful.Request, response *restful.Response) {
+	kind := request.PathParameter("kind")
+	namespace, ok := request.PathParameters()["namespace"]
+
+	result, err := apiHandler.verber.GetList(kind, ok, namespace)
+	if err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeaderAndEntity(http.StatusOK, result)
+}
+
 func (apiHandler *APIHandler) handleGetResource(
 	request *restful.Request, response *restful.Response) {
 	kind := request.PathParameter("kind")
@@ -1257,6 +1301,24 @@ func (apiHandler *APIHandler) handleGetResource(
 	}
 
 	response.WriteHeaderAndEntity(http.StatusOK, result)
+}
+
+func (apiHandler *APIHandler) handlePostResource(
+	request *restful.Request, response *restful.Response) {
+	kind := request.PathParameter("kind")
+	namespace, ok := request.PathParameters()["namespace"]
+	putSpec := &runtime.Unknown{}
+	if err := request.ReadEntity(putSpec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	if err := apiHandler.verber.Post(kind, ok, namespace, putSpec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeader(http.StatusCreated)
 }
 
 func (apiHandler *APIHandler) handlePutResource(

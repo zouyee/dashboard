@@ -29,6 +29,11 @@ type HeapsterClient interface {
 	Get(path string) RequestInterface
 }
 
+// PrometheusClient is a client to used to make requests to a Prometheus instance
+type PrometheusClient interface {
+	Get(path string) RequestInterface
+}
+
 // RequestInterface is an interface that allows to make operations on pure request object.
 // Separation is done to allow testing.
 type RequestInterface interface {
@@ -41,12 +46,27 @@ type InClusterHeapsterClient struct {
 	client rest.Interface
 }
 
+// InClusterPrometheusClient is an in-cluster implementation of a Prometheus client. Talks with Prometheus
+// through service proxy.
+type InClusterPrometheusClient struct {
+	client rest.Interface
+}
+
 // Get creates request to given path.
 func (c InClusterHeapsterClient) Get(path string) RequestInterface {
 	return c.client.Get().Prefix("proxy").
 		Namespace("kube-system").
 		Resource("services").
 		Name("heapster").
+		Suffix("/api/v1" + path)
+}
+
+// Get create request to given path
+func (c InClusterPrometheusClient) Get(path string) RequestInterface {
+	return c.client.Get().Prefix("proxy").
+		Namespace("kube-system").
+		Resource("services").
+		Name("prometheus:9090").
 		Suffix("/api/v1" + path)
 }
 
@@ -58,6 +78,16 @@ type RemoteHeapsterClient struct {
 
 // Get creates request to given path.
 func (c RemoteHeapsterClient) Get(path string) RequestInterface {
+	return c.client.Get().Suffix(path)
+}
+
+// RemotePrometheusClient struct
+type RemotePrometheusClient struct {
+	client rest.Interface
+}
+
+// Get creates request to given path.
+func (c RemotePrometheusClient) Get(path string) RequestInterface {
 	return c.client.Get().Suffix(path)
 }
 
@@ -80,4 +110,22 @@ func CreateHeapsterRESTClient(heapsterHost string, apiclient *kubernetes.Clients
 	}
 	log.Printf("Creating remote Heapster client for %s", heapsterHost)
 	return RemoteHeapsterClient{client: restClient.Core().RESTClient()}, nil
+}
+
+// CreatePrometheusRESTClient return prometheus client
+func CreatePrometheusRESTClient(prometheusHost string, apiclient *kubernetes.Clientset) (
+	PrometheusClient, error) {
+
+	if prometheusHost == "" {
+		log.Print("Creating in-cluster Prometheus client")
+		return InClusterPrometheusClient{client: apiclient.Core().RESTClient()}, nil
+	}
+
+	cfg := &rest.Config{Host: prometheusHost, QPS: defaultQPS, Burst: defaultBurst}
+	restClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("Creating remote Prometheus client for %s", prometheusHost)
+	return RemotePrometheusClient{client: restClient.Core().RESTClient()}, nil
 }

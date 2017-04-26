@@ -39,6 +39,10 @@ var (
 		"to connect to in the format of protocol://address:port, e.g., "+
 		"http://localhost:8082. If not specified, the assumption is that the binary runs inside a "+
 		"Kubernetes cluster and service proxy will be used.")
+	argPrometheusHost = pflag.String("prometheus-host", "", "The address of the Prometheus Apiserver "+
+		"to connect to in the format of protocol://address:port, e.g., "+
+		"http://localhost:9090. If not specified, the assumption is that the binary runs inside a "+
+		"Kubernetes cluster and service proxy will be used.")
 	argKubeConfigFile = pflag.String("kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 )
 
@@ -74,7 +78,12 @@ func main() {
 		log.Printf("Could not create heapster client: %s. Continuing.", err)
 	}
 
-	apiHandler, err := handler.CreateHTTPAPIHandler(apiserverClient, heapsterRESTClient, config)
+	prometheusRESTClient, err := client.CreatePrometheusRESTClient(*argPrometheusHost, apiserverClient)
+	if err != nil {
+		log.Printf("Could not create prometheus client: %s. Continuing.", err)
+	}
+
+	apiHandler, err := handler.CreateHTTPAPIHandler(apiserverClient, heapsterRESTClient, prometheusRESTClient, config)
 	if err != nil {
 		handleFatalInitError(err)
 	}
