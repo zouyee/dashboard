@@ -18,7 +18,20 @@ import (
 	"log"
 
 	api "k8s.io/client-go/pkg/api/v1"
+
+	"github.com/dchest/captcha"
 )
+
+// CaptchaValidtySpec is captcha request
+type CaptchaValidtySpec struct {
+	CaptchaID       string `json:"captchaId"`
+	CaptchaSolution string `json:"captchaSolution"`
+}
+
+// CaptchaValidty describe validity of the protocol
+type CaptchaValidty struct {
+	Valid bool `json:"valid"`
+}
 
 // ProtocolValiditySpec is a specification of protocol validation request.
 type ProtocolValiditySpec struct {
@@ -49,4 +62,19 @@ func ValidateProtocol(spec *ProtocolValiditySpec) *ProtocolValidity {
 
 	log.Printf("Validation result for %s protocol is %v", spec.Protocol, isValid)
 	return &ProtocolValidity{Valid: isValid}
+}
+
+// ValidateCaptcha validates protocol based on whether created service is set to NodePort or
+// NodeBalancer type.
+func ValidateCaptcha(spec *CaptchaValidtySpec) *CaptchaValidty {
+	log.Printf("Validating %s captcha  with external set to %v", spec.CaptchaID,
+		spec.CaptchaSolution)
+
+	isValid := true
+
+	if !captcha.VerifyString(spec.CaptchaID, spec.CaptchaSolution) {
+		isValid = false
+	}
+
+	return &CaptchaValidty{Valid: isValid}
 }

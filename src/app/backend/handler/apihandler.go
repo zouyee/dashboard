@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dchest/captcha"
 	restful "github.com/emicklei/go-restful"
 	"github.com/kubernetes/dashboard/src/app/backend/client"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/cluster"
@@ -60,6 +61,9 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/validation"
 	"golang.org/x/net/xsrftoken"
 	errorsK8s "k8s.io/apimachinery/pkg/api/errors"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	clientK8s "k8s.io/client-go/kubernetes"
@@ -224,7 +228,15 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.GET("csrftoken/{action}").
 			To(apiHandler.handleGetCsrfToken).
 			Writes(CsrfToken{}))
-
+	apiV1Ws.Route(
+		apiV1Ws.POST("/login/process").
+			To(apiHandler.handleCaptchaValidity).
+			Reads(validation.CaptchaValidtySpec{}).
+			Writes(validation.CaptchaValidty{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/login/captcha").
+			To(apiHandler.handleGetCaptcha).
+			Writes(validation.CaptchaValidtySpec{}))
 	apiV1Ws.Route(
 		apiV1Ws.POST("/appdeployment").
 			To(apiHandler.handleDeploy).
@@ -789,6 +801,33 @@ func (apiHandler *APIHandler) handleGetIngressDetail(request *restful.Request, r
 	response.WriteHeaderAndEntity(http.StatusOK, result)
 }
 
+func (apiHandler *APIHandler) handleGetResourceList(
+	request *restful.Request, response *restful.Response) {
+	kind := request.PathParameter("kind")
+	namespace, ok := request.PathParameters()["namespace"]
+
+	if kind == "resourcequota" {
+		result, err := apiHandler.client.CoreV1().ResourceQuotas(namespace).List(metaV1.ListOptions{
+			LabelSelector: labels.Everything().String(),
+			FieldSelector: fields.Everything().String(),
+		})
+		if err != nil {
+			handleInternalError(response, err)
+			return
+		}
+
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+	} else {
+		result, err := apiHandler.verber.GetList(kind, ok, namespace)
+		if err != nil {
+			handleInternalError(response, err)
+			return
+		}
+
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+	}
+}
+
 func (apiHandler *APIHandler) handleGetIngressList(request *restful.Request, response *restful.Response) {
 	dataSelect := parseDataSelectPathParameter(request)
 	namespace := parseNamespacePathParameter(request)
@@ -977,9 +1016,26 @@ func (apiHandler *APIHandler) handleProtocolValidity(request *restful.Request, r
 	response.WriteHeaderAndEntity(http.StatusOK, validation.ValidateProtocol(spec))
 }
 
+//  protocol validation API call.
+func (apiHandler *APIHandler) handleCaptchaValidity(request *restful.Request, response *restful.Response) {
+	spec := new(validation.CaptchaValidtySpec)
+	if err := request.ReadEntity(spec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeaderAndEntity(http.StatusOK, validation.ValidateCaptcha(spec))
+}
+
 // Handles get available protocols API call.
 func (apiHandler *APIHandler) handleGetAvailableProcotols(request *restful.Request, response *restful.Response) {
 	response.WriteHeaderAndEntity(http.StatusOK, deployment.GetAvailableProtocols())
+}
+
+// handleGetCaptcha get random captcha
+func (apiHandler *APIHandler) handleGetCaptcha(request *restful.Request, response *restful.Response) {
+
+	response.WriteHeaderAndEntity(http.StatusOK, validation.CaptchaValidtySpec{CaptchaID: captcha.New()})
 }
 
 // Handles get Replication Controller list API call.
@@ -1274,33 +1330,29 @@ func (apiHandler *APIHandler) handleUpdateReplicasCount(
 	response.WriteHeader(http.StatusAccepted)
 }
 
-func (apiHandler *APIHandler) handleGetResourceList(
-	request *restful.Request, response *restful.Response) {
-	kind := request.PathParameter("kind")
-	namespace, ok := request.PathParameters()["namespace"]
-
-	result, err := apiHandler.verber.GetList(kind, ok, namespace)
-	if err != nil {
-		handleInternalError(response, err)
-		return
-	}
-
-	response.WriteHeaderAndEntity(http.StatusOK, result)
-}
-
 func (apiHandler *APIHandler) handleGetResource(
 	request *restful.Request, response *restful.Response) {
 	kind := request.PathParameter("kind")
 	namespace, ok := request.PathParameters()["namespace"]
 	name := request.PathParameter("name")
 
-	result, err := apiHandler.verber.Get(kind, ok, namespace, name)
-	if err != nil {
-		handleInternalError(response, err)
-		return
-	}
+	if kind == "resourcequota" {
+		result, err := apiHandler.client.CoreV1().ResourceQuotas(namespace).Get(name, metaV1.GetOptions{})
+		if err != nil {
+			handleInternalError(response, err)
+			return
+		}
 
-	response.WriteHeaderAndEntity(http.StatusOK, result)
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+	} else {
+		result, err := apiHandler.verber.Get(kind, ok, namespace, name)
+		if err != nil {
+			handleInternalError(response, err)
+			return
+		}
+
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+	}
 }
 
 func (apiHandler *APIHandler) handlePostResource(

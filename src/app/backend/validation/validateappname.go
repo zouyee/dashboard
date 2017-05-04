@@ -29,6 +29,9 @@ type AppNameValiditySpec struct {
 
 	// Namespace of the application.
 	Namespace string `json:"namespace"`
+
+	// Kind of the application
+	Kind string `json:"kind"`
 }
 
 // AppNameValidity describes validity of the application name.
@@ -44,8 +47,38 @@ func ValidateAppName(spec *AppNameValiditySpec, client client.Interface) (*AppNa
 
 	isValidRc := false
 	isValidService := false
+	var err error
+	switch spec.Kind {
+	case "deployment":
+		_, err = client.ExtensionsV1beta1().Deployments(spec.Namespace).Get(spec.Name, metaV1.GetOptions{})
+		if err != nil {
+			if isNotFoundError(err) {
+				isValidRc = true
+			} else {
+				return nil, err
+			}
+		}
+	case "replicaset":
+		_, err = client.ExtensionsV1beta1().DaemonSets(spec.Namespace).Get(spec.Name, metaV1.GetOptions{})
+		if err != nil {
+			if isNotFoundError(err) {
+				isValidRc = true
+			} else {
+				return nil, err
+			}
+		}
+	case "statefulset":
+		_, err = client.AppsV1beta1().StatefulSets(spec.Namespace).Get(spec.Name, metaV1.GetOptions{})
+		if err != nil {
+			if isNotFoundError(err) {
+				isValidRc = true
+			} else {
+				return nil, err
+			}
+		}
+	}
 
-	_, err := client.CoreV1().ReplicationControllers(spec.Namespace).Get(spec.Name, metaV1.GetOptions{})
+	_, err = client.CoreV1().ReplicationControllers(spec.Namespace).Get(spec.Name, metaV1.GetOptions{})
 	if err != nil {
 		if isNotFoundError(err) {
 			isValidRc = true
