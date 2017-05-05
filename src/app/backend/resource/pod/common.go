@@ -40,6 +40,7 @@ func getPodStatus(pod api.Pod, warnings []common.Event) PodStatus {
 	return PodStatus{
 		Status:          getPodStatusStatus(pod, warnings),
 		PodPhase:        pod.Status.Phase,
+		HostIP:          pod.Status.HostIP,
 		ContainerStates: states,
 	}
 }
