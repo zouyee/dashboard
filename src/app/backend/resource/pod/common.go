@@ -86,6 +86,7 @@ func ToPod(pod *api.Pod, metrics *common.MetricsByPod, warnings []common.Event) 
 	podDetail := Pod{
 		ObjectMeta:   common.NewObjectMeta(pod.ObjectMeta),
 		TypeMeta:     common.NewTypeMeta(common.ResourceKindPod),
+		Spec:         pod.Spec,
 		PodStatus:    getPodStatus(*pod, warnings),
 		RestartCount: getRestartCount(*pod),
 	}

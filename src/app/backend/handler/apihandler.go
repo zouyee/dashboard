@@ -118,7 +118,7 @@ func shouldDoCsrfValidation(req *restful.Request) bool {
 	if strings.HasPrefix(req.SelectedRoutePath(), "/api/v1/appdeployment/validate/") {
 		return false
 	}
-	return true
+	return false
 }
 
 func xsrfValidation(csrfKey string) func(*restful.Request, *restful.Response, *restful.FilterChain) {

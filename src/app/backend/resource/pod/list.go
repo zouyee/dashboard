@@ -49,6 +49,7 @@ type PodStatus struct {
 type Pod struct {
 	ObjectMeta common.ObjectMeta `json:"objectMeta"`
 	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	Spec       api.PodSpec       `json:"podSpec"`
 
 	// More info on pod status
 	PodStatus PodStatus `json:"podStatus"`
