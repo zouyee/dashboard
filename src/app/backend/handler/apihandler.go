@@ -68,6 +68,7 @@ import (
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 	clientK8s "k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
+	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
 
 const (
@@ -668,8 +669,36 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.GET("/storageclass/{storageclass}").
 			To(apiHandler.handleGetStorageClass).
 			Writes(storageclass.StorageClass{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/metrics/{kind}/{type}").
+			To(apiHandler.handleGetMetric).
+			Writes(heapster.MetricResult{}))
 
 	return wsContainer, nil
+}
+
+func (apiHandler *APIHandler) handleGetMetric(request *restful.Request, response *restful.Response) {
+	// TODO: Handle case in which RBAC feature is not enabled in API server. Currently returns 404 resource not found
+	kind := request.PathParameter("kind")
+	ty := request.PathParameter("type")
+	path := "/model/metrics/" + kind + "/" + ty
+	rawResult := heapster.MetricResult{}
+	err := heapsterUnmarshalType(apiHandler.heapsterClient, path, &rawResult)
+	log.Print(rawResult.Metrics)
+	if err != nil {
+		handleInternalError(response, err)
+		return
+	}
+	response.WriteHeaderAndEntity(http.StatusOK, &rawResult)
+}
+
+func heapsterUnmarshalType(client client.HeapsterClient, path string, v interface{}) error {
+	rawData, err := client.Get(path).DoRaw()
+	log.Print(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(rawData, v)
 }
 
 func (apiHandler *APIHandler) handleGetRbacRoleList(request *restful.Request, response *restful.Response) {
