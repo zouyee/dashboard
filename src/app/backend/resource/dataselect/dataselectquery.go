@@ -95,7 +95,7 @@ var StdMetricsDataSelect = NewDataSelectQuery(NoPagination, NoSort, NoFilter, St
 var DefaultDataSelect = NewDataSelectQuery(NoPagination, NoSort, NoFilter, NoMetrics)
 
 // DefaultDataSelectWithMetrics downloads first 10 items from page 1 with no sort. Also downloads and includes standard metrics.
-var DefaultDataSelectWithMetrics = NewDataSelectQuery(DefaultPagination, NoSort, NoFilter, StandardMetrics)
+var DefaultDataSelectWithMetrics = NewDataSelectQuery(NoPagination, NoSort, NoFilter, StandardMetrics)
 
 // NewDataSelectQuery creates DataSelectQuery object from simpler data select queries.
 func NewDataSelectQuery(paginationQuery *PaginationQuery, sortQuery *SortQuery, filterQuery *FilterQuery, graphQuery *MetricQuery) *DataSelectQuery {

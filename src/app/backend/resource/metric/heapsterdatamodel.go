@@ -19,9 +19,20 @@ import (
 
 	"github.com/kubernetes/dashboard/src/app/backend/client"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
+
+// Report ...
+type Report struct {
+	Kind      string      `json:"kind"`
+	Resource  string      `json:"resource"`
+	Target    []string    `json:"target"`
+	Range     v1.Range    `json:"range"`
+	Point     string      `json:"point"`
+	QueryData model.Value `json:"result"`
+}
 
 // QueryData return prometheus
 type QueryData struct {

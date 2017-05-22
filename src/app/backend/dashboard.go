@@ -25,6 +25,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/client"
 	"github.com/kubernetes/dashboard/src/app/backend/handler"
 	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/spf13/pflag"
 
 	"github.com/dchest/captcha"
@@ -89,6 +90,14 @@ func main() {
 	if err != nil {
 		handleFatalInitError(err)
 	}
+	/*
+		// create prometheus config
+		prom, err := api.NewClient(api.Config{Address: *argPrometheusHost})
+		if err != nil {
+			log.Fatalf("could not create prometheus http client: %s", err)
+		}
+		pro := v1.NewAPI(prom)
+	*/
 
 	// Run a HTTP server that serves static public files from './public' and handles API calls.
 	// TODO(bryk): Disable directory listing.
@@ -98,6 +107,41 @@ func main() {
 	http.Handle("/api/appConfig.json", handler.AppHandler(handler.ConfigHandler))
 	http.Handle("/metrics", prometheus.Handler())
 	http.Handle("/captcha", captcha.Server(captcha.StdWidth, captcha.StdHeight))
+	// report
+	/*http.HandleFunc("/report", func(w http.ResponseWriter, r *http.Request) {
+		data, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "report can not read data from body", http.StatusNoContent)
+		}
+		reports := make([]metric.Report, 5)
+
+		err = json.Unmarshal(data, &reports)
+		if err != nil {
+			http.Error(w, "report can not unmarshal data", http.StatusUnprocessableEntity)
+		}
+		// 需要查询语句
+		var reportMap = map[string][]metric.Report{
+			"cluster": []metric.Report{},
+			"node":    []metric.Report{},
+			"app":     []metric.Report{},
+			"pod":     []metric.Report{},
+		}
+		for _, report := range reports {
+			query := report.Kind + report.Resource + report.Point
+			value, err := pro.QueryRange(r.Context(), query, report.Range)
+			if err != nil {
+				http.Error(w, "report can not get data using queryrange", http.StatusUnprocessableEntity)
+			}
+			report.QueryData = model.Value(value)
+			reportMap[report.Kind] = append(reportMap[report.Kind], report)
+
+		}
+
+	})
+	*/
+
+	// reporting forms
+
 	log.Print(http.ListenAndServe(fmt.Sprintf("%s:%d", *argBindAddress, *argPort), nil))
 }
 
