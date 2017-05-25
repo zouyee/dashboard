@@ -7,6 +7,10 @@
 			"revision": ""
 		},
 		{
+			"path": "appengine/cloudsql",
+			"revision": ""
+		},
+		{
 			"path": "appengine_internal",
 			"revision": ""
 		},
@@ -713,6 +717,12 @@
 			"path": "github.com/go-openapi/swag",
 			"revision": "3b6d86cd965820f968760d5d419cb4add096bdd7",
 			"revisionTime": "2016-10-24T02:49:19Z"
+		},
+		{
+			"checksumSHA1": "hJAWQfLuHgNAHUeOxUlWq6K5fQA=",
+			"path": "github.com/go-sql-driver/mysql",
+			"revision": "382e13d099fcf5f5994290892ab258fbebbdc5e3",
+			"revisionTime": "2017-05-12T15:29:33Z"
 		},
 		{
 			"checksumSHA1": "7v8eISI8MkRWKZPa5HGuG+iwFwA=",

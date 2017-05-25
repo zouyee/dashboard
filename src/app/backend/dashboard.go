@@ -46,6 +46,7 @@ var (
 		"to connect to in the format of protocol://address:port, e.g., "+
 		"http://localhost:9090. If not specified, the assumption is that the binary runs inside a "+
 		"Kubernetes cluster and service proxy will be used.")
+	mysqlHost         = pflag.String("mysql", "", "The address of the mysql.")
 	argKubeConfigFile = pflag.String("kubeconfig", "", "Path to kubeconfig file with authorization and master location information.")
 )
 
@@ -85,8 +86,18 @@ func main() {
 	if err != nil {
 		log.Printf("Could not create prometheus client: %s. Continuing.", err)
 	}
+	// make sure  database and table exist
+	err = client.EnSureTableExist(*mysqlHost)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// create mysql client return *mysql.DB
+	mysqlClient, err := client.CreateMySQLConn(*mysqlHost)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	apiHandler, err := handler.CreateHTTPAPIHandler(apiserverClient, heapsterRESTClient, prometheusRESTClient, config)
+	apiHandler, err := handler.CreateHTTPAPIHandler(apiserverClient, heapsterRESTClient, prometheusRESTClient, mysqlClient, config)
 	if err != nil {
 		handleFatalInitError(err)
 	}

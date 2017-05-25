@@ -16,6 +16,7 @@ package handler
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -52,6 +53,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/rbacroles"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/replicaset"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/replicationcontroller"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/report"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/secret"
 	resourceService "github.com/kubernetes/dashboard/src/app/backend/resource/service"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/statefulset"
@@ -86,10 +88,12 @@ type APIHandler struct {
 	heapsterClient   client.HeapsterClient
 	config           *restclient.Config
 	prometheusClient client.PrometheusClient
+	mysqlClient      *sql.DB
 	verber           common.ResourceVerber
 	csrfKey          string
 }
 
+// CsrfToken ...
 type CsrfToken struct {
 	Token string `json:"token"`
 }
@@ -187,7 +191,7 @@ func formatResponseLog(response *restful.Response, request *restful.Request) str
 
 // CreateHTTPAPIHandler creates a new HTTP handler that handles all requests to the API of the backend.
 func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.HeapsterClient,
-	prometheusClient client.PrometheusClient, clientConfig *restclient.Config) (http.Handler, error) {
+	prometheusClient client.PrometheusClient, mysql *sql.DB, clientConfig *restclient.Config) (http.Handler, error) {
 
 	verber := common.NewResourceVerber(client.CoreV1().RESTClient(),
 		client.ExtensionsV1beta1().RESTClient(), client.AppsV1beta1().RESTClient(),
@@ -210,7 +214,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		csrfKey = string(bytes)
 	}
 
-	apiHandler := APIHandler{client, heapsterClient, clientConfig, prometheusClient, verber, csrfKey}
+	apiHandler := APIHandler{client, heapsterClient, clientConfig, prometheusClient, mysql, verber, csrfKey}
 	wsContainer := restful.NewContainer()
 	wsContainer.EnableContentEncoding(true)
 
@@ -674,7 +678,99 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 			To(apiHandler.handleGetMetric).
 			Writes(heapster.MetricResult{}))
 
+	// report
+	apiV1Ws.Route(
+		apiV1Ws.GET("/report/namespace/{namespace}/user/{username}/name/{name}").
+			To(apiHandler.handleGetForm).
+			Writes(report.Form{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/report/namespace/{namespace}/username/{username}").
+			To(apiHandler.handleGetFormList).
+			Writes([]string{}))
+	apiV1Ws.Route(
+		apiV1Ws.POST("/report/namespace/{namespace}/username/{username}").
+			To(apiHandler.handlePOSTForm))
+
+	apiV1Ws.Route(
+		apiV1Ws.DELETE("/report/namespace/{namespace}/username/{username}/name/{name}").
+			To(apiHandler.handleDeleteForm))
+	apiV1Ws.Route(
+		apiV1Ws.PUT("/report/namespace/{namespace}/username/{username}/name/{name}").
+			To(apiHandler.handlePUTForm))
+
 	return wsContainer, nil
+}
+
+func (apiHandler *APIHandler) handleGetForm(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("username")
+	name := request.PathParameter("name")
+	rf := &report.Form{
+		Meta: report.Meta{
+			Name:      name,
+			NameSpace: namespace,
+			User:      username,
+		}}
+
+	client.GetForm(apiHandler.mysqlClient, rf)
+	response.WriteHeaderAndEntity(http.StatusOK, rf)
+
+}
+
+func (apiHandler *APIHandler) handleGetFormList(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("username")
+	rf := report.Form{
+		Meta: report.Meta{
+			NameSpace: namespace,
+			User:      username,
+		}}
+	list := client.ListForm(apiHandler.mysqlClient, rf)
+	response.WriteHeaderAndEntity(http.StatusOK, list)
+
+}
+
+func (apiHandler *APIHandler) handlePOSTForm(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("username")
+	name := request.PathParameter("name")
+	rf := report.Form{
+		Meta: report.Meta{
+			Name:      name,
+			NameSpace: namespace,
+			User:      username,
+		}}
+	client.CreateForm(apiHandler.mysqlClient, rf)
+	response.WriteHeader(http.StatusCreated)
+
+}
+
+func (apiHandler *APIHandler) handleDeleteForm(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("username")
+	name := request.PathParameter("name")
+	rf := report.Form{
+		Meta: report.Meta{
+			Name:      name,
+			NameSpace: namespace,
+			User:      username,
+		}}
+	client.DeleteForm(apiHandler.mysqlClient, rf)
+	response.WriteHeader(http.StatusOK)
+}
+
+func (apiHandler *APIHandler) handlePUTForm(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("username")
+	name := request.PathParameter("name")
+	rf := report.Form{
+		Meta: report.Meta{
+			Name:      name,
+			NameSpace: namespace,
+			User:      username,
+		}}
+	client.UpdateForm(apiHandler.mysqlClient, rf)
+	response.WriteHeader(http.StatusCreated)
 }
 
 func (apiHandler *APIHandler) handleGetMetric(request *restful.Request, response *restful.Response) {
