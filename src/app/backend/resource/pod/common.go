@@ -82,6 +82,43 @@ func getPodStatusStatus(pod api.Pod, warnings []common.Event) string {
 	return "pending"
 }
 
+// GetPodPhaseStatus
+func GetPodPhaseStatus(pod api.Pod, warnings []common.Event) api.PodPhase {
+	// For terminated pods that failed
+	if pod.Status.Phase == api.PodFailed {
+		return api.PodFailed
+	}
+
+	// For successfully terminated pods
+	if pod.Status.Phase == api.PodSucceeded {
+		return api.PodSucceeded
+	}
+
+	ready := false
+	initialized := false
+	for _, c := range pod.Status.Conditions {
+		if c.Type == api.PodReady {
+			ready = c.Status == api.ConditionTrue
+		}
+		if c.Type == api.PodInitialized {
+			initialized = c.Status == api.ConditionTrue
+		}
+	}
+
+	if initialized && ready {
+		return api.PodRunning
+	}
+
+	// If the pod would otherwise be pending but has warning then label it as
+	// failed and show and error to the user.
+	if len(warnings) > 0 {
+		return api.PodFailed
+	}
+
+	// Unknown?
+	return api.PodPending
+}
+
 // ToPod transforms Kubernetes pod object into object returned by API.
 func ToPod(pod *api.Pod, metrics *common.MetricsByPod, warnings []common.Event) Pod {
 	podDetail := Pod{

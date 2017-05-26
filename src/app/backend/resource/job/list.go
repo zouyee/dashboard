@@ -117,8 +117,8 @@ func CreateJobList(jobs []batch.Job, pods []api.Pod, events []api.Event,
 		if job.Spec.Completions != nil {
 			completions = *job.Spec.Completions
 		}
-		podInfo := common.GetPodInfo(job.Status.Active, completions, matchingPods)
-		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
+		podInfo := common.GetPodEventInfo(job.Status.Active, completions, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
+
 		jobList.Jobs = append(jobList.Jobs, ToJob(&job, &podInfo))
 	}
 

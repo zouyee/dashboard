@@ -111,9 +111,8 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 	for _, daemonSet := range daemonSets {
 		matchingPods := common.FilterNamespacedPodsByLabelSelector(pods, daemonSet.Namespace,
 			daemonSet.Spec.Selector)
-		podInfo := common.GetPodInfo(daemonSet.Status.CurrentNumberScheduled,
-			daemonSet.Status.DesiredNumberScheduled, matchingPods)
-		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
+		podInfo := common.GetPodEventInfo(daemonSet.Status.CurrentNumberScheduled,
+			daemonSet.Status.DesiredNumberScheduled, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 		podList, err := getDaemonSetPods(daemonSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
 		if err != nil {
 			fmt.Printf("getdeploymentpods err is %#v", err)

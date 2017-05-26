@@ -41,6 +41,30 @@ type PodInfo struct {
 }
 
 // GetPodInfo returns aggregate information about a group of pods.
+func GetPodEventInfo(current int32, desired int32, pods []api.Pod, eve []Event) PodInfo {
+	result := PodInfo{
+		Current:  current,
+		Desired:  desired,
+		Warnings: make([]Event, 0),
+	}
+
+	for _, pod := range pods {
+		pod.Status.Phase = getPodPhaseStatus(pod, eve)
+		switch pod.Status.Phase {
+		case api.PodRunning:
+			result.Running++
+		case api.PodPending:
+			result.Pending++
+		case api.PodFailed:
+			result.Failed++
+		case api.PodSucceeded:
+			result.Succeeded++
+		}
+	}
+	result.Warnings = eve
+	return result
+}
+
 func GetPodInfo(current int32, desired int32, pods []api.Pod) PodInfo {
 	result := PodInfo{
 		Current:  current,
@@ -60,6 +84,42 @@ func GetPodInfo(current int32, desired int32, pods []api.Pod) PodInfo {
 			result.Succeeded++
 		}
 	}
-
 	return result
+}
+
+// GetPodPhaseStatus
+func getPodPhaseStatus(pod api.Pod, warnings []Event) api.PodPhase {
+	// For terminated pods that failed
+	if pod.Status.Phase == api.PodFailed {
+		return api.PodFailed
+	}
+
+	// For successfully terminated pods
+	if pod.Status.Phase == api.PodSucceeded {
+		return api.PodSucceeded
+	}
+
+	ready := false
+	initialized := false
+	for _, c := range pod.Status.Conditions {
+		if c.Type == api.PodReady {
+			ready = c.Status == api.ConditionTrue
+		}
+		if c.Type == api.PodInitialized {
+			initialized = c.Status == api.ConditionTrue
+		}
+	}
+
+	if initialized && ready {
+		return api.PodRunning
+	}
+
+	// If the pod would otherwise be pending but has warning then label it as
+	// failed and show and error to the user.
+	if len(warnings) > 0 {
+		return api.PodFailed
+	}
+
+	// Unknown?
+	return api.PodPending
 }

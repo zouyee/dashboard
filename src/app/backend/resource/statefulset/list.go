@@ -122,9 +122,8 @@ func CreateStatefulSetList(statefulSets []apps.StatefulSet, pods []api.Pod, even
 		matchingPods := common.FilterNamespacedPodsBySelector(pods, statefulSet.ObjectMeta.Namespace,
 			statefulSet.Spec.Selector.MatchLabels)
 		// TODO(floreks): Conversion should be omitted when client type will be updated
-		podInfo := common.GetPodInfo(statefulSet.Status.Replicas, *statefulSet.Spec.Replicas,
-			matchingPods)
-		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
+		podInfo := common.GetPodEventInfo(statefulSet.Status.Replicas, *statefulSet.Spec.Replicas,
+			matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 
 		podList, err := getStatefulSetPods(statefulSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
 		if err != nil {

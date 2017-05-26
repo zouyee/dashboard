@@ -101,9 +101,8 @@ func CreateReplicaSetList(replicaSets []extensions.ReplicaSet, pods []api.Pod,
 	for _, replicaSet := range replicaSets {
 		matchingPods := common.FilterNamespacedPodsBySelector(pods, replicaSet.ObjectMeta.Namespace,
 			replicaSet.Spec.Selector.MatchLabels)
-		podInfo := common.GetPodInfo(replicaSet.Status.Replicas,
-			*replicaSet.Spec.Replicas, matchingPods)
-		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
+		podInfo := common.GetPodEventInfo(replicaSet.Status.Replicas,
+			*replicaSet.Spec.Replicas, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 
 		replicaSetList.ReplicaSets = append(replicaSetList.ReplicaSets, ToReplicaSet(&replicaSet, &podInfo))
 	}

@@ -122,9 +122,8 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 
 		matchingPods := common.FilterNamespacedPodsBySelector(pods, deployment.ObjectMeta.Namespace,
 			deployment.Spec.Selector.MatchLabels)
-		podInfo := common.GetPodInfo(deployment.Status.Replicas, *deployment.Spec.Replicas,
-			matchingPods)
-		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
+		podInfo := common.GetPodEventInfo(deployment.Status.Replicas, *deployment.Spec.Replicas,
+			matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 
 		podList, err := getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
 		if err != nil {

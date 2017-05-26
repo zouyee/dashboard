@@ -101,8 +101,7 @@ func (self JobController) Get(allPods []api.Pod, allEvents []api.Event) Resource
 	if self.Spec.Completions != nil {
 		completions = *self.Spec.Completions
 	}
-	podInfo := common.GetPodInfo(self.Status.Active, completions, matchingPods)
-	podInfo.Warnings = event.GetPodsEventWarnings(allEvents, matchingPods)
+	podInfo := common.GetPodEventInfo(self.Status.Active, completions, matchingPods, event.GetPodsEventWarnings(allEvents, matchingPods))
 
 	return ResourceOwner{
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindJob),
@@ -120,8 +119,7 @@ type ReplicaSetController extensions.ReplicaSet
 func (self ReplicaSetController) Get(allPods []api.Pod, allEvents []api.Event) ResourceOwner {
 	matchingPods := common.FilterNamespacedPodsBySelector(allPods, self.ObjectMeta.Namespace,
 		self.Spec.Selector.MatchLabels)
-	podInfo := common.GetPodInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods)
-	podInfo.Warnings = event.GetPodsEventWarnings(allEvents, matchingPods)
+	podInfo := common.GetPodEventInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods, event.GetPodsEventWarnings(allEvents, matchingPods))
 
 	return ResourceOwner{
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindReplicaSet),
@@ -139,8 +137,7 @@ type ReplicationControllerController api.ReplicationController
 func (self ReplicationControllerController) Get(allPods []api.Pod,
 	allEvents []api.Event) ResourceOwner {
 	matchingPods := common.FilterPodsByControllerResource(self.Namespace, self.UID, allPods)
-	podInfo := common.GetPodInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods)
-	podInfo.Warnings = event.GetPodsEventWarnings(allEvents, matchingPods)
+	podInfo := common.GetPodEventInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods, event.GetPodsEventWarnings(allEvents, matchingPods))
 
 	return ResourceOwner{
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindReplicationController),
@@ -158,9 +155,8 @@ type DaemonSetController extensions.DaemonSet
 func (self DaemonSetController) Get(allPods []api.Pod, allEvents []api.Event) ResourceOwner {
 	matchingPods := common.FilterNamespacedPodsByLabelSelector(allPods, self.Namespace,
 		self.Spec.Selector)
-	podInfo := common.GetPodInfo(self.Status.CurrentNumberScheduled,
-		self.Status.DesiredNumberScheduled, matchingPods)
-	podInfo.Warnings = event.GetPodsEventWarnings(allEvents, matchingPods)
+	podInfo := common.GetPodEventInfo(self.Status.CurrentNumberScheduled,
+		self.Status.DesiredNumberScheduled, matchingPods, event.GetPodsEventWarnings(allEvents, matchingPods))
 
 	return ResourceOwner{
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindDaemonSet),
@@ -178,8 +174,7 @@ type StatefulSetController apps.StatefulSet
 func (self StatefulSetController) Get(allPods []api.Pod, allEvents []api.Event) ResourceOwner {
 	matchingPods := common.FilterNamespacedPodsBySelector(allPods, self.ObjectMeta.Namespace,
 		self.Spec.Selector.MatchLabels)
-	podInfo := common.GetPodInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods)
-	podInfo.Warnings = event.GetPodsEventWarnings(allEvents, matchingPods)
+	podInfo := common.GetPodEventInfo(self.Status.Replicas, *self.Spec.Replicas, matchingPods, event.GetPodsEventWarnings(allEvents, matchingPods))
 
 	return ResourceOwner{
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindStatefulSet),
