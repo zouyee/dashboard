@@ -680,9 +680,9 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 
 	// report
 	apiV1Ws.Route(
-		apiV1Ws.GET("/report/namespace/{namespace}/user/{username}/name/{name}").
-			To(apiHandler.handleGetForm).
-			Writes(report.Form{}))
+		apiV1Ws.GET("/report/namespace/{namespace}/username/{username}/name/{name}").
+			To(apiHandler.handleGetForm))
+
 	apiV1Ws.Route(
 		apiV1Ws.GET("/report/namespace/{namespace}/username/{username}").
 			To(apiHandler.handleGetFormList).
@@ -706,13 +706,15 @@ func (apiHandler *APIHandler) handleGetForm(request *restful.Request, response *
 	username := request.PathParameter("username")
 	name := request.PathParameter("name")
 	rf := &report.Form{
-		Meta: report.Meta{
+		Meta: &report.Meta{
 			Name:      name,
 			NameSpace: namespace,
 			User:      username,
 		}}
-
 	client.GetForm(apiHandler.mysqlClient, rf)
+	if len(rf.Kind) == 0 {
+		rf = &report.Form{}
+	}
 	response.WriteHeaderAndEntity(http.StatusOK, rf)
 
 }
@@ -720,11 +722,11 @@ func (apiHandler *APIHandler) handleGetForm(request *restful.Request, response *
 func (apiHandler *APIHandler) handleGetFormList(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("username")
-	rf := report.Form{
-		Meta: report.Meta{
+	rf := &report.Form{
+		Meta: &report.Meta{
 			NameSpace: namespace,
-			User:      username,
-		}}
+			User:      username}}
+
 	list := client.ListForm(apiHandler.mysqlClient, rf)
 	response.WriteHeaderAndEntity(http.StatusOK, list)
 
@@ -734,12 +736,15 @@ func (apiHandler *APIHandler) handlePOSTForm(request *restful.Request, response 
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("username")
 	name := request.PathParameter("name")
-	rf := report.Form{
-		Meta: report.Meta{
-			Name:      name,
-			NameSpace: namespace,
-			User:      username,
-		}}
+	rf := &report.Form{Meta: &report.Meta{
+		Name:      name,
+		NameSpace: namespace,
+		User:      username,
+	}}
+	if err := request.ReadEntity(rf); err != nil {
+		handleInternalError(response, err)
+		return
+	}
 	client.CreateForm(apiHandler.mysqlClient, rf)
 	response.WriteHeader(http.StatusCreated)
 
@@ -750,11 +755,10 @@ func (apiHandler *APIHandler) handleDeleteForm(request *restful.Request, respons
 	username := request.PathParameter("username")
 	name := request.PathParameter("name")
 	rf := report.Form{
-		Meta: report.Meta{
+		Meta: &report.Meta{
 			Name:      name,
 			NameSpace: namespace,
-			User:      username,
-		}}
+			User:      username}}
 	client.DeleteForm(apiHandler.mysqlClient, rf)
 	response.WriteHeader(http.StatusOK)
 }
@@ -763,12 +767,15 @@ func (apiHandler *APIHandler) handlePUTForm(request *restful.Request, response *
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("username")
 	name := request.PathParameter("name")
-	rf := report.Form{
-		Meta: report.Meta{
-			Name:      name,
-			NameSpace: namespace,
-			User:      username,
-		}}
+	rf := &report.Form{Meta: &report.Meta{
+		Name:      name,
+		NameSpace: namespace,
+		User:      username,
+	}}
+	if err := request.ReadEntity(rf); err != nil {
+		handleInternalError(response, err)
+		return
+	}
 	client.UpdateForm(apiHandler.mysqlClient, rf)
 	response.WriteHeader(http.StatusCreated)
 }

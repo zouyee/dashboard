@@ -3,32 +3,33 @@ package report
 // Range ...
 type Range struct {
 	// The boundaries of the time range.
-	Start, End string
+	Start string `json:"start,omitempty"`
+	End   string `json:"end,omitempty"`
 	// The maximum time between two slices within the boundaries.
-	Step string
+	Step string `json:"step,omitempty"`
 }
 
 // Meta userinfo
 type Meta struct {
-	Name      string `json:"name"`
-	NameSpace string `json:"namespace"`
-	User      string `json:"username"`
+	Name      string `json:"name,omitempty"`
+	NameSpace string `json:"namespace,omitempty"`
+	User      string `json:"username,omitempty"`
 }
 
 // FormList
 type FormList struct {
-	Form Form `json:"form"`
+	Form Form `json:"form,omitempty"`
 }
 
 // Form report sth
 type Form struct {
 	// Kind: cluster、node、application、pod
-	Meta Meta   `json:"meta"`
-	Kind string `json:"kind"`
+	Meta *Meta  `json:"meta,omitempty"`
+	Kind string `json:"kind,omitempty"`
 	// Resource: cpu、disk、or sth metric、health
-	Resource string `json:"resource"`
+	Resource string `json:"resource,omitempty"`
 	// Target: max、min、avg
-	Target string `json:"target"`
+	Target string `json:"target,omitempty"`
 	// Range: start time，end time and step
-	Range Range `json:"range"`
+	Range *Range `json:"range,omitempty"`
 }
