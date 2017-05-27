@@ -93,10 +93,12 @@ func main() {
 	if err != nil {
 		handleFatalInitError(err)
 	}
-
-	mysqlConfig := strings.Join([]string{services.Items[0].Spec.ClusterIP, fmt.Sprintf("%d", services.Items[0].Spec.Ports[0].Port)}, ":")
-	//mysqlPwd := pod.Items[0].Spec.Containers[0].Env[0].Value
-	pflag.Set("mysql", mysqlConfig)
+	if *mysqlHost == "" {
+		// 参数未设置则，通过k8s设置mysql地址与端口等
+		mysqlConfig := strings.Join([]string{services.Items[0].Spec.ClusterIP, fmt.Sprintf("%d", services.Items[0].Spec.Ports[0].Port)}, ":")
+		//mysqlPwd := pod.Items[0].Spec.Containers[0].Env[0].Value
+		pflag.Set("mysql", mysqlConfig)
+	}
 	log.Println("mysql is", *mysqlHost)
 	// make sure  database and table exist
 	err = client.EnSureTableExist(*mysqlHost)
