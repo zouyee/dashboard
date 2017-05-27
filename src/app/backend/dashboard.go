@@ -89,12 +89,12 @@ func main() {
 		log.Printf("Could not create prometheus client: %s. Continuing.", err)
 	}
 	// 获取mysql IP地址、端口、密码
-	pod, err := apiserverClient.CoreV1().Pods("kube-system").List(metaV1.ListOptions{LabelSelector: "app=mysql"})
+	services, err := apiserverClient.CoreV1().Services("kube-system").List(metaV1.ListOptions{LabelSelector: "app=mysql"})
 	if err != nil {
 		handleFatalInitError(err)
 	}
 
-	mysqlConfig := strings.Join([]string{pod.Items[0].Status.HostIP, fmt.Sprintf("%d", pod.Items[0].Spec.Containers[0].Ports[0].ContainerPort)}, ":")
+	mysqlConfig := strings.Join([]string{services.Items[0].Spec.ClusterIP, fmt.Sprintf("%d", services.Items[0].Spec.Ports[0].Port)}, ":")
 	//mysqlPwd := pod.Items[0].Spec.Containers[0].Env[0].Value
 	pflag.Set("mysql", mysqlConfig)
 	log.Println("mysql is", *mysqlHost)
