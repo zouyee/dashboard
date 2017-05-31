@@ -163,7 +163,8 @@ func ListForm(db *sql.DB, rf *report.Form) []string {
 	if err != nil {
 		log.Printf("stm perpare happened error which is %#v", err)
 	}
-	rows, _ := stm.Query(rf.Meta.User, rf.Meta.NameSpace)
+	fmt.Printf("usernae is %#v, namespace is %#v", rf.Meta.User, rf.Meta.NameSpace)
+	rows, _ := stm.Query(rf.Meta.NameSpace, rf.Meta.User)
 	if err != nil {
 		log.Printf("sql query happened error which  is %#v", err)
 	}
