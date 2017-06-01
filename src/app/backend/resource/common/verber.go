@@ -102,6 +102,36 @@ func (verber *ResourceVerber) Delete(kind string, namespaceSet bool, namespace s
 		Error()
 }
 
+// Finialize deletes the resource of the given kind in the given namespace with the given name.
+func (verber *ResourceVerber) Finialize(kind string, namespace string) error {
+	resourceSpec, ok := kindToAPIMapping[kind]
+	if !ok {
+		return fmt.Errorf("Unknown resource kind: %s", kind)
+	}
+
+	client := verber.getRESTClientByType(resourceSpec.ClientType)
+
+	in := &api.Namespace{
+		Spec: api.NamespaceSpec{
+			Finalizers: []api.FinalizerName{},
+		},
+	}
+	in.SetName(namespace)
+	fmt.Printf("namesapce is %v", in)
+	out := &api.Namespace{}
+
+	err := client.Put().
+		Resource(resourceSpec.Resource).
+		Name(namespace).
+		SubResource("finalize").
+		Body(in).
+		Do().
+		Into(out)
+	fmt.Printf("finialize namespace is %v", out)
+	return err
+
+}
+
 // Put puts new resource version of the given kind in the given namespace with the given name.
 func (verber *ResourceVerber) Put(kind string, namespaceSet bool, namespace string, name string,
 	object *runtime.Unknown) error {

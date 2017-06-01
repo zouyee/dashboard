@@ -613,6 +613,9 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.DELETE("/_raw/{kind}/name/{name}").
 			To(apiHandler.handleDeleteResource))
 	apiV1Ws.Route(
+		apiV1Ws.GET("/_raw/{kind}/name/{name}/finialize").
+			To(apiHandler.handleFinializeResource))
+	apiV1Ws.Route(
 		apiV1Ws.GET("/_raw/{kind}/name/{name}").
 			To(apiHandler.handleGetResource))
 	apiV1Ws.Route(
@@ -1460,6 +1463,19 @@ func (apiHandler *APIHandler) handleUpdateReplicasCount(
 	}
 
 	response.WriteHeader(http.StatusAccepted)
+}
+
+func (apiHandler *APIHandler) handleFinializeResource(
+	request *restful.Request, response *restful.Response) {
+	kind := request.PathParameter("kind")
+	name := request.PathParameter("name")
+	log.Printf("kind is %s, name is %s", kind, name)
+	if err := apiHandler.verber.Finialize(kind, name); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeader(http.StatusOK)
 }
 
 func (apiHandler *APIHandler) handleGetResource(
