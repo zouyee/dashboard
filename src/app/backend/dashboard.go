@@ -93,20 +93,25 @@ func main() {
 	if err != nil {
 		handleFatalInitError(err)
 	}
+	pods, err := apiserverClient.CoreV1().Pods("kube-system").List(metaV1.ListOptions{LabelSelector: "app=mysql"})
+	if err != nil {
+		handleFatalInitError(err)
+	}
 	if *mysqlHost == "" {
 		// 参数未设置则，通过k8s设置mysql地址与端口等
 		mysqlConfig := strings.Join([]string{services.Items[0].Spec.ClusterIP, fmt.Sprintf("%d", services.Items[0].Spec.Ports[0].Port)}, ":")
-		//mysqlPwd := pod.Items[0].Spec.Containers[0].Env[0].Value
+
 		pflag.Set("mysql", mysqlConfig)
 	}
-	log.Println("mysql is", *mysqlHost)
+	mysqlPwd := pods.Items[0].Spec.Containers[0].Env[0].Value
+	log.Println("mysql is", *mysqlHost, mysqlPwd)
 	// make sure  database and table exist
-	err = client.EnSureTableExist(*mysqlHost)
+	err = client.EnSureTableExist(*mysqlHost, mysqlPwd)
 	if err != nil {
 		log.Fatal(err)
 	}
 	// create mysql client return *mysql.DB
-	mysqlClient, err := client.CreateMySQLConn(*mysqlHost)
+	mysqlClient, err := client.CreateMySQLConn(*mysqlHost, mysqlPwd)
 	if err != nil {
 		log.Fatal(err)
 	}

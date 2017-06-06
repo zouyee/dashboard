@@ -35,7 +35,7 @@ name|namespace|username|kind|resource|target|start|end|step
 */
 
 // EnSureTableExist ...
-func EnSureTableExist(mysqlHost string) error {
+func EnSureTableExist(mysqlHost string, mysqlPwd string) error {
 	success, err := net.Dial("tcp", mysqlHost)
 	if err != nil {
 		log.Fatal("mysql is not health in net.Dial")
@@ -43,7 +43,7 @@ func EnSureTableExist(mysqlHost string) error {
 	success.Close()
 
 	// connect mysql using mysqHost
-	conn, err := sql.Open("mysql", fmt.Sprintf("root:123456@tcp(%s)/", mysqlHost))
+	conn, err := sql.Open("mysql", fmt.Sprintf("root:%s@tcp(%s)/", mysqlPwd, mysqlHost))
 	if err != nil {
 		log.Fatal(err)
 		return err
@@ -74,9 +74,9 @@ func createTable(connection *sql.DB) error {
 }
 
 // CreateMySQLConn ...
-func CreateMySQLConn(mysqlHost string) (*sql.DB, error) {
+func CreateMySQLConn(mysqlHost string, mysqlPwd string) (*sql.DB, error) {
 
-	mysqlEnd := fmt.Sprintf("root:123456@tcp(%s)/report?charset=utf8&parseTime=true", mysqlHost)
+	mysqlEnd := fmt.Sprintf("root:%s@tcp(%s)/report?charset=utf8&parseTime=true", mysqlPwd, mysqlHost)
 	db, err := sql.Open("mysql", mysqlEnd)
 	if err != nil {
 		log.Fatalf("open mysql found err: %v", err)
