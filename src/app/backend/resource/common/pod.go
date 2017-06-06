@@ -36,6 +36,23 @@ func FilterNamespacedPodsBySelector(pods []api.Pod, namespace string,
 	return matchingPods
 }
 
+// FilterPodsByOwnerReference returns a subset of pods controlled by given controller resource,
+// excluding deployments.
+func FilterPodsByOwnerReference(namespace string, uid types.UID, allPods []api.Pod) []api.Pod {
+	var matchingPods []api.Pod
+	for _, pod := range allPods {
+		if pod.Namespace == namespace {
+			for _, ownerRef := range pod.OwnerReferences {
+				if ownerRef.Controller != nil && *ownerRef.Controller == true &&
+					ownerRef.UID == uid {
+					matchingPods = append(matchingPods, pod)
+				}
+			}
+		}
+	}
+	return matchingPods
+}
+
 // FilterPodsByControllerResource returns set of pods controlled by given resource.
 // Please note, that OwnerReference is still in development phase:
 // https://github.com/kubernetes/community/blob/master/contributors/design-proposals/controller-ref.md.

@@ -33,6 +33,7 @@ func GetDaemonSetPods(client k8sClient.Interface, heapsterClient client.Heapster
 	log.Printf("Getting replication controller %s pods in namespace %s", daemonSetName, namespace)
 
 	pods, err := getRawDaemonSetPods(client, daemonSetName, namespace)
+
 	if err != nil {
 		return nil, err
 	}
@@ -53,14 +54,12 @@ func getRawDaemonSetPods(client k8sClient.Interface, daemonSetName, namespace st
 	channels := &common.ResourceChannels{
 		PodList: common.GetPodListChannel(client, common.NewSameNamespaceQuery(namespace), 1),
 	}
-
 	podList := <-channels.PodList.List
 	if err := <-channels.PodList.Error; err != nil {
 		return nil, err
 	}
 
-	matchingPods := common.FilterNamespacedPodsByLabelSelector(podList.Items,
-		daemonSet.ObjectMeta.Namespace, daemonSet.Spec.Selector)
+	matchingPods := common.FilterPodsByOwnerReference(daemonSet.Namespace, daemonSet.UID, podList.Items)
 	return matchingPods, nil
 }
 
@@ -69,6 +68,7 @@ func getDaemonSetPodInfo(client k8sClient.Interface, daemonSet *extensions.Daemo
 	*common.PodInfo, error) {
 
 	pods, err := getRawDaemonSetPods(client, daemonSet.Name, daemonSet.Namespace)
+	log.Printf("pods list %d", len(pods))
 	if err != nil {
 		return nil, err
 	}
