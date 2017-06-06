@@ -109,8 +109,7 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 	daemonSets = FromCells(dsCells)
 
 	for _, daemonSet := range daemonSets {
-		matchingPods := common.FilterNamespacedPodsByLabelSelector(pods, daemonSet.Namespace,
-			daemonSet.Spec.Selector)
+		matchingPods := common.FilterPodsByOwnerReference(daemonSet.Namespace, daemonSet.UID, pods)
 		podInfo := common.GetPodEventInfo(daemonSet.Status.CurrentNumberScheduled,
 			daemonSet.Status.DesiredNumberScheduled, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 		podList, err := getDaemonSetPods(daemonSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
@@ -139,8 +138,7 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 // getDaemonSetPods return list of pods targeting daemon set.
 func getDaemonSetPods(daemonSets extensions.DaemonSet, heapsterClient heapster.HeapsterClient,
 	dsQuery *dataselect.DataSelectQuery, pods []api.Pod) (*pod.PodList, error) {
-	pods = common.FilterNamespacedPodsBySelector(pods, daemonSets.ObjectMeta.Namespace,
-		daemonSets.Spec.Selector.MatchLabels)
+	pods = common.FilterPodsByOwnerReference(daemonSets.Namespace, daemonSets.UID, pods)
 	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
 	return &podList, nil
 }
