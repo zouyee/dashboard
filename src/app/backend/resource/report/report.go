@@ -16,15 +16,19 @@ type Meta struct {
 	User      string `json:"username,omitempty"`
 }
 
-// FormList
+// FormList ...
 type FormList struct {
-	Form Form `json:"form,omitempty"`
+	Meta            Meta    `json:"meta"`
+	Items           []*Form `json:"items,omitempty"`
+	CreateTimestamp string  `json:"createtimestamp"`
 }
 
 // Form report sth
 type Form struct {
+	// Meta: belong which FormList
+	Meta Meta
 	// Kind: cluster、node、application、pod
-	Meta *Meta  `json:"meta,omitempty"`
+	Name string `json:"name,omitempty"`
 	Kind string `json:"kind,omitempty"`
 	// Resource: cpu、disk、or sth metric、health
 	Resource string `json:"resource,omitempty"`
@@ -32,4 +36,10 @@ type Form struct {
 	Target string `json:"target,omitempty"`
 	// Range: start time，end time and step
 	Range *Range `json:"range,omitempty"`
+}
+
+// Info ...
+type Info struct {
+	Name            string `json:"name,omitempty"`
+	CreateTimestamp string `json:"createtimestamp"`
 }

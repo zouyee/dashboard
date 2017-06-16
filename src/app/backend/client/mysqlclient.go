@@ -25,13 +25,15 @@ var createTableStatements = []string{
       start varchar(40) NOT NULL,
       end varchar(40) NOT NULL,
       step varchar(40) NOT NULL,
-      PRIMARY KEY (name,namespace,username)
+			formname varchar(40) NOT NULL,
+			createtimestamp varchar(40) NOT NULL,
+      PRIMARY KEY (name,namespace,username,formname)
     )`,
 }
 
 /*
 mysql:
-name|namespace|username|kind|resource|target|start|end|step
+name|namespace|username|kind|resource|target|start|end|step|formname|createtimestamp
 */
 
 // EnSureTableExist ...
@@ -91,9 +93,9 @@ func CreateMySQLConn(mysqlHost string, mysqlPwd string) (*sql.DB, error) {
 }
 
 // GetForm ...
-func GetForm(db *sql.DB, rf *report.Form) {
+func GetForm(db *sql.DB, rf *report.FormList) {
 
-	stm, err := db.Prepare("SELECT kind, resource, target, start, end, step FROM report where name=? AND namespace=? AND username=?")
+	stm, err := db.Prepare("SELECT formname, kind, resource, target, start, end, step, createtimestamp FROM report where name=? AND namespace=? AND username=?")
 	if err != nil {
 		log.Printf("GetForm: stm perpare happened error which is %#v", err)
 	}
@@ -104,14 +106,14 @@ func GetForm(db *sql.DB, rf *report.Form) {
 		log.Printf("GetForm: stm query happened error which is %#v", err)
 	}
 	defer stm.Close()
-
+	rep := report.Form{}
 	for rows.Next() {
 		log.Printf("report is %#v", rf)
-		rf.Range = &report.Range{}
-		if err := rows.Scan(&rf.Kind, &rf.Resource, &rf.Target, &rf.Range.Start, &rf.Range.End, &rf.Range.Step); err != nil {
+		if err := rows.Scan(&rep.Name, &rep.Kind, &rep.Resource, &rep.Target, &rep.Range.Start, &rep.Range.End, &rep.Range.Step, rf.CreateTimestamp); err != nil {
 			log.Printf("GetForm: row scan happened error which is %#v", err)
 			log.Fatal(err)
 		}
+		rf.Items = append(rf.Items, &rep)
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("rows error is %v", err)
@@ -121,7 +123,7 @@ func GetForm(db *sql.DB, rf *report.Form) {
 }
 
 // DeleteForm ...
-func DeleteForm(db *sql.DB, rf report.Form) {
+func DeleteForm(db *sql.DB, rf report.FormList) {
 	stm, err := db.Prepare("DELETE FROM report where name=? AND namespace=? AND username=?")
 	if err != nil {
 		log.Printf("prepare delete form from mysql happened error which is %#v", err)
@@ -138,9 +140,9 @@ func DeleteForm(db *sql.DB, rf report.Form) {
 
 // UpdateForm ...
 func UpdateForm(db *sql.DB, rf *report.Form) {
-	stm, _ := db.Prepare("UPDATE report set kind=?,resource=?,target=?,start=?,end=?,step=? where name=? AND namespace=? AND username=?")
+	stm, _ := db.Prepare("UPDATE report set kind=?,resource=?,target=?,start=?,end=?,step=? where name=? AND namespace=? AND username=? AND formname=?")
 	defer stm.Close()
-	_, err := stm.Exec(&rf.Kind, &rf.Resource, &rf.Target, &rf.Range.Start, &rf.Range.End, &rf.Range.Step, &rf.Meta.Name, &rf.Meta.NameSpace, &rf.Meta.User)
+	_, err := stm.Exec(&rf.Kind, &rf.Resource, &rf.Target, &rf.Range.Start, &rf.Range.End, &rf.Range.Step, &rf.Name, &rf.Meta.NameSpace, &rf.Meta.User, &rf.Meta.Name)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -148,36 +150,54 @@ func UpdateForm(db *sql.DB, rf *report.Form) {
 }
 
 // CreateForm ...
-func CreateForm(db *sql.DB, rf *report.Form) {
-	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step)values(?,?,?,?,?,?,?,?,?)")
+func CreateForm(db *sql.DB, rf *report.FormList) {
+	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step,formname,createtimestamp)values(?,?,?,?,?,?,?,?,?)")
 	defer stm.Close()
-	_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Kind, rf.Resource, rf.Target, rf.Range.Start, rf.Range.End, rf.Range.Step)
-	if err != nil {
-		log.Fatal(err)
+	for _, item := range rf.Items {
+		_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, item.Kind, item.Resource, item.Target, item.Range.Start, item.Range.End, item.Range.Step, item.Meta.Name, rf.CreateTimestamp)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
 // ListForm ... need unit test
-func ListForm(db *sql.DB, rf *report.Form) []string {
-	stm, err := db.Prepare("SELECT name FROM report where namespace=? AND username=?")
+func ListForm(db *sql.DB, rf report.Meta) []report.Info {
+	stm, err := db.Prepare("SELECT name,createtimestamp FROM report where namespace=? AND username=?")
 	if err != nil {
 		log.Printf("stm perpare happened error which is %#v", err)
 	}
-	fmt.Printf("usernae is %#v, namespace is %#v", rf.Meta.User, rf.Meta.NameSpace)
-	rows, _ := stm.Query(rf.Meta.NameSpace, rf.Meta.User)
+	fmt.Printf("usernae is %#v, namespace is %#v", rf.User, rf.NameSpace)
+	rows, _ := stm.Query(rf.NameSpace, rf.User)
 	if err != nil {
 		log.Printf("sql query happened error which  is %#v", err)
 	}
 	defer stm.Close()
 	defer rows.Close()
-	list := []string{}
+	list := []report.Info{}
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var name, createtimestamp string
+		if err := rows.Scan(&name, &createtimestamp); err != nil {
 			log.Fatal(err)
 		}
-		list = append(list, name)
+		list = append(list, report.Info{Name: name, CreateTimestamp: createtimestamp})
 		// fmt.Printf("name:%s ,id:is %d\n", name, id)
 	}
 	return list
+}
+
+// DeleteFormSig ...
+func DeleteFormSig(db *sql.DB, rf report.Form) {
+	stm, err := db.Prepare("DELETE FROM report where name=? AND namespace=? AND username=? AND formname=?")
+	if err != nil {
+		log.Printf("prepare delete form from mysql happened error which is %#v", err)
+	}
+	_, err = stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Name)
+	if err != nil {
+		log.Printf("delete form from mysql happened error which is %#v", err)
+	}
+	defer stm.Close()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
