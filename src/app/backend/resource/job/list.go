@@ -15,6 +15,7 @@
 package job
 
 import (
+	"fmt"
 	"log"
 
 	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
@@ -22,6 +23,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
@@ -45,6 +47,9 @@ type Job struct {
 
 	// Aggregate information about pods belonging to this Job.
 	Pods common.PodInfo `json:"pods"`
+
+	// Detailed information about Pods belonging to this Deployment.
+	PodList pod.PodList `json:"podList"`
 
 	// Container images of the Job.
 	ContainerImages []string `json:"containerImages"`
@@ -118,8 +123,12 @@ func CreateJobList(jobs []batch.Job, pods []api.Pod, events []api.Event,
 			completions = *job.Spec.Completions
 		}
 		podInfo := common.GetPodEventInfo(job.Status.Active, completions, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
+		podList, err := getJobPods(job, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
+		}
 
-		jobList.Jobs = append(jobList.Jobs, ToJob(&job, &podInfo))
+		jobList.Jobs = append(jobList.Jobs, ToJob(&job, &podInfo, podList))
 	}
 
 	cumulativeMetrics, err := metricPromises.GetMetrics()
@@ -131,11 +140,23 @@ func CreateJobList(jobs []batch.Job, pods []api.Pod, events []api.Event,
 	return jobList
 }
 
-func ToJob(job *batch.Job, podInfo *common.PodInfo) Job {
+func ToJob(job *batch.Job, podInfo *common.PodInfo, podlist *pod.PodList) Job {
 	return Job{
 		ObjectMeta:      common.NewObjectMeta(job.ObjectMeta),
 		TypeMeta:        common.NewTypeMeta(common.ResourceKindJob),
 		ContainerImages: common.GetContainerImages(&job.Spec.Template.Spec),
 		Pods:            *podInfo,
+		PodList:         *podlist,
 	}
+}
+
+// getDeploymentPods returns list of pods targeting deployment.
+func getJobPods(jb batch.Job, heapsterClient heapster.HeapsterClient,
+	dsQuery *dataselect.DataSelectQuery, podlist []api.Pod) (*pod.PodList, error) {
+	fmt.Println("monitor getDeploymentPods pods before")
+	pods := common.FilterNamespacedPodsBySelector(podlist, jb.ObjectMeta.Namespace,
+		jb.Spec.Selector.MatchLabels)
+	fmt.Println("monitor getDeploymentPods pods after")
+	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	return &podList, nil
 }

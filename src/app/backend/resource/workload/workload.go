@@ -95,7 +95,7 @@ func GetWorkloadsFromChannels(channels *common.ResourceChannels,
 	}()
 
 	go func() {
-		jobList, err := job.GetJobListFromChannels(channels, dataselect.DefaultDataSelect, nil)
+		jobList, err := job.GetJobListFromChannels(channels, dataselect.DefaultDataSelect, &heapsterClient)
 		errChan <- err
 		jobChan <- jobList
 	}()
