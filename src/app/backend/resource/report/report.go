@@ -19,7 +19,7 @@ type Meta struct {
 // FormList ...
 type FormList struct {
 	Meta            Meta    `json:"meta"`
-	Items           []*Form `json:"items,omitempty"`
+	Items           []*Form `json:"items"`
 	CreateTimestamp string  `json:"createtimestamp"`
 }
 

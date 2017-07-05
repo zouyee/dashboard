@@ -1,12 +1,12 @@
 package client
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"log"
 	"net"
-
-	"database/sql"
-	"database/sql/driver"
+	"time"
 	// mysql
 	"github.com/go-sql-driver/mysql"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/report"
@@ -106,13 +106,17 @@ func GetForm(db *sql.DB, rf *report.FormList) {
 		log.Printf("GetForm: stm query happened error which is %#v", err)
 	}
 	defer stm.Close()
+	rf.Items = make([]*report.Form, 0)
 	rep := report.Form{}
+	rep.Range = &report.Range{}
 	for rows.Next() {
-		log.Printf("report is %#v", rf)
-		if err := rows.Scan(&rep.Name, &rep.Kind, &rep.Resource, &rep.Target, &rep.Range.Start, &rep.Range.End, &rep.Range.Step, rf.CreateTimestamp); err != nil {
+		log.Printf("rep is %#v", rep)
+
+		if err := rows.Scan(&rep.Name, &rep.Kind, &rep.Resource, &rep.Target, &rep.Range.Start, &rep.Range.End, &rep.Range.Step, &rf.CreateTimestamp); err != nil {
 			log.Printf("GetForm: row scan happened error which is %#v", err)
 			log.Fatal(err)
 		}
+		rep.Meta = rf.Meta
 		rf.Items = append(rf.Items, &rep)
 	}
 	if err := rows.Err(); err != nil {
@@ -151,14 +155,34 @@ func UpdateForm(db *sql.DB, rf *report.Form) {
 
 // CreateForm ...
 func CreateForm(db *sql.DB, rf *report.FormList) {
-	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step,formname,createtimestamp)values(?,?,?,?,?,?,?,?,?)")
+	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step,formname,createtimestamp)values(?,?,?,?,?,?,?,?,?,?,?)")
 	defer stm.Close()
-	for _, item := range rf.Items {
-		_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, item.Kind, item.Resource, item.Target, item.Range.Start, item.Range.End, item.Range.Step, item.Meta.Name, rf.CreateTimestamp)
+	if len(rf.Items) > 0 {
+		for _, item := range rf.Items {
+			_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, item.Kind, item.Resource, item.Target, item.Range.Start, item.Range.End, item.Range.Step, item.Meta.Name, rf.CreateTimestamp)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	} else {
+		_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, "", "", "", "", "", "", "default", time.Now().Format(time.RFC3339))
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
+
+}
+
+// CreateFormSig ...
+func CreateFormSig(db *sql.DB, rf *report.Form) {
+	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step,formname,createtimestamp)values(?,?,?,?,?,?,?,?,?,?,?)")
+	defer stm.Close()
+	log.Print(rf)
+	_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Kind, rf.Resource, rf.Target, rf.Range.Start, rf.Range.End, rf.Range.Step, rf.Meta.Name, time.Now().Format(time.RFC3339))
+	if err != nil {
+		log.Print(err)
+	}
+
 }
 
 // ListForm ... need unit test
