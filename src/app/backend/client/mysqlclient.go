@@ -107,17 +107,18 @@ func GetForm(db *sql.DB, rf *report.FormList) {
 	}
 	defer stm.Close()
 	rf.Items = make([]*report.Form, 0)
-	rep := report.Form{}
-	rep.Range = &report.Range{}
-	for rows.Next() {
-		log.Printf("rep is %#v", rep)
 
+	for rows.Next() {
+		rep := &report.Form{}
+		rep.Range = &report.Range{}
 		if err := rows.Scan(&rep.Name, &rep.Kind, &rep.Resource, &rep.Target, &rep.Range.Start, &rep.Range.End, &rep.Range.Step, &rf.CreateTimestamp); err != nil {
 			log.Printf("GetForm: row scan happened error which is %#v", err)
 			log.Fatal(err)
 		}
 		rep.Meta = rf.Meta
-		rf.Items = append(rf.Items, &rep)
+
+		rf.Items = append(rf.Items, rep)
+
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("rows error is %v", err)
@@ -178,7 +179,7 @@ func CreateFormSig(db *sql.DB, rf *report.Form) {
 	stm, _ := db.Prepare("INSERT INTO report(name,namespace,username,kind,resource,target,start,end,step,formname,createtimestamp)values(?,?,?,?,?,?,?,?,?,?,?)")
 	defer stm.Close()
 	log.Print(rf)
-	_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Kind, rf.Resource, rf.Target, rf.Range.Start, rf.Range.End, rf.Range.Step, rf.Meta.Name, time.Now().Format(time.RFC3339))
+	_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Kind, rf.Resource, rf.Target, rf.Range.Start, rf.Range.End, rf.Range.Step, rf.Name, time.Now().Format(time.RFC3339))
 	if err != nil {
 		log.Print(err)
 	}
