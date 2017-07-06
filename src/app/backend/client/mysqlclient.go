@@ -200,12 +200,29 @@ func ListForm(db *sql.DB, rf report.Meta) []report.Info {
 	defer stm.Close()
 	defer rows.Close()
 	list := []report.Info{}
+
 	for rows.Next() {
 		var name, createtimestamp string
+		var set bool = true
 		if err := rows.Scan(&name, &createtimestamp); err != nil {
 			log.Fatal(err)
 		}
-		list = append(list, report.Info{Name: name, CreateTimestamp: createtimestamp})
+		log.Printf("list len is %#v", len(list))
+		if len(list) == 0 {
+			list = append(list, report.Info{Name: name, CreateTimestamp: createtimestamp})
+		}
+
+		for i := 0; i < len(list); i++ {
+
+			if list[i].Name == name {
+				set = false
+			}
+
+		}
+		if set == true {
+			list = append(list, report.Info{Name: name, CreateTimestamp: createtimestamp})
+		}
+
 		// fmt.Printf("name:%s ,id:is %d\n", name, id)
 	}
 	return list
