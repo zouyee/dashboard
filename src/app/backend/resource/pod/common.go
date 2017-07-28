@@ -128,7 +128,7 @@ func ToPod(pod *api.Pod, metrics *common.MetricsByPod, warnings []common.Event) 
 		PodStatus:    getPodStatus(*pod, warnings),
 		RestartCount: getRestartCount(*pod),
 	}
-
+	//log.Printf("~~~~~~~~~~~~~~~~~pod is %#v, metrics is %v", podDetail, metrics)
 	if metrics != nil && metrics.MetricsMap[pod.Namespace] != nil {
 		metric := metrics.MetricsMap[pod.Namespace][pod.Name]
 		podDetail.Metrics = &metric

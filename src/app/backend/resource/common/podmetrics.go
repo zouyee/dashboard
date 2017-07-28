@@ -63,7 +63,7 @@ func getPodListMetrics(podNamesByNamespace map[string][]string,
 	log.Printf("Getting pod metrics")
 
 	result := &MetricsByPod{MetricsMap: make(map[string]map[string]PodMetrics)}
-
+	startTime := time.Now()
 	for namespace, podNames := range podNamesByNamespace {
 		metricCPUUsagePath := createMetricPath(namespace, podNames, CpuUsage)
 		metricMemUsagePath := createMetricPath(namespace, podNames, MemoryUsage)
@@ -94,7 +94,7 @@ func getPodListMetrics(podNamesByNamespace map[string][]string,
 		fillPodMetrics(cpuMetricResult, memMetricResult, podNames,
 			result.MetricsMap[namespace])
 	}
-
+	log.Printf("~~~~~~(1)cost time %v\n", time.Now().Sub(startTime).Seconds())
 	return result, nil
 }
 

@@ -115,7 +115,7 @@ func CreatePodList(pods []api.Pod, events []api.Event, dsQuery *dataselect.DataS
 
 	cache := &dataselect.CachedResources{Pods: pods}
 
-	podCells, cumulativeMetricsPromises, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(toCells(pods), dsQuery,
+	podCells, _, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(toCells(pods), dsQuery,
 		cache, &heapsterClient)
 	pods = fromCells(podCells)
 	podList.ListMeta = common.ListMeta{TotalItems: filteredTotal}
@@ -128,12 +128,13 @@ func CreatePodList(pods []api.Pod, events []api.Event, dsQuery *dataselect.DataS
 		podList.Pods = append(podList.Pods, podDetail)
 
 	}
-	cumulativeMetrics, err := cumulativeMetricsPromises.GetMetrics()
+	//log.Printf("~~~~~~(3)cost time %v\n", time.Now().Sub(startTime).Seconds())
+	//cumulativeMetrics, err := cumulativeMetricsPromises.GetMetrics()
 
-	podList.CumulativeMetrics = cumulativeMetrics
-	if err != nil {
-		podList.CumulativeMetrics = make([]metric.Metric, 0)
-	}
-
+	//podList.CumulativeMetrics = cumulativeMetrics
+	//if err != nil {
+	podList.CumulativeMetrics = make([]metric.Metric, 0)
+	//}
+	//log.Printf("~~~~~~(2)cost time %v\n", time.Now().Sub(startTime).Seconds())
 	return podList
 }

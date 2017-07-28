@@ -817,6 +817,7 @@ func GetPodListMetricsChannel(heapsterClient kdClient.HeapsterClient, pods []api
 		}
 
 		metrics, err := getPodListMetrics(podNamesByNamespace, heapsterClient)
+
 		for i := 0; i < numReads; i++ {
 			channel.MetricsByPod <- metrics
 			channel.Error <- err

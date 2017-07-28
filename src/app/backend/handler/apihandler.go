@@ -81,6 +81,9 @@ const (
 	ResponseLogString = "[%s] Outcoming response to %s with %d status code"
 )
 
+// Cache ...
+var Cache, _ = client.New(100)
+
 // APIHandler is a representation of API handler. Structure contains client, Heapster client and
 // client configuration.
 type APIHandler struct {
@@ -91,6 +94,7 @@ type APIHandler struct {
 	mysqlClient      *sql.DB
 	verber           common.ResourceVerber
 	csrfKey          string
+	Cache            *client.Cache
 }
 
 // CsrfToken ...
@@ -214,7 +218,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		csrfKey = string(bytes)
 	}
 
-	apiHandler := APIHandler{client, heapsterClient, clientConfig, prometheusClient, mysql, verber, csrfKey}
+	apiHandler := APIHandler{client, heapsterClient, clientConfig, prometheusClient, mysql, verber, csrfKey, Cache}
 	wsContainer := restful.NewContainer()
 	wsContainer.EnableContentEncoding(true)
 
@@ -1233,16 +1237,43 @@ func (apiHandler *APIHandler) handleGetReplicationControllerList(
 // Handles get Workloads list API call.
 func (apiHandler *APIHandler) handleGetWorkloads(
 	request *restful.Request, response *restful.Response) {
-
+	var result interface{}
 	namespace := parseNamespacePathParameter(request)
+	if namespace.ToRequestParam() == "" {
+		if apiHandler.Cache.Contains("all") {
+			result, _ = apiHandler.Cache.Get("all")
+
+			response.WriteHeaderAndEntity(http.StatusOK, result)
+			return
+		}
+		result, err := workload.GetWorkloads(apiHandler.client, apiHandler.heapsterClient,
+			namespace, dataselect.StandardMetrics)
+		if err != nil {
+			handleInternalError(response, err)
+			return
+		}
+		apiHandler.Cache.Add("all", result)
+
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+		return
+
+	}
+	if apiHandler.Cache.Contains(namespace.ToRequestParam()) {
+		result, _ = apiHandler.Cache.Get(namespace.ToRequestParam())
+
+		response.WriteHeaderAndEntity(http.StatusOK, result)
+		return
+	}
 	result, err := workload.GetWorkloads(apiHandler.client, apiHandler.heapsterClient,
 		namespace, dataselect.StandardMetrics)
 	if err != nil {
 		handleInternalError(response, err)
 		return
 	}
+	apiHandler.Cache.Add(namespace.ToRequestParam(), result)
 
 	response.WriteHeaderAndEntity(http.StatusOK, result)
+
 }
 
 func (apiHandler *APIHandler) handleGetDiscovery(
