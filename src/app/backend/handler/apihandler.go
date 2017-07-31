@@ -1239,8 +1239,10 @@ func (apiHandler *APIHandler) handleGetWorkloads(
 	request *restful.Request, response *restful.Response) {
 	var result interface{}
 	namespace := parseNamespacePathParameter(request)
+	refresh, _ := strconv.ParseBool(request.QueryParameter("refresh"))
+
 	if namespace.ToRequestParam() == "" {
-		if apiHandler.Cache.Contains("all") {
+		if apiHandler.Cache.Contains("all") && !refresh {
 			result, _ = apiHandler.Cache.Get("all")
 
 			response.WriteHeaderAndEntity(http.StatusOK, result)
@@ -1258,7 +1260,7 @@ func (apiHandler *APIHandler) handleGetWorkloads(
 		return
 
 	}
-	if apiHandler.Cache.Contains(namespace.ToRequestParam()) {
+	if apiHandler.Cache.Contains(namespace.ToRequestParam()) && !refresh {
 		result, _ = apiHandler.Cache.Get(namespace.ToRequestParam())
 
 		response.WriteHeaderAndEntity(http.StatusOK, result)
