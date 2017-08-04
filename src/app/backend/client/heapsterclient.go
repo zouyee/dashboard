@@ -134,6 +134,8 @@ type HeapsterClient interface {
 	// endpoint. The path param is without the API prefix, e.g.,
 	// /model/namespaces/default/pod-list/foo/metrics/memory-usage
 	Get(path string) RequestInterface
+	Metrics() bool
+	SetMetrics(metric bool) HeapsterClient
 }
 
 // PrometheusClient is a client to used to make requests to a Prometheus instance
@@ -152,6 +154,7 @@ type RequestInterface interface {
 type InClusterHeapsterClient struct {
 	client rest.Interface
 	Cache  *Cache
+	Metric bool
 }
 
 // InClusterPrometheusClient is an in-cluster implementation of a Prometheus client. Talks with Prometheus
@@ -169,6 +172,15 @@ func (c InClusterHeapsterClient) Get(path string) RequestInterface {
 		Suffix("/api/v1" + path)
 }
 
+func (c InClusterHeapsterClient) Metrics() bool {
+	return c.Metric
+}
+
+func (c InClusterHeapsterClient) SetMetrics(metric bool) HeapsterClient {
+	c.Metric = metric
+	return c
+}
+
 // Get create request to given path
 func (c InClusterPrometheusClient) Get(path string) RequestInterface {
 	return c.client.Get().Prefix("proxy").
@@ -183,11 +195,21 @@ func (c InClusterPrometheusClient) Get(path string) RequestInterface {
 type RemoteHeapsterClient struct {
 	client rest.Interface
 	Cache  *Cache
+	Metric bool
 }
 
 // Get creates request to given path.
 func (c RemoteHeapsterClient) Get(path string) RequestInterface {
 	return c.client.Get().Suffix(path)
+}
+
+func (c RemoteHeapsterClient) Metrics() bool {
+	return c.Metric
+}
+
+func (c RemoteHeapsterClient) SetMetrics(metric bool) HeapsterClient {
+	c.Metric = metric
+	return c
 }
 
 // RemotePrometheusClient struct

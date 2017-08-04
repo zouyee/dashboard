@@ -15,6 +15,8 @@
 package common
 
 import (
+	"log"
+
 	kdClient "github.com/kubernetes/dashboard/src/app/backend/client"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -394,6 +396,7 @@ func GetDeploymentListChannel(client client.Interface,
 	}
 
 	go func() {
+		log.Printf("namespace is %s", nsQuery.ToRequestParam())
 		list, err := client.ExtensionsV1beta1().Deployments(nsQuery.ToRequestParam()).List(listEverything)
 		var filteredItems []extensions.Deployment
 		for _, item := range list.Items {

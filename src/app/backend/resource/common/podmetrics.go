@@ -22,8 +22,12 @@ import (
 	"time"
 
 	"github.com/kubernetes/dashboard/src/app/backend/client"
+
 	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
+
+// CacheMetric ...
+var CacheMetric, _ = client.New(100)
 
 const (
 	CpuUsage    = "cpu/usage_rate"
@@ -60,22 +64,41 @@ type PodMetrics struct {
 // with heapster.
 func getPodListMetrics(podNamesByNamespace map[string][]string,
 	heapsterClient client.HeapsterClient) (*MetricsByPod, error) {
-	log.Printf("Getting pod metrics")
 
 	result := &MetricsByPod{MetricsMap: make(map[string]map[string]PodMetrics)}
 	startTime := time.Now()
 	for namespace, podNames := range podNamesByNamespace {
+		log.Printf("pod namespace is %#v", namespace)
 		metricCPUUsagePath := createMetricPath(namespace, podNames, CpuUsage)
 		metricMemUsagePath := createMetricPath(namespace, podNames, MemoryUsage)
+		var resultCPUUsageRaw []byte
+		var resultMemUsageRaw []byte
+		var err error
+		if CacheMetric.Contains(metricCPUUsagePath) {
+			cputmp, _ := CacheMetric.Get(metricCPUUsagePath)
+			resultCPUUsageRaw = cputmp.([]byte)
+			//log.Printf("get cache %s", metricCPUUsagePath)
+		} else {
+			resultCPUUsageRaw, err = getRawMetrics(heapsterClient, metricCPUUsagePath)
 
-		resultCPUUsageRaw, err := getRawMetrics(heapsterClient, metricCPUUsagePath)
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
+			CacheMetric.Add(metricCPUUsagePath, resultCPUUsageRaw)
+			//log.Printf("add cache %s", metricCPUUsagePath)
 		}
+		if CacheMetric.Contains(metricMemUsagePath) {
+			memtmp, _ := CacheMetric.Get(metricMemUsagePath)
+			resultMemUsageRaw = memtmp.([]byte)
+			//log.Printf("get cache %s", metricCPUUsagePath)
+		} else {
+			resultMemUsageRaw, err = getRawMetrics(heapsterClient, metricMemUsagePath)
+			if err != nil {
+				return nil, err
+			}
+			CacheMetric.Add(metricMemUsagePath, resultMemUsageRaw)
+			//log.Printf("add cache %s", metricMemUsagePath)
 
-		resultMemUsageRaw, err := getRawMetrics(heapsterClient, metricMemUsagePath)
-		if err != nil {
-			return nil, err
 		}
 
 		cpuMetricResult, err := unmarshalMetrics(resultCPUUsageRaw)

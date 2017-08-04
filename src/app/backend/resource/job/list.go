@@ -117,15 +117,21 @@ func CreateJobList(jobs []batch.Job, pods []api.Pod, events []api.Event,
 	jobs = FromCells(jobCells)
 
 	for _, job := range jobs {
+		var podList *pod.PodList
+		var err error
 		var completions int32
 		matchingPods := common.FilterNamespacedPodsBySelector(pods, job.ObjectMeta.Namespace, job.Spec.Selector.MatchLabels)
 		if job.Spec.Completions != nil {
 			completions = *job.Spec.Completions
 		}
 		podInfo := common.GetPodEventInfo(job.Status.Active, completions, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
-		podList, err := getJobPods(job, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
-		if err != nil {
-			fmt.Printf("getdeploymentpods err is %#v", err)
+		if (*heapsterClient).Metrics() {
+			podList, err = getJobPods(job, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+			if err != nil {
+				fmt.Printf("getdeploymentpods err is %#v", err)
+			}
+		} else {
+			podList = &pod.PodList{}
 		}
 
 		jobList.Jobs = append(jobList.Jobs, ToJob(&job, &podInfo, podList))

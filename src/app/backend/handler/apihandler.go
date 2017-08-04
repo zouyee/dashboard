@@ -1239,40 +1239,19 @@ func (apiHandler *APIHandler) handleGetWorkloads(
 	request *restful.Request, response *restful.Response) {
 	var result interface{}
 	namespace := parseNamespacePathParameter(request)
-	refresh, _ := strconv.ParseBool(request.QueryParameter("refresh"))
-
-	if namespace.ToRequestParam() == "" {
-		if apiHandler.Cache.Contains("all") && !refresh {
-			result, _ = apiHandler.Cache.Get("all")
-
-			response.WriteHeaderAndEntity(http.StatusOK, result)
-			return
-		}
-		result, err := workload.GetWorkloads(apiHandler.client, apiHandler.heapsterClient,
-			namespace, dataselect.StandardMetrics)
-		if err != nil {
-			handleInternalError(response, err)
-			return
-		}
-		apiHandler.Cache.Add("all", result)
-
-		response.WriteHeaderAndEntity(http.StatusOK, result)
-		return
-
+	log.Printf("metrics is %#v", request.QueryParameter("metrics"))
+	if metrics, ok := strconv.ParseBool(request.QueryParameter("metrics")); ok != nil {
+		apiHandler.heapsterClient = apiHandler.heapsterClient.SetMetrics(false)
+	} else {
+		apiHandler.heapsterClient = apiHandler.heapsterClient.SetMetrics(metrics)
 	}
-	if apiHandler.Cache.Contains(namespace.ToRequestParam()) && !refresh {
-		result, _ = apiHandler.Cache.Get(namespace.ToRequestParam())
 
-		response.WriteHeaderAndEntity(http.StatusOK, result)
-		return
-	}
 	result, err := workload.GetWorkloads(apiHandler.client, apiHandler.heapsterClient,
 		namespace, dataselect.StandardMetrics)
 	if err != nil {
 		handleInternalError(response, err)
 		return
 	}
-	apiHandler.Cache.Add(namespace.ToRequestParam(), result)
 
 	response.WriteHeaderAndEntity(http.StatusOK, result)
 
