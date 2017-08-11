@@ -126,13 +126,10 @@ func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
 		podInfo := common.GetPodEventInfo(deployment.Status.Replicas, *deployment.Spec.Replicas,
 			matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 		log.Printf("===========get metrics or not is %#v", (*heapsterClient).Metrics())
-		if (*heapsterClient).Metrics() {
-			podList, err = getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
-			if err != nil {
-				fmt.Printf("getdeploymentpods err is %#v", err)
-			}
-		} else {
-			podList = &pod.PodList{}
+
+		podList, err = getDeploymentPods(deployment, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
 		}
 
 		deploymentList.Deployments = append(deploymentList.Deployments,

@@ -66,58 +66,61 @@ func getPodListMetrics(podNamesByNamespace map[string][]string,
 	heapsterClient client.HeapsterClient) (*MetricsByPod, error) {
 
 	result := &MetricsByPod{MetricsMap: make(map[string]map[string]PodMetrics)}
-	startTime := time.Now()
-	for namespace, podNames := range podNamesByNamespace {
-		log.Printf("pod namespace is %#v", namespace)
-		metricCPUUsagePath := createMetricPath(namespace, podNames, CpuUsage)
-		metricMemUsagePath := createMetricPath(namespace, podNames, MemoryUsage)
-		var resultCPUUsageRaw []byte
-		var resultMemUsageRaw []byte
-		var err error
-		if CacheMetric.Contains(metricCPUUsagePath) {
-			cputmp, _ := CacheMetric.Get(metricCPUUsagePath)
-			resultCPUUsageRaw = cputmp.([]byte)
-			//log.Printf("get cache %s", metricCPUUsagePath)
-		} else {
-			resultCPUUsageRaw, err = getRawMetrics(heapsterClient, metricCPUUsagePath)
+	if heapsterClient.Metrics() {
+		startTime := time.Now()
+		for namespace, podNames := range podNamesByNamespace {
+			log.Printf("pod namespace is %#v", namespace)
+			metricCPUUsagePath := createMetricPath(namespace, podNames, CpuUsage)
+			metricMemUsagePath := createMetricPath(namespace, podNames, MemoryUsage)
+			var resultCPUUsageRaw []byte
+			var resultMemUsageRaw []byte
+			var err error
+			if CacheMetric.Contains(metricCPUUsagePath) {
+				cputmp, _ := CacheMetric.Get(metricCPUUsagePath)
+				resultCPUUsageRaw = cputmp.([]byte)
+				log.Printf("get cache %s", metricCPUUsagePath)
+			} else {
+				resultCPUUsageRaw, err = getRawMetrics(heapsterClient, metricCPUUsagePath)
 
+				if err != nil {
+					return nil, err
+				}
+				CacheMetric.Add(metricCPUUsagePath, resultCPUUsageRaw)
+				log.Printf("add cache %s", metricCPUUsagePath)
+			}
+			if CacheMetric.Contains(metricMemUsagePath) {
+				memtmp, _ := CacheMetric.Get(metricMemUsagePath)
+				resultMemUsageRaw = memtmp.([]byte)
+				//log.Printf("get cache %s", metricCPUUsagePath)
+			} else {
+				resultMemUsageRaw, err = getRawMetrics(heapsterClient, metricMemUsagePath)
+				if err != nil {
+					return nil, err
+				}
+				CacheMetric.Add(metricMemUsagePath, resultMemUsageRaw)
+				//log.Printf("add cache %s", metricMemUsagePath)
+
+			}
+
+			cpuMetricResult, err := unmarshalMetrics(resultCPUUsageRaw)
 			if err != nil {
 				return nil, err
 			}
-			CacheMetric.Add(metricCPUUsagePath, resultCPUUsageRaw)
-			//log.Printf("add cache %s", metricCPUUsagePath)
-		}
-		if CacheMetric.Contains(metricMemUsagePath) {
-			memtmp, _ := CacheMetric.Get(metricMemUsagePath)
-			resultMemUsageRaw = memtmp.([]byte)
-			//log.Printf("get cache %s", metricCPUUsagePath)
-		} else {
-			resultMemUsageRaw, err = getRawMetrics(heapsterClient, metricMemUsagePath)
+			memMetricResult, err := unmarshalMetrics(resultMemUsageRaw)
 			if err != nil {
 				return nil, err
 			}
-			CacheMetric.Add(metricMemUsagePath, resultMemUsageRaw)
-			//log.Printf("add cache %s", metricMemUsagePath)
 
-		}
+			if result.MetricsMap[namespace] == nil {
+				result.MetricsMap[namespace] = make(map[string]PodMetrics)
+			}
 
-		cpuMetricResult, err := unmarshalMetrics(resultCPUUsageRaw)
-		if err != nil {
-			return nil, err
+			fillPodMetrics(cpuMetricResult, memMetricResult, podNames,
+				result.MetricsMap[namespace])
 		}
-		memMetricResult, err := unmarshalMetrics(resultMemUsageRaw)
-		if err != nil {
-			return nil, err
-		}
-
-		if result.MetricsMap[namespace] == nil {
-			result.MetricsMap[namespace] = make(map[string]PodMetrics)
-		}
-
-		fillPodMetrics(cpuMetricResult, memMetricResult, podNames,
-			result.MetricsMap[namespace])
+		log.Printf("~~~~~~(1)cost time %v\n", time.Now().Sub(startTime).Seconds())
+		return result, nil
 	}
-	log.Printf("~~~~~~(1)cost time %v\n", time.Now().Sub(startTime).Seconds())
 	return result, nil
 }
 

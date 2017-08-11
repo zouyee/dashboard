@@ -114,14 +114,12 @@ func CreateDaemonSetList(daemonSets []extensions.DaemonSet, pods []api.Pod,
 		matchingPods := common.FilterPodsByOwnerReference(daemonSet.Namespace, daemonSet.UID, pods)
 		podInfo := common.GetPodEventInfo(daemonSet.Status.CurrentNumberScheduled,
 			daemonSet.Status.DesiredNumberScheduled, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
-		if (*heapsterClient).Metrics() {
-			podList, err = getDaemonSetPods(daemonSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
-			if err != nil {
-				fmt.Printf("getdeploymentpods err is %#v", err)
-			}
-		} else {
-			podList = &pod.PodList{}
+
+		podList, err = getDaemonSetPods(daemonSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
 		}
+
 		daemonSetList.DaemonSets = append(daemonSetList.DaemonSets,
 			DaemonSet{
 				ObjectMeta:      common.NewObjectMeta(daemonSet.ObjectMeta),

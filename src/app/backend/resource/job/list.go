@@ -125,13 +125,10 @@ func CreateJobList(jobs []batch.Job, pods []api.Pod, events []api.Event,
 			completions = *job.Spec.Completions
 		}
 		podInfo := common.GetPodEventInfo(job.Status.Active, completions, matchingPods, event.GetPodsEventWarnings(events, matchingPods))
-		if (*heapsterClient).Metrics() {
-			podList, err = getJobPods(job, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
-			if err != nil {
-				fmt.Printf("getdeploymentpods err is %#v", err)
-			}
-		} else {
-			podList = &pod.PodList{}
+
+		podList, err = getJobPods(job, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		if err != nil {
+			fmt.Printf("getdeploymentpods err is %#v", err)
 		}
 
 		jobList.Jobs = append(jobList.Jobs, ToJob(&job, &podInfo, podList))

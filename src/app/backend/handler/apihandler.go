@@ -82,7 +82,7 @@ const (
 )
 
 // Cache ...
-var Cache, _ = client.New(100)
+var Cache, _ = client.New(500)
 
 // APIHandler is a representation of API handler. Structure contains client, Heapster client and
 // client configuration.
