@@ -127,7 +127,7 @@ func CreateStatefulSetList(statefulSets []apps.StatefulSet, pods []api.Pod, even
 		podInfo := common.GetPodEventInfo(statefulSet.Status.Replicas, *statefulSet.Spec.Replicas,
 			matchingPods, event.GetPodsEventWarnings(events, matchingPods))
 
-		podList, err = getStatefulSetPods(statefulSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, pods)
+		podList, err = getStatefulSetPods(statefulSet, *heapsterClient, dataselect.DefaultDataSelectWithMetrics, matchingPods)
 		if err != nil {
 			fmt.Printf("getdeploymentpods err is %#v", err)
 		}

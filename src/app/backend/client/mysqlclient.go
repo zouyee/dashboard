@@ -147,7 +147,7 @@ func DeleteForm(db *sql.DB, rf report.FormList) {
 func UpdateForm(db *sql.DB, rf *report.Form) {
 	stm, _ := db.Prepare("UPDATE report set kind=?,resource=?,target=?,start=?,end=?,step=? where name=? AND namespace=? AND username=? AND formname=?")
 	defer stm.Close()
-	_, err := stm.Exec(&rf.Kind, &rf.Resource, &rf.Target, &rf.Range.Start, &rf.Range.End, &rf.Range.Step, &rf.Name, &rf.Meta.NameSpace, &rf.Meta.User, &rf.Meta.Name)
+	_, err := stm.Exec(&rf.Kind, &rf.Resource, &rf.Target, &rf.Range.Start, &rf.Range.End, &rf.Range.Step, &rf.Meta.Name, &rf.Meta.NameSpace, &rf.Meta.User, &rf.Name)
 	if err != nil {
 		log.Fatal(err)
 	}

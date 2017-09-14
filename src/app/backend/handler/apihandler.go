@@ -797,11 +797,14 @@ func (apiHandler *APIHandler) handlePUTForm(request *restful.Request, response *
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("username")
 	name := request.PathParameter("name")
+	formname := request.PathParameter("formname")
 	rf := &report.Form{Meta: report.Meta{
 		Name:      name,
 		NameSpace: namespace,
 		User:      username,
-	}}
+	},
+		Name: formname,
+	}
 	if err := request.ReadEntity(rf); err != nil {
 		handleInternalError(response, err)
 		return
