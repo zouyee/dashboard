@@ -34,6 +34,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/config"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/configmap"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/container"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/cronjob"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/daemonset"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/deployment"
@@ -469,6 +470,19 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.GET("/job/{namespace}/{job}/event").
 			To(apiHandler.handleGetJobEvents).
 			Writes(common.EventList{}))
+
+	apiV1Ws.Route(
+		apiV1Ws.GET("/cronjob").
+			To(apiHandler.handleGetCronJobList).
+			Writes(job.JobList{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/cronjob/{namespace}").
+			To(apiHandler.handleGetCronJobList).
+			Writes(job.JobList{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/cronjob/{namespace}/{cronjob}").
+			To(apiHandler.handleGetCronJobDetail).
+			Writes(job.JobDetail{}))
 
 	apiV1Ws.Route(
 		apiV1Ws.POST("/namespace").
@@ -2040,6 +2054,37 @@ func (apiHandler *APIHandler) handleGetHorizontalPodAutoscalerDetail(request *re
 	horizontalpodautoscalerParam := request.PathParameter("horizontalpodautoscaler")
 
 	result, err := horizontalpodautoscaler.GetHorizontalPodAutoscalerDetail(apiHandler.client, namespace, horizontalpodautoscalerParam)
+	if err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeaderAndEntity(http.StatusOK, result)
+}
+
+// Handles get Jobs list API call.
+func (apiHandler *APIHandler) handleGetCronJobList(request *restful.Request,
+	response *restful.Response) {
+	namespace := parseNamespacePathParameter(request)
+	dataSelect := parseDataSelectPathParameter(request)
+	dataSelect.MetricQuery = dataselect.StandardMetrics
+
+	result, err := cronjob.GetCronJobList(apiHandler.client, namespace, dataSelect, &apiHandler.heapsterClient)
+	if err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeaderAndEntity(http.StatusOK, result)
+}
+
+func (apiHandler *APIHandler) handleGetCronJobDetail(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	cronjobParam := request.PathParameter("cronjob")
+	dataSelect := parseDataSelectPathParameter(request)
+	dataSelect.MetricQuery = dataselect.StandardMetrics
+
+	result, err := cronjob.GetCronJobDetail(apiHandler.client, &apiHandler.heapsterClient, namespace, cronjobParam)
 	if err != nil {
 		handleInternalError(response, err)
 		return
