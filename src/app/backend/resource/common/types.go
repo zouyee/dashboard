@@ -136,6 +136,7 @@ const (
 	ClientTypeExtensionClient   = "extensionclient"
 	ClientTypeAppsClient        = "appsclient"
 	ClientTypeBatchClient       = "batchclient"
+	ClientTypeBatchAlphaClient  = "batchv2alpha1client"
 	ClientTypeAutoscalingClient = "autoscalingclient"
 	ClientTypeStorageClient     = "storageclient"
 )
@@ -159,7 +160,7 @@ var kindToAPIMapping = map[string]struct {
 	ResourceKindHorizontalPodAutoscaler: {"horizontalpodautoscalers", ClientTypeAutoscalingClient, true},
 	ResourceKindIngress:                 {"ingresses", ClientTypeExtensionClient, true},
 	ResourceKindJob:                     {"jobs", ClientTypeBatchClient, true},
-	ResourceKindCronJob:                 {"cronjobs", ClientTypeBatchClient, true},
+	ResourceKindCronJob:                 {"cronjobs", ClientTypeBatchAlphaClient, true},
 	ResourceKindLimitRange:              {"limitrange", ClientTypeDefault, true},
 	ResourceKindNamespace:               {"namespaces", ClientTypeDefault, false},
 	ResourceKindNode:                    {"nodes", ClientTypeDefault, false},

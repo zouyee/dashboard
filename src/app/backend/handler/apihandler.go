@@ -200,7 +200,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 
 	verber := common.NewResourceVerber(client.CoreV1().RESTClient(),
 		client.ExtensionsV1beta1().RESTClient(), client.AppsV1beta1().RESTClient(),
-		client.BatchV1().RESTClient(), client.AutoscalingV1().RESTClient(), client.StorageV1beta1().RESTClient())
+		client.BatchV1().RESTClient(), client.BatchV2alpha1().RESTClient(), client.AutoscalingV1().RESTClient(), client.StorageV1beta1().RESTClient())
 
 	var csrfKey string
 	inClusterConfig, err := restclient.InClusterConfig()
