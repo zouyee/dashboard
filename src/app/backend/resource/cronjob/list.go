@@ -24,6 +24,7 @@ import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/job"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
 	batch2 "k8s.io/client-go/pkg/apis/batch/v2alpha1"
@@ -78,6 +79,15 @@ func GetCronJobListFromChannels(channels *common.ResourceChannels, dsQuery *data
 	cronJobs := <-channels.CronJobList.List
 	err := <-channels.CronJobList.Error
 	if err != nil {
+		statusErr, ok := err.(*k8serrors.StatusError)
+		if ok && statusErr.ErrStatus.Reason == "NotFound" {
+			// NotFound - this means that the server does not support Job objects, which
+			// is fine.
+			emptyList := &CronJobList{
+				CronJobs: make([]CronJob, 0),
+			}
+			return emptyList, nil
+		}
 		return nil, err
 	}
 
@@ -96,7 +106,6 @@ func GetCronJobListFromChannels(channels *common.ResourceChannels, dsQuery *data
 	if err := <-channels.EventList.Error; err != nil {
 		return nil, err
 	}
-	log.Printf("test=====job %v", jobs.Items[0].GetName())
 
 	joblists := job.CreateJobList(jobs.Items, pods.Items, events.Items, dsQuery, heapsterClient)
 	return toCronJobList(cronJobs.Items, joblists, dsQuery, heapsterClient), nil
