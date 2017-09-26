@@ -23,6 +23,14 @@ type FormList struct {
 	CreateTimestamp string  `json:"createtimestamp"`
 }
 
+// AppGroup app info
+type AppGroup struct {
+	Meta            Meta   `json:"meta"`
+	Parent          string `json:"parent"`
+	CreateTimestamp string `json:"createtimestamp"`
+	Status          string `json:"status"`
+}
+
 // Form report sth
 type Form struct {
 	// Meta: belong which FormList

@@ -726,7 +726,147 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.DELETE("/report/namespace/{namespace}/username/{username}/name/{name}/{formname}").
 			To(apiHandler.handleDeleteFormSig))
 
+	// app info
+	apiV1Ws.Route(
+		apiV1Ws.GET("/app/namespace/{namespace}").
+			To(apiHandler.handleGetAppGroupListWithNamespace).
+			Writes([]report.AppGroup{}))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}").
+			To(apiHandler.handleGetAppGroupListWithoutAppGroup).
+			Writes([]report.AppGroup{}))
+	apiV1Ws.Route(
+		apiV1Ws.POST("/app/namespace/{namespace}/user/{user}").
+			To(apiHandler.handleCreateAppGroup))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}/{app-group}").
+			To(apiHandler.handleGetAppGroupListWithAppGroup).
+			Writes([]report.AppGroup{}))
+	apiV1Ws.Route(
+		apiV1Ws.POST("/app/namespace/{namespace}/user/{user}/{app-group}").
+			To(apiHandler.handleCreateAppGroup))
+	apiV1Ws.Route(
+		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}/{app-group}").
+			To(apiHandler.handleUpdateAppGroup))
+	apiV1Ws.Route(
+		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}/{app-group}").
+			To(apiHandler.handleDeleteAppGroup))
+
 	return wsContainer, nil
+}
+
+func (apiHandler *APIHandler) handleGetAppGroupListWithNamespace(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+
+	app := report.AppGroup{
+		Meta: report.Meta{
+			NameSpace: namespace,
+		},
+	}
+	log.Printf("------ %#v", app)
+	list := client.ListAppGroup(apiHandler.mysqlClient, app)
+	response.WriteHeaderAndEntity(http.StatusOK, list)
+
+}
+
+func (apiHandler *APIHandler) handleGetAppGroupListWithoutAppGroup(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+
+	app := report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+	}
+	list := client.ListAppGroup(apiHandler.mysqlClient, app)
+	response.WriteHeaderAndEntity(http.StatusOK, list)
+
+}
+
+func (apiHandler *APIHandler) handleGetAppGroupListWithAppGroup(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.PathParameter("app-group")
+
+	app := report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+	}
+	fmt.Print(app)
+	list := client.ListAppGroup(apiHandler.mysqlClient, app)
+	response.WriteHeaderAndEntity(http.StatusOK, list)
+
+}
+
+func (apiHandler *APIHandler) handleCreateAppGroup(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.PathParameter("app-group")
+
+	app := &report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+		Status: "InUse",
+	}
+
+	if err := request.ReadEntity(app); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	client.CreateAppGroup(apiHandler.mysqlClient, *app)
+	response.WriteHeader(http.StatusCreated)
+
+}
+
+func (apiHandler *APIHandler) handleDeleteAppGroup(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.PathParameter("app-group")
+	force := request.QueryParameter("force")
+	app := report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+	}
+	if force == "true" {
+
+		client.DeleteAppGroup(apiHandler.mysqlClient, app)
+		response.WriteHeader(http.StatusOK)
+	}
+	app.Status = "trash"
+	client.UpdateAppGroup(apiHandler.mysqlClient, app)
+	response.WriteHeader(http.StatusOK)
+}
+
+func (apiHandler *APIHandler) handleUpdateAppGroup(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.PathParameter("app-group")
+
+	app := &report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+	}
+	if err := request.ReadEntity(app); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	client.UpdateAppGroup(apiHandler.mysqlClient, *app)
+	response.WriteHeader(http.StatusOK)
 }
 
 func (apiHandler *APIHandler) handleGetForm(request *restful.Request, response *restful.Response) {

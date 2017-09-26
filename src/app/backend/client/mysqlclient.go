@@ -29,11 +29,23 @@ var createTableStatements = []string{
 			createtimestamp varchar(40) NOT NULL,
       PRIMARY KEY (name,namespace,username,formname)
     )`,
+	`CREATE TABLE IF NOT EXISTS app (
+      name varchar (40) NOT NULL,
+      namespace varchar(40) NOT NULL,
+      user varchar(40) NOT NULL,
+			parent varchar(40) NOT NULL,
+			status varchar(40) NOT NULL,
+			createtimestamp varchar(40) NOT NULL,
+      PRIMARY KEY (name,namespace,user,parent)
+    )`,
 }
 
 /*
 mysql:
 name|namespace|username|kind|resource|target|start|end|step|formname|createtimestamp
+
+appgroup:
+name|namespace|user|parent|createtimestamp|status
 */
 
 // EnSureTableExist ...
@@ -63,6 +75,7 @@ func EnSureTableExist(mysqlHost string, mysqlPwd string) error {
 			return createTable(conn)
 		}
 	}
+
 	return err
 }
 
@@ -90,6 +103,102 @@ func CreateMySQLConn(mysqlHost string, mysqlPwd string) (*sql.DB, error) {
 		log.Fatalf("db.Ping found err:%v", err)
 	}
 	return db, nil
+}
+
+// CreateAppGroup ...
+func CreateAppGroup(db *sql.DB, rf report.AppGroup) {
+	stm, _ := db.Prepare("INSERT INTO app(name,namespace,user,parent,status,createtimestamp)values(?,?,?,?,?,?)")
+	defer stm.Close()
+
+	_, err := stm.Exec(rf.Meta.Name, rf.Meta.NameSpace, rf.Meta.User, rf.Parent, rf.Status, time.Now().Format(time.RFC3339))
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
+// UpdateAppGroup ...
+func UpdateAppGroup(db *sql.DB, rf report.AppGroup) {
+	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
+// DeleteAppGroup ...
+func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
+	stm, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent=?")
+	if err != nil {
+		log.Printf("prepare delete  app mysql happened error which is %#v", err)
+	}
+	_, err = stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	if err != nil {
+		log.Printf("delete form from mysql happened error which is %#v", err)
+	}
+	defer stm.Close()
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+// ListAppGroup ... need unit test
+func ListAppGroup(db *sql.DB, rf report.AppGroup) []report.AppGroup {
+	var stm *sql.Stmt
+	var rows *sql.Rows
+	var err error
+	switch {
+	case (rf.Meta.NameSpace != "") && (rf.Parent != "") && (rf.Meta.User != ""):
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND user=? AND parent=?")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		rows, err = stm.Query(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	case rf.Meta.NameSpace != "" && rf.Meta.User != "":
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND user=? AND parent='/'")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		rows, err = stm.Query(rf.Meta.NameSpace, rf.Meta.User)
+	case rf.Meta.NameSpace != "":
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND parent='/'")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		rows, err = stm.Query(rf.Meta.NameSpace)
+	}
+	list := []report.AppGroup{}
+	if err != nil {
+		log.Printf("GetForm: stm query happened error which is %#v", err)
+		return list
+	}
+
+	defer stm.Close()
+	defer rows.Close()
+
+	for rows.Next() {
+		var name, namespace, user, parent, status, createtimestamp string
+		if err := rows.Scan(&name, &namespace, &user, &parent, &status, &createtimestamp); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("list len is %#v", len(list))
+		if len(list) == 0 {
+			list = append(list, report.AppGroup{
+				Meta: report.Meta{
+					Name:      name,
+					NameSpace: namespace,
+					User:      user,
+				},
+				Parent:          parent,
+				CreateTimestamp: createtimestamp,
+				Status:          status,
+			})
+		}
+
+	}
+	return list
 }
 
 // GetForm ...
