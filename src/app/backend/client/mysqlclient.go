@@ -128,6 +128,24 @@ func UpdateAppGroup(db *sql.DB, rf report.AppGroup) {
 
 }
 
+// UpdateAppGroupSig ...
+func UpdateAppGroupSig(db *sql.DB, rf report.AppGroup) {
+	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	if err != nil {
+		log.Print(err)
+	}
+
+	stm1, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND name=?")
+	defer stm1.Close()
+	_, err = stm1.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
 // UpdateAppGroupGigAPP ...
 func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup) {
 	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=? AND name=?")
@@ -141,11 +159,11 @@ func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup) {
 
 // DeleteAppGroup ...
 func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
-	stm, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent=?")
+	stm, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND name=?")
 	if err != nil {
 		log.Printf("prepare delete  app mysql happened error which is %#v", err)
 	}
-	_, err = stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+	_, err = stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
 	if err != nil {
 		log.Printf("delete form from mysql happened error which is %#v", err)
 	}
@@ -153,6 +171,20 @@ func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 	if err != nil {
 		log.Print(err)
 	}
+
+	stm1, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent=?")
+	if err != nil {
+		log.Printf("prepare delete  app mysql happened error which is %#v", err)
+	}
+	_, err = stm1.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
+	if err != nil {
+		log.Printf("delete form from mysql happened error which is %#v", err)
+	}
+	defer stm1.Close()
+	if err != nil {
+		log.Print(err)
+	}
+
 }
 
 // ListAppGroup ... need unit test

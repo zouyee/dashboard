@@ -738,6 +738,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 	apiV1Ws.Route(
 		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleUpdateAppGroupSig))
+
 	apiV1Ws.Route(
 		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleGetAppGroupListWithoutAppGroup).
@@ -848,7 +849,8 @@ func (apiHandler *APIHandler) handleDeleteAppGroup(request *restful.Request, res
 		response.WriteHeader(http.StatusOK)
 	}
 	app.Status = "trash"
-	client.UpdateAppGroup(apiHandler.mysqlClient, app)
+
+	client.UpdateAppGroupSig(apiHandler.mysqlClient, app)
 	response.WriteHeader(http.StatusOK)
 }
 
