@@ -733,15 +733,19 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 			Writes([]report.AppGroup{}))
 	apiV1Ws.Route(
 		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}").
+			To(apiHandler.handleGetAppGroupListWithAppGroup).
+			Writes([]report.AppGroup{}))
+	apiV1Ws.Route(
+		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}").
+			To(apiHandler.handleUpdateAppGroupSig))
+	apiV1Ws.Route(
+		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleGetAppGroupListWithoutAppGroup).
 			Writes([]report.AppGroup{}))
 	apiV1Ws.Route(
 		apiV1Ws.POST("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleCreateAppGroup))
-	apiV1Ws.Route(
-		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}/{app-group}").
-			To(apiHandler.handleGetAppGroupListWithAppGroup).
-			Writes([]report.AppGroup{}))
+
 	apiV1Ws.Route(
 		apiV1Ws.POST("/app/namespace/{namespace}/user/{user}/{app-group}").
 			To(apiHandler.handleCreateAppGroup))
@@ -749,7 +753,7 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}/{app-group}").
 			To(apiHandler.handleUpdateAppGroup))
 	apiV1Ws.Route(
-		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}/{app-group}").
+		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleDeleteAppGroup))
 
 	return wsContainer, nil
@@ -787,7 +791,7 @@ func (apiHandler *APIHandler) handleGetAppGroupListWithoutAppGroup(request *rest
 func (apiHandler *APIHandler) handleGetAppGroupListWithAppGroup(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
-	appgroup := request.PathParameter("app-group")
+	appgroup := request.QueryParameter("app-group")
 
 	app := report.AppGroup{
 		Meta: report.Meta{
@@ -829,7 +833,7 @@ func (apiHandler *APIHandler) handleCreateAppGroup(request *restful.Request, res
 func (apiHandler *APIHandler) handleDeleteAppGroup(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
-	appgroup := request.PathParameter("app-group")
+	appgroup := request.QueryParameter("app-group")
 	force := request.QueryParameter("force")
 	app := report.AppGroup{
 		Meta: report.Meta{
@@ -866,6 +870,29 @@ func (apiHandler *APIHandler) handleUpdateAppGroup(request *restful.Request, res
 	}
 
 	client.UpdateAppGroup(apiHandler.mysqlClient, *app)
+	response.WriteHeader(http.StatusOK)
+}
+
+func (apiHandler *APIHandler) handleUpdateAppGroupSig(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+
+	app := &report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+	}
+	var err error
+	if err = request.ReadEntity(app); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+	if app.Parent == "" {
+		handleInternalError(response, err)
+		return
+	}
+	client.UpdateAppGroupGigAPP(apiHandler.mysqlClient, *app)
 	response.WriteHeader(http.StatusOK)
 }
 

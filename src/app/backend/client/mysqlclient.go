@@ -128,6 +128,17 @@ func UpdateAppGroup(db *sql.DB, rf report.AppGroup) {
 
 }
 
+// UpdateAppGroupGigAPP ...
+func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup) {
+	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=? AND name=?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent, rf.Meta.Name)
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
 // DeleteAppGroup ...
 func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 	stm, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent=?")
@@ -184,18 +195,17 @@ func ListAppGroup(db *sql.DB, rf report.AppGroup) []report.AppGroup {
 			log.Fatal(err)
 		}
 		log.Printf("list len is %#v", len(list))
-		if len(list) == 0 {
-			list = append(list, report.AppGroup{
-				Meta: report.Meta{
-					Name:      name,
-					NameSpace: namespace,
-					User:      user,
-				},
-				Parent:          parent,
-				CreateTimestamp: createtimestamp,
-				Status:          status,
-			})
-		}
+
+		list = append(list, report.AppGroup{
+			Meta: report.Meta{
+				Name:      name,
+				NameSpace: namespace,
+				User:      user,
+			},
+			Parent:          parent,
+			CreateTimestamp: createtimestamp,
+			Status:          status,
+		})
 
 	}
 	return list
