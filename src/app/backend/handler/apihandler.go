@@ -847,6 +847,7 @@ func (apiHandler *APIHandler) handleDeleteAppGroup(request *restful.Request, res
 
 		client.DeleteAppGroup(apiHandler.mysqlClient, app)
 		response.WriteHeader(http.StatusOK)
+		return
 	}
 	app.Status = "trash"
 

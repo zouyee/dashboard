@@ -163,7 +163,7 @@ func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 	if err != nil {
 		log.Printf("prepare delete  app mysql happened error which is %#v", err)
 	}
-	_, err = stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
+	_, err = stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
 	if err != nil {
 		log.Printf("delete form from mysql happened error which is %#v", err)
 	}
@@ -176,7 +176,7 @@ func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 	if err != nil {
 		log.Printf("prepare delete  app mysql happened error which is %#v", err)
 	}
-	_, err = stm1.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
+	_, err = stm1.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
 	if err != nil {
 		log.Printf("delete form from mysql happened error which is %#v", err)
 	}
