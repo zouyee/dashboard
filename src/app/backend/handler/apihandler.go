@@ -754,6 +754,9 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}/fuzzy").
 			To(apiHandler.handleUpdateAppGroupFuzzy))
 	apiV1Ws.Route(
+		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}/fuzzy").
+			To(apiHandler.handleDeleteAppGroupFuzzy))
+	apiV1Ws.Route(
 		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleDeleteAppGroup))
 
@@ -847,6 +850,30 @@ func (apiHandler *APIHandler) handleCreateAppGroup(request *restful.Request, res
 	client.CreateAppGroup(apiHandler.mysqlClient, *app)
 	response.WriteHeader(http.StatusCreated)
 
+}
+
+func (apiHandler *APIHandler) handleDeleteAppGroupFuzzy(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.QueryParameter("app-group")
+	force := request.QueryParameter("force")
+	app := report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+	}
+	if force == "true" {
+
+		client.DeleteAppGroupFuzzy(apiHandler.mysqlClient, app)
+		response.WriteHeader(http.StatusOK)
+		return
+	}
+	app.Status = "trash"
+
+	client.UpdateAppGroupSIGFuzzy(apiHandler.mysqlClient, app)
+	response.WriteHeader(http.StatusOK)
 }
 
 func (apiHandler *APIHandler) handleDeleteAppGroup(request *restful.Request, response *restful.Response) {

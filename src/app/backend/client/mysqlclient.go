@@ -117,6 +117,18 @@ func CreateAppGroup(db *sql.DB, rf report.AppGroup) {
 
 }
 
+// UpdateAppGroupSIGFuzzy ...
+func UpdateAppGroupSIGFuzzy(db *sql.DB, rf report.AppGroup) {
+	parent := rf.Parent + "%"
+	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent LIKE ?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, parent)
+	if err != nil {
+		log.Print(err)
+	}
+
+}
+
 // UpdateAppGroupFuzzy ...
 func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup) {
 	for _, rf := range rfs {
@@ -126,6 +138,28 @@ func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup) {
 		if err != nil {
 			log.Print(err)
 		}
+	}
+}
+
+// DeleteAppGroupFuzzy ...
+func DeleteAppGroupFuzzy(db *sql.DB, rf report.AppGroup) {
+	parent := rf.Parent + "%"
+	stm, _ := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent LIKE ?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, parent)
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+// DeleteAppGroupSIGFuzzy ...
+func DeleteAppGroupSIGFuzzy(db *sql.DB, rf report.AppGroup) {
+	parent := rf.Parent + "%"
+	stm, _ := db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent LIKE ?")
+	defer stm.Close()
+	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, parent)
+	if err != nil {
+		log.Print(err)
 	}
 }
 
