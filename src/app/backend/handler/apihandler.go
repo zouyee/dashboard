@@ -748,11 +748,11 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 			To(apiHandler.handleCreateAppGroup))
 
 	apiV1Ws.Route(
-		apiV1Ws.POST("/app/namespace/{namespace}/user/{user}/{app-group}").
-			To(apiHandler.handleCreateAppGroup))
+		apiV1Ws.GET("/app/namespace/{namespace}/user/{user}/fuzzy").
+			To(apiHandler.handleGetAppGroupListFuzzy))
 	apiV1Ws.Route(
-		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}/{app-group}").
-			To(apiHandler.handleUpdateAppGroup))
+		apiV1Ws.PUT("/app/namespace/{namespace}/user/{user}/fuzzy").
+			To(apiHandler.handleUpdateAppGroupFuzzy))
 	apiV1Ws.Route(
 		apiV1Ws.DELETE("/app/namespace/{namespace}/user/{user}").
 			To(apiHandler.handleDeleteAppGroup))
@@ -785,6 +785,24 @@ func (apiHandler *APIHandler) handleGetAppGroupListWithoutAppGroup(request *rest
 		},
 	}
 	list := client.ListAppGroup(apiHandler.mysqlClient, app)
+	response.WriteHeaderAndEntity(http.StatusOK, list)
+
+}
+
+func (apiHandler *APIHandler) handleGetAppGroupListFuzzy(request *restful.Request, response *restful.Response) {
+	namespace := request.PathParameter("namespace")
+	username := request.PathParameter("user")
+	appgroup := request.QueryParameter("app-group")
+
+	app := report.AppGroup{
+		Meta: report.Meta{
+			User:      username,
+			NameSpace: namespace,
+		},
+		Parent: appgroup,
+	}
+	fmt.Print(app)
+	list := client.ListAppGroupFuzzy(apiHandler.mysqlClient, app)
 	response.WriteHeaderAndEntity(http.StatusOK, list)
 
 }
@@ -873,6 +891,18 @@ func (apiHandler *APIHandler) handleUpdateAppGroup(request *restful.Request, res
 	}
 
 	client.UpdateAppGroup(apiHandler.mysqlClient, *app)
+	response.WriteHeader(http.StatusOK)
+}
+
+func (apiHandler *APIHandler) handleUpdateAppGroupFuzzy(request *restful.Request, response *restful.Response) {
+
+	app := make([]report.AppGroup, 0)
+	if err := request.ReadEntity(&app); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	client.UpdateAppGroupFuzzy(apiHandler.mysqlClient, app)
 	response.WriteHeader(http.StatusOK)
 }
 

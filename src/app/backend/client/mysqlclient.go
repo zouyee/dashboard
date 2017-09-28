@@ -117,6 +117,18 @@ func CreateAppGroup(db *sql.DB, rf report.AppGroup) {
 
 }
 
+// UpdateAppGroupFuzzy ...
+func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup) {
+	for _, rf := range rfs {
+		stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=?")
+		defer stm.Close()
+		_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
+		if err != nil {
+			log.Print(err)
+		}
+	}
+}
+
 // UpdateAppGroup ...
 func UpdateAppGroup(db *sql.DB, rf report.AppGroup) {
 	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=?")
@@ -185,6 +197,63 @@ func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 		log.Print(err)
 	}
 
+}
+
+// ListAppGroupFuzzy ... need unit test
+func ListAppGroupFuzzy(db *sql.DB, rf report.AppGroup) []report.AppGroup {
+	var stm *sql.Stmt
+	var rows *sql.Rows
+	var err error
+	switch {
+	case (rf.Meta.NameSpace != "") && (rf.Parent != "") && (rf.Meta.User != ""):
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND user=? AND parent LIKE ?")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		like := rf.Parent + "%"
+		rows, err = stm.Query(rf.Meta.NameSpace, rf.Meta.User, like)
+	case rf.Meta.NameSpace != "" && rf.Meta.User != "":
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND user=? AND parent Like '/'")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		rows, err = stm.Query(rf.Meta.NameSpace, rf.Meta.User)
+	case rf.Meta.NameSpace != "":
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND parent Like '/'")
+		if err != nil {
+			log.Printf("stm perpare happened error which is %#v", err)
+		}
+		rows, err = stm.Query(rf.Meta.NameSpace)
+	}
+	list := []report.AppGroup{}
+	if err != nil {
+		log.Printf("GetForm: stm query happened error which is %#v", err)
+		return list
+	}
+
+	defer stm.Close()
+	defer rows.Close()
+
+	for rows.Next() {
+		var name, namespace, user, parent, status, createtimestamp string
+		if err := rows.Scan(&name, &namespace, &user, &parent, &status, &createtimestamp); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("list len is %#v", len(list))
+
+		list = append(list, report.AppGroup{
+			Meta: report.Meta{
+				Name:      name,
+				NameSpace: namespace,
+				User:      user,
+			},
+			Parent:          parent,
+			CreateTimestamp: createtimestamp,
+			Status:          status,
+		})
+
+	}
+	return list
 }
 
 // ListAppGroup ... need unit test
