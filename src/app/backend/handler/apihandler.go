@@ -796,6 +796,7 @@ func (apiHandler *APIHandler) handleGetAppGroupListFuzzy(request *restful.Reques
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
 	appgroup := request.QueryParameter("app-group")
+	role := request.QueryParameter("role")
 
 	app := report.AppGroup{
 		Meta: report.Meta{
@@ -805,6 +806,9 @@ func (apiHandler *APIHandler) handleGetAppGroupListFuzzy(request *restful.Reques
 		Parent: appgroup,
 	}
 	fmt.Print(app)
+	if role == "admin" {
+		app.Meta.User = ""
+	}
 	list := client.ListAppGroupFuzzy(apiHandler.mysqlClient, app)
 	response.WriteHeaderAndEntity(http.StatusOK, list)
 
