@@ -230,7 +230,16 @@ func UpdateAppGroupSig(db *sql.DB, rf report.AppGroup) {
 }
 
 // UpdateAppGroupGigAPP ...
-func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup) {
+func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup, role string) {
+	if role == "admin" {
+		stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND parent=? AND name=?")
+		defer stm.Close()
+		_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Parent, rf.Meta.Name)
+		if err != nil {
+			log.Print(err)
+		}
+		return
+	}
 	stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND user=? AND parent=? AND name=?")
 	defer stm.Close()
 	_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Meta.User, rf.Parent, rf.Meta.Name)

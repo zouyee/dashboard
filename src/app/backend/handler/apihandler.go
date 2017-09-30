@@ -880,7 +880,7 @@ func (apiHandler *APIHandler) handleDeleteAppGroupFuzzy(request *restful.Request
 	}
 	app.Status = "trash"
 
-	client.UpdateAppGroupSIGFuzzy(apiHandler.mysqlClient, app)
+	client.UpdateAppGroupSIGFuzzy(apiHandler.mysqlClient, app, role)
 	response.WriteHeader(http.StatusOK)
 }
 
