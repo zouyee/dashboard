@@ -944,7 +944,7 @@ func (apiHandler *APIHandler) handleUpdateAppGroupFuzzy(request *restful.Request
 func (apiHandler *APIHandler) handleUpdateAppGroupSig(request *restful.Request, response *restful.Response) {
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
-
+	role := request.QueryParameter("role")
 	app := &report.AppGroup{
 		Meta: report.Meta{
 			User:      username,
@@ -956,11 +956,14 @@ func (apiHandler *APIHandler) handleUpdateAppGroupSig(request *restful.Request, 
 		handleInternalError(response, err)
 		return
 	}
+	if role == "" {
+		app.Meta.User = ""
+	}
 	if app.Parent == "" {
 		handleInternalError(response, err)
 		return
 	}
-	client.UpdateAppGroupGigAPP(apiHandler.mysqlClient, *app)
+	client.UpdateAppGroupGigAPP(apiHandler.mysqlClient, *app, role)
 	response.WriteHeader(http.StatusOK)
 }
 
