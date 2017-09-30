@@ -861,12 +861,16 @@ func (apiHandler *APIHandler) handleDeleteAppGroupFuzzy(request *restful.Request
 	username := request.PathParameter("user")
 	appgroup := request.QueryParameter("app-group")
 	force := request.QueryParameter("force")
+	role := request.QueryParameter("role")
 	app := report.AppGroup{
 		Meta: report.Meta{
 			User:      username,
 			NameSpace: namespace,
 		},
 		Parent: appgroup,
+	}
+	if role == "admin" {
+		app.Meta.User = ""
 	}
 	if force == "true" {
 
@@ -926,14 +930,14 @@ func (apiHandler *APIHandler) handleUpdateAppGroup(request *restful.Request, res
 }
 
 func (apiHandler *APIHandler) handleUpdateAppGroupFuzzy(request *restful.Request, response *restful.Response) {
-
+	role := request.QueryParameter("role")
 	app := make([]report.AppGroup, 0)
 	if err := request.ReadEntity(&app); err != nil {
 		handleInternalError(response, err)
 		return
 	}
 
-	client.UpdateAppGroupFuzzy(apiHandler.mysqlClient, app)
+	client.UpdateAppGroupFuzzy(apiHandler.mysqlClient, app, role)
 	response.WriteHeader(http.StatusOK)
 }
 
