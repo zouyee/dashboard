@@ -147,7 +147,8 @@ func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup, role string) {
 		for _, rf := range rfs {
 			stm, _ := db.Prepare("UPDATE app set status=? where namespace=? AND parent=?")
 			defer stm.Close()
-			_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, rf.Parent)
+			like := rf.Parent + "%"
+			_, err := stm.Exec(rf.Status, rf.Meta.NameSpace, like)
 			if err != nil {
 				log.Print(err)
 			}
@@ -299,11 +300,12 @@ func ListAppGroupFuzzy(db *sql.DB, rf report.AppGroup) []report.AppGroup {
 		}
 		rows, err = stm.Query(rf.Meta.NameSpace, rf.Meta.User)
 	case rf.Meta.NameSpace != "":
-		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND parent Like '/'")
+		stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND parent Like ?")
 		if err != nil {
 			log.Printf("stm perpare happened error which is %#v", err)
 		}
-		rows, err = stm.Query(rf.Meta.NameSpace)
+		like := rf.Parent + "%"
+		rows, err = stm.Query(rf.Meta.NameSpace, like)
 	}
 	list := []report.AppGroup{}
 	if err != nil {
