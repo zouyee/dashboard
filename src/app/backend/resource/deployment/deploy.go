@@ -249,6 +249,111 @@ func DeployApp(spec *AppDeploymentSpec, client client.Interface) error {
 	return nil
 }
 
+// UpdateApp deploys an app based on the given configuration. The app is deployed using the given
+// client. App deployment consists of a deployment and an optional service. Both of them
+// share common labels.
+func UpdateApp(spec *AppDeploymentSpec, client client.Interface) error {
+	log.Printf("Deploying %s application into %s namespace", spec.Name, spec.Namespace)
+
+	annotations := map[string]string{}
+	if spec.Description != nil {
+		annotations[DescriptionAnnotationKey] = *spec.Description
+	}
+	labels := getLabelsMap(spec.Labels)
+	objectMeta := metaV1.ObjectMeta{
+		Annotations: annotations,
+		Name:        spec.Name,
+		Labels:      labels,
+	}
+
+	containerSpec := api.Container{
+		Name:  spec.Name,
+		Image: spec.ContainerImage,
+		SecurityContext: &api.SecurityContext{
+			Privileged: &spec.RunAsPrivileged,
+		},
+		Resources: api.ResourceRequirements{
+			Requests: make(map[api.ResourceName]resource.Quantity),
+		},
+		Env: convertEnvVarsSpec(spec.Variables),
+	}
+
+	if spec.ContainerCommand != nil {
+		containerSpec.Command = []string{*spec.ContainerCommand}
+	}
+	if spec.ContainerCommandArgs != nil {
+		containerSpec.Args = []string{*spec.ContainerCommandArgs}
+	}
+
+	if spec.CpuRequirement != nil {
+		containerSpec.Resources.Requests[api.ResourceCPU] = *spec.CpuRequirement
+	}
+	if spec.MemoryRequirement != nil {
+		containerSpec.Resources.Requests[api.ResourceMemory] = *spec.MemoryRequirement
+	}
+	podSpec := api.PodSpec{
+		Containers: []api.Container{containerSpec},
+	}
+	if spec.ImagePullSecret != nil {
+		podSpec.ImagePullSecrets = []api.LocalObjectReference{{Name: *spec.ImagePullSecret}}
+	}
+
+	podTemplate := api.PodTemplateSpec{
+		ObjectMeta: objectMeta,
+		Spec:       podSpec,
+	}
+
+	deployment := &extensions.Deployment{
+		ObjectMeta: objectMeta,
+		Spec: extensions.DeploymentSpec{
+			Replicas: &spec.Replicas,
+			Template: podTemplate,
+		},
+	}
+	_, err := client.ExtensionsV1beta1().Deployments(spec.Namespace).Update(deployment)
+
+	if err != nil {
+		// TODO(bryk): Roll back created resources in case of error.
+		return err
+	}
+
+	if len(spec.PortMappings) > 0 {
+		service := &api.Service{
+			ObjectMeta: objectMeta,
+			Spec: api.ServiceSpec{
+				Selector: labels,
+			},
+		}
+
+		if spec.IsExternal {
+			service.Spec.Type = api.ServiceTypeLoadBalancer
+		} else {
+			service.Spec.Type = api.ServiceTypeClusterIP
+		}
+
+		for _, portMapping := range spec.PortMappings {
+			servicePort :=
+				api.ServicePort{
+					Protocol: portMapping.Protocol,
+					Port:     portMapping.Port,
+					Name:     generatePortMappingName(portMapping),
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: portMapping.TargetPort,
+					},
+				}
+			service.Spec.Ports = append(service.Spec.Ports, servicePort)
+		}
+
+		_, err = client.CoreV1().Services(spec.Namespace).Update(service)
+
+		// TODO(bryk): Roll back created resources in case of error.
+		return err
+	}
+
+	return nil
+}
+
 // GetAvailableProtocols returns list of available protocols. Currently it is TCP and UDP.
 func GetAvailableProtocols() *Protocols {
 	return &Protocols{Protocols: []api.Protocol{api.ProtocolTCP, api.ProtocolUDP}}
@@ -320,6 +425,80 @@ func DeployAppFromFile(spec *AppDeploymentFromFileSpec,
 		}
 		return err
 	})
+	return deployedResourcesCount > 0, err
+}
 
+// DeployAppFromFile deploys an app based on the given yaml or json file.
+func UpdateAppFromFile(spec *AppDeploymentFromFileSpec,
+	createObjectFromInfoFn createObjectFromInfo) (bool, error) {
+	const emptyCacheDir = ""
+	validate := spec.Validate
+
+	factory := cmdutil.NewFactory(nil)
+	schema, err := factory.Validator(validate, emptyCacheDir)
+	if err != nil {
+		return false, err
+	}
+
+	mapper, typer := factory.Object()
+	reader := strings.NewReader(spec.Content)
+
+	r := kubectlResource.NewBuilder(mapper, typer, kubectlResource.ClientMapperFunc(factory.ClientForMapping), factory.Decoder(true)).
+		Schema(schema).
+		NamespaceParam(api.NamespaceDefault).DefaultNamespace().
+		Stream(reader, spec.Name).
+		Flatten().
+		Do()
+
+	deployedResourcesCount := 0
+
+	err = r.Visit(func(info *kubectlResource.Info, err error) error {
+		isDeployed, err := replaceFromInfoFn(info)
+		if isDeployed {
+			deployedResourcesCount++
+			log.Printf("%s is deployed", info.Name)
+		}
+		return err
+	})
+	return deployedResourcesCount > 0, err
+}
+
+// replaceFromInfoFn is an implementation of createObjectFromInfo
+func replaceFromInfoFn(info *kubectlResource.Info) (bool, error) {
+	createdResource, err := kubectlResource.NewHelper(info.Client, info.Mapping).Replace(info.Namespace, info.Name, true, info.Object)
+	return createdResource != nil, err
+}
+
+// DeployAppFromFile deploys an app based on the given yaml or json file.
+func DeleteAppFromFile(spec *AppDeploymentFromFileSpec) (bool, error) {
+	const emptyCacheDir = ""
+	validate := spec.Validate
+
+	factory := cmdutil.NewFactory(nil)
+	schema, err := factory.Validator(validate, emptyCacheDir)
+	if err != nil {
+		return false, err
+	}
+
+	mapper, typer := factory.Object()
+	reader := strings.NewReader(spec.Content)
+
+	r := kubectlResource.NewBuilder(mapper, typer, kubectlResource.ClientMapperFunc(factory.ClientForMapping), factory.Decoder(true)).
+		Schema(schema).
+		NamespaceParam(api.NamespaceDefault).DefaultNamespace().
+		Stream(reader, spec.Name).
+		Flatten().
+		Do()
+
+	deployedResourcesCount := 0
+
+	err = r.Visit(func(info *kubectlResource.Info, err error) error {
+		err = kubectlResource.NewHelper(info.Client, info.Mapping).Delete(info.Namespace, info.Name)
+		if err == nil {
+			deployedResourcesCount++
+			log.Printf("%s is deleted", info.Name)
+		}
+		return err
+	})
 	return deployedResourcesCount > 0, err
 }

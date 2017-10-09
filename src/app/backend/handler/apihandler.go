@@ -277,6 +277,12 @@ func CreateHTTPAPIHandler(client *clientK8s.Clientset, heapsterClient client.Hea
 			To(apiHandler.handleDeployFromFile).
 			Reads(deployment.AppDeploymentFromFileSpec{}).
 			Writes(deployment.AppDeploymentFromFileResponse{}))
+	apiV1Ws.Route(
+		apiV1Ws.PUT("/appdeploymentfromfile").
+			To(apiHandler.handleUpdateFromFile))
+	apiV1Ws.Route(
+		apiV1Ws.DELETE("/appdeploymentfromfile").
+			To(apiHandler.handleDeleteFromFile))
 
 	apiV1Ws.Route(
 		apiV1Ws.GET("/replicationcontroller").
@@ -1380,6 +1386,21 @@ func (apiHandler *APIHandler) handleDeploy(request *restful.Request, response *r
 	response.WriteHeaderAndEntity(http.StatusCreated, appDeploymentSpec)
 }
 
+// Handles deploy API call.
+func (apiHandler *APIHandler) handleUpdateDeploy(request *restful.Request, response *restful.Response) {
+	appDeploymentSpec := new(deployment.AppDeploymentSpec)
+	if err := request.ReadEntity(appDeploymentSpec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+	if err := deployment.DeployApp(appDeploymentSpec, apiHandler.client); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	response.WriteHeaderAndEntity(http.StatusCreated, appDeploymentSpec)
+}
+
 // Handles deploy from file API call.
 func (apiHandler *APIHandler) handleDeployFromFile(request *restful.Request, response *restful.Response) {
 	deploymentSpec := new(deployment.AppDeploymentFromFileSpec)
@@ -1391,6 +1412,60 @@ func (apiHandler *APIHandler) handleDeployFromFile(request *restful.Request, res
 	isDeployed, err := deployment.DeployAppFromFile(
 		deploymentSpec, deployment.CreateObjectFromInfoFn)
 	if !isDeployed {
+		handleInternalError(response, err)
+		return
+	}
+
+	errorMessage := ""
+	if err != nil {
+		errorMessage = err.Error()
+	}
+
+	response.WriteHeaderAndEntity(http.StatusCreated, deployment.AppDeploymentFromFileResponse{
+		Name:    deploymentSpec.Name,
+		Content: deploymentSpec.Content,
+		Error:   errorMessage,
+	})
+}
+
+// Handles deploy from file API call.
+func (apiHandler *APIHandler) handleUpdateFromFile(request *restful.Request, response *restful.Response) {
+	deploymentSpec := new(deployment.AppDeploymentFromFileSpec)
+	if err := request.ReadEntity(deploymentSpec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	isDeployed, err := deployment.UpdateAppFromFile(
+		deploymentSpec, deployment.CreateObjectFromInfoFn)
+	if !isDeployed {
+		handleInternalError(response, err)
+		return
+	}
+
+	errorMessage := ""
+	if err != nil {
+		errorMessage = err.Error()
+	}
+
+	response.WriteHeaderAndEntity(http.StatusCreated, deployment.AppDeploymentFromFileResponse{
+		Name:    deploymentSpec.Name,
+		Content: deploymentSpec.Content,
+		Error:   errorMessage,
+	})
+}
+
+// Handles deploy from file API call.
+func (apiHandler *APIHandler) handleDeleteFromFile(request *restful.Request, response *restful.Response) {
+	deploymentSpec := new(deployment.AppDeploymentFromFileSpec)
+	if err := request.ReadEntity(deploymentSpec); err != nil {
+		handleInternalError(response, err)
+		return
+	}
+
+	_, err := deployment.DeleteAppFromFile(
+		deploymentSpec)
+	if err != nil {
 		handleInternalError(response, err)
 		return
 	}
