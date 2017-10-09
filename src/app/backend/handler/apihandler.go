@@ -962,7 +962,7 @@ func (apiHandler *APIHandler) handleUpdateAppGroupSig(request *restful.Request, 
 		handleInternalError(response, err)
 		return
 	}
-	if role == "" {
+	if role == "admin" {
 		app.Meta.User = ""
 	}
 	if app.Parent == "" {
