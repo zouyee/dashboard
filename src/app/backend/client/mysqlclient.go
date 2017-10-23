@@ -169,21 +169,21 @@ func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup, role string) {
 
 // DeleteAppGroupFuzzy ...
 func DeleteAppGroupFuzzy(db *sql.DB, rf report.AppGroup) {
-	parent := rf.Parent + "%"
+
 	var stm *sql.Stmt
 	if rf.Meta.User == "" {
-		stm, _ = db.Prepare("DELETE FROM app where namespace=?  AND parent LIKE ?")
+		stm, _ = db.Prepare("DELETE FROM app where namespace=?  AND name = ?")
 		defer stm.Close()
-		_, err := stm.Exec(rf.Meta.NameSpace, parent)
+		_, err := stm.Exec(rf.Meta.NameSpace, rf.Meta.Name)
 		if err != nil {
 			log.Print(err)
 		}
 		return
 	}
 
-	stm, _ = db.Prepare("DELETE FROM app where namespace=? AND user=? AND parent LIKE ?")
+	stm, _ = db.Prepare("DELETE FROM app where namespace=? AND user=? AND name = ?")
 	defer stm.Close()
-	_, err := stm.Exec(rf.Meta.NameSpace, rf.Meta.User, parent)
+	_, err := stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
 	if err != nil {
 		log.Print(err)
 	}
