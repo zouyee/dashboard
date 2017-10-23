@@ -824,7 +824,7 @@ func (apiHandler *APIHandler) handleGetAppGroupListWithAppGroup(request *restful
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
 	appgroup := request.QueryParameter("app-group")
-	appgroup := request.QueryParameter("role")
+	role := request.QueryParameter("role")
 
 	app := report.AppGroup{
 		Meta: report.Meta{
@@ -833,7 +833,11 @@ func (apiHandler *APIHandler) handleGetAppGroupListWithAppGroup(request *restful
 		},
 		Parent: appgroup,
 	}
-	fmt.Print(app)
+	if role == "admin" {
+		list := client.ListAppGroupAdmin(apiHandler.mysqlClient, app)
+		response.WriteHeaderAndEntity(http.StatusOK, list)
+		return
+	}
 	list := client.ListAppGroup(apiHandler.mysqlClient, app)
 	response.WriteHeaderAndEntity(http.StatusOK, list)
 
