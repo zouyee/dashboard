@@ -885,7 +885,7 @@ func (apiHandler *APIHandler) handleDeleteAppGroupFuzzy(request *restful.Request
 	}
 	if force == "true" {
 
-		client.DeleteAppGroupFuzzy(apiHandler.mysqlClient, app)
+		client.DeleteAppGroupFuzzy(apiHandler.mysqlClient, app, username)
 		response.WriteHeader(http.StatusOK)
 		return
 	}
