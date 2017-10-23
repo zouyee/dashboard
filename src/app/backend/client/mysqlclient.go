@@ -250,6 +250,50 @@ func UpdateAppGroupGigAPP(db *sql.DB, rf report.AppGroup, role string) {
 
 }
 
+// ListAppGroupAdmin ... need unit test
+func ListAppGroupAdmin(db *sql.DB, rf report.AppGroup) []report.AppGroup {
+	var stm *sql.Stmt
+	var rows *sql.Rows
+	var err error
+
+	stm, err = db.Prepare("SELECT name,namespace,user,parent,status,createtimestamp FROM app where namespace=? AND parent = ?")
+	if err != nil {
+		log.Printf("stm perpare happened error which is %#v", err)
+	}
+	like := rf.Parent + "%"
+	rows, err = stm.Query(rf.Meta.NameSpace, like)
+
+	list := []report.AppGroup{}
+	if err != nil {
+		log.Printf("GetForm: stm query happened error which is %#v", err)
+		return list
+	}
+
+	defer stm.Close()
+	defer rows.Close()
+
+	for rows.Next() {
+		var name, namespace, user, parent, status, createtimestamp string
+		if err := rows.Scan(&name, &namespace, &user, &parent, &status, &createtimestamp); err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("list len is %#v", len(list))
+
+		list = append(list, report.AppGroup{
+			Meta: report.Meta{
+				Name:      name,
+				NameSpace: namespace,
+				User:      user,
+			},
+			Parent:          parent,
+			CreateTimestamp: createtimestamp,
+			Status:          status,
+		})
+
+	}
+	return list
+}
+
 // DeleteAppGroup ...
 func DeleteAppGroup(db *sql.DB, rf report.AppGroup) {
 	stm, err := db.Prepare("DELETE FROM app where namespace=? AND user=? AND name=?")

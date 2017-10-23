@@ -824,6 +824,7 @@ func (apiHandler *APIHandler) handleGetAppGroupListWithAppGroup(request *restful
 	namespace := request.PathParameter("namespace")
 	username := request.PathParameter("user")
 	appgroup := request.QueryParameter("app-group")
+	appgroup := request.QueryParameter("role")
 
 	app := report.AppGroup{
 		Meta: report.Meta{

@@ -152,10 +152,10 @@ func toCronJob(cronJob *batch2.CronJob, jobs []job.Job) CronJob {
 		cron.Pods.Running = job.Pods.Running + cron.Pods.Running
 		cron.Pods.Pending = job.Pods.Pending + cron.Pods.Pending
 		cron.Pods.Failed = job.Pods.Succeeded + cron.Pods.Succeeded
-		if job.Pods.Warnings == nil {
-			break
+		if job.Pods.Warnings != nil {
+			cron.Pods.Warnings = append(cron.Pods.Warnings, job.Pods.Warnings...)
 		}
-		cron.Pods.Warnings = append(cron.Pods.Warnings, job.Pods.Warnings...)
+
 		cron.PodList.Pods = append(cron.PodList.Pods, job.PodList.Pods...)
 	}
 	cron.PodList.ListMeta.TotalItems = len(cron.PodList.Pods)
