@@ -168,13 +168,13 @@ func UpdateAppGroupFuzzy(db *sql.DB, rfs []report.AppGroup, role string) {
 }
 
 // DeleteAppGroupFuzzy ...
-func DeleteAppGroupFuzzy(db *sql.DB, rf report.AppGroup, user string) {
+func DeleteAppGroupFuzzy(db *sql.DB, rf report.AppGroup) {
 
 	var stm *sql.Stmt
 	if rf.Meta.User == "" {
 		stm, _ = db.Prepare("DELETE FROM app where namespace=?  AND name = ?")
 		defer stm.Close()
-		_, err := stm.Exec(rf.Meta.NameSpace, user)
+		_, err := stm.Exec(rf.Meta.NameSpace, rf.Parent)
 		if err != nil {
 			log.Print(err)
 		}
