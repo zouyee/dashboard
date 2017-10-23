@@ -260,8 +260,8 @@ func ListAppGroupAdmin(db *sql.DB, rf report.AppGroup) []report.AppGroup {
 	if err != nil {
 		log.Printf("stm perpare happened error which is %#v", err)
 	}
-	like := rf.Parent + "%"
-	rows, err = stm.Query(rf.Meta.NameSpace, like)
+
+	rows, err = stm.Query(rf.Meta.NameSpace, rf.Parent)
 
 	list := []report.AppGroup{}
 	if err != nil {
