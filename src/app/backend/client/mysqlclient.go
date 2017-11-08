@@ -180,10 +180,10 @@ func DeleteAppGroupFuzzy(db *sql.DB, rf report.AppGroup) {
 		}
 		return
 	}
-
+	log.Printf("========%#v", rf)
 	stm, _ = db.Prepare("DELETE FROM app where namespace=? AND user=? AND name = ?")
 	defer stm.Close()
-	_, err := stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Meta.Name)
+	_, err := stm.Exec(rf.Meta.NameSpace, rf.Meta.User, rf.Parent)
 	if err != nil {
 		log.Print(err)
 	}
