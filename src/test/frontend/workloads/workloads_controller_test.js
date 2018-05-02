@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ describe('Workload list controller', () => {
       deploymentList: {listMeta: {totalItems: 0}, deployments: []},
       replicaSetList: {listMeta: {totalItems: 0}, replicaSets: []},
       jobList: {listMeta: {totalItems: 0}, jobs: []},
+      cronJobList: {listMeta: {totalItems: 0}, items: []},
       replicationControllerList: {listMeta: {totalItems: 0}, replicationControllers: []},
       podList: {listMeta: {totalItems: 0}, pods: []},
       daemonSetList: {listMeta: {totalItems: 0}, daemonSets: []},
@@ -56,6 +57,7 @@ describe('Workload list controller', () => {
       deploymentList: {listMeta: {totalItems: 1}, deployments: []},
       replicaSetList: {listMeta: {totalItems: 0}, replicaSets: []},
       jobList: {listMeta: {totalItems: 0}, jobs: []},
+      cronJobList: {listMeta: {totalItems: 0}, items: []},
       replicationControllerList: {listMeta: {totalItems: 0}, replicationControllers: []},
       podList: {listMeta: {totalItems: 0}, pods: []},
       daemonSetList: {listMeta: {totalItems: 0}, daemonSets: []},

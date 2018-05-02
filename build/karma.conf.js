@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
  * Specification of Karma config file can be found at:
  * http://karma-runner.github.io/latest/config/configuration-file.html
  */
+import fs from 'fs';
 import path from 'path';
 import wiredep from 'wiredep';
 
@@ -31,21 +32,19 @@ import conf from './conf';
 function getFileList() {
   // All app dependencies are required for tests. Include them.
   let wiredepOptions = {
-    dependencies: true,
-    devDependencies: true,
+    bowerJson: JSON.parse(fs.readFileSync(path.join(conf.paths.base, 'package.json'))),
+    directory: conf.paths.nodeModules,
+    devDependencies: false,
+    customDependencies: ['angular-mocks', 'google-closure-library'],
+    onError: (msg) => {
+      console.log(msg);
+    },
   };
 
   return wiredep(wiredepOptions).js.concat([
     path.join(conf.paths.frontendTest, '**/*.json'),
     path.join(conf.paths.frontendTest, '**/*.js'),
-    path.join(conf.paths.frontendSrc, '**/*.js'),
     path.join(conf.paths.frontendSrc, '**/*.html'),
-    path.join(conf.paths.bowerComponents, 'google-closure-library/closure/goog/base.js'),
-    {
-      pattern: path.join(conf.paths.bowerComponents, 'google-closure-library/closure/goog/deps.js'),
-      included: false,
-      served: false,
-    },
   ]);
 }
 
@@ -60,7 +59,9 @@ module.exports = function(config) {
 
     files: getFileList(),
 
-    logLevel: 'WARN',
+    logLevel: 'INFO',
+
+    browserConsoleLogOptions: {terminal: true, level: ''},
 
     // Jasmine jquery is needed to allow angular to use JQuery in tests instead of JQLite.
     // This allows to get elements by selector(angular.element('body')), use find function to
@@ -82,29 +83,14 @@ module.exports = function(config) {
 
     preprocessors: {},  // This field is filled with values later.
 
-    plugins: [
-      'karma-chrome-launcher',
-      'karma-closure',
-      'karma-jasmine',
-      'karma-jasmine-jquery',
-      'karma-coverage',
-      'karma-ng-html2js-preprocessor',
-      'karma-sourcemap-loader',
-      'karma-browserify',
-      'karma-sauce-launcher',
-    ],
-
     // karma-browserify plugin config.
     browserify: {
-      // Add source maps to outpus bundles.
+      // Add source maps to output bundles.
       debug: true,
       // Make 'import ...' statements relative to the following paths.
       paths: [conf.paths.frontendSrc, conf.paths.frontendTest],
       transform: [
-        // Browserify transform for the istanbul code coverage tool. Isparta instrumenter for ES6
-        // code coverage. TODO(floreks): try to make import work instead of require
-        ['browserify-istanbul', {'instrumenter': require('isparta')}],
-        // Transform ES6 code into ES5 so that browsers can digest it.
+        // Transform ES2017 code into ES5 so that browsers can digest it.
         ['babelify'],
       ],
     },
@@ -155,14 +141,11 @@ module.exports = function(config) {
     configuration.browsers = ['Chrome'];
   }
 
-  // Convert all JS code written ES6 with modules to ES5 bundles that browsers can digest.
+  // Convert all JS code written ES2017 with modules to ES5 bundles that browsers can digest.
   configuration.preprocessors[path.join(conf.paths.frontendTest, '**/*.js')] =
       ['browserify', 'closure', 'closure-iit'];
-  configuration.preprocessors[path.join(conf.paths.frontendSrc, '**/*.js')] =
-      ['browserify', 'closure'];
   configuration.preprocessors[path.join(
-      conf.paths.bowerComponents, 'google-closure-library/closure/goog/deps.js')] =
-      ['closure-deps'];
+      conf.paths.nodeModules, 'google-closure-library/closure/goog/deps.js')] = ['closure-deps'];
 
   // Convert HTML templates into JS files that serve code through $templateCache.
   configuration.preprocessors[path.join(conf.paths.frontendSrc, '**/*.html')] = ['ng-html2js'];

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {stateName as parentStateName} from 'discovery/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+import {stateName as parentStateName} from '../../discovery/state';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ServiceListController} from './controller';
 
 /**
@@ -24,7 +23,7 @@ import {ServiceListController} from './controller';
  */
 const i18n = {
   /** @type {string} @desc Label 'Services' that appears as a breadcrumbs on the action bar. */
-  MSG_BREADCRUMBS_SERVICES_LABEL: goog.getMsg('Services'),
+  MSG_SERVICES_LABEL: goog.getMsg('Services'),
 };
 
 /**
@@ -34,13 +33,13 @@ const i18n = {
  */
 export const config = {
   url: stateUrl,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'serviceList': resolveServiceList,
   },
   data: {
     [breadcrumbsConfig]: {
-      'label': i18n.MSG_BREADCRUMBS_SERVICES_LABEL,
+      'label': i18n.MSG_SERVICES_LABEL,
       'parent': parentStateName,
     },
   },
@@ -66,11 +65,11 @@ export function serviceListResource($resource) {
 /**
  * @param {!angular.Resource} kdServiceListResource
  * @param {!./../../chrome/state.StateParams} $stateParams
- * @param {!./../../common/pagination/pagination_service.PaginationService} kdPaginationService
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveServiceList(kdServiceListResource, $stateParams, kdPaginationService) {
-  let query = kdPaginationService.getDefaultResourceQuery($stateParams.namespace);
+export function resolveServiceList(kdServiceListResource, $stateParams, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery($stateParams.namespace);
   return kdServiceListResource.get(query).$promise;
 }

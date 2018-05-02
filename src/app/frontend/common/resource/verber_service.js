@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,14 +24,16 @@ export class VerberService {
   /**
    * @param {!md.$dialog} $mdDialog
    * @param {!angular.$q} $q
+   * @param {./../errorhandling/localizer_service.LocalizerService} localizerService
    * @ngInject
    */
-  constructor($mdDialog, $q) {
+  constructor($mdDialog, $q, localizerService) {
     /** @private {!md.$dialog} */
     this.mdDialog_ = $mdDialog;
-
     /** @private {!angular.$q} */
     this.q_ = $q;
+    /** @private {./../errorhandling/localizer_service.LocalizerService} */
+    this.localizerService_ = localizerService;
   }
 
   /**
@@ -89,10 +91,12 @@ export class VerberService {
   deleteErrorCallback(err) {
     if (err) {
       // Show dialog if there was an error, not user canceling dialog.
-      this.mdDialog_.show(this.mdDialog_.alert()
-                              .ok('Ok')
-                              .title(err.statusText || 'Internal server error')
-                              .textContent(err.data || 'Could not delete the resource'));
+      this.mdDialog_.show(
+          this.mdDialog_.alert()
+              .ok('Ok')
+              .title(err.statusText || 'Internal server error')
+              .textContent(
+                  this.localizerService_.localize(err.data) || 'Could not delete the resource'));
     }
   }
 
@@ -104,10 +108,12 @@ export class VerberService {
   editErrorCallback(err) {
     if (err) {
       // Show dialog if there was an error, not user canceling dialog.
-      this.mdDialog_.show(this.mdDialog_.alert()
-                              .ok('Ok')
-                              .title(err.statusText || 'Internal server error')
-                              .textContent(err.data || 'Could not edit the resource'));
+      this.mdDialog_.show(
+          this.mdDialog_.alert()
+              .ok('Ok')
+              .title(err.statusText || 'Internal server error')
+              .textContent(
+                  this.localizerService_.localize(err.data) || 'Could not edit the resource'));
     }
   }
 }

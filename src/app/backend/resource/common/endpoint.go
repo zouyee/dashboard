@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package common
 import (
 	"bytes"
 
-	api "k8s.io/client-go/pkg/api/v1"
+	api "k8s.io/api/core/v1"
 )
 
 // Endpoint describes an endpoint that is host and a list of available ports for that host.
@@ -78,15 +78,4 @@ func getExternalEndpoint(ingress api.LoadBalancerIngress, ports []api.ServicePor
 		Host:  host,
 		Ports: GetServicePorts(ports),
 	}
-}
-
-// GetNodeByName returns the node with the given name from the list
-func GetNodeByName(nodes []api.Node, nodeName string) *api.Node {
-	for _, node := range nodes {
-		if node.ObjectMeta.Name == nodeName {
-			return &node
-		}
-	}
-
-	return nil
 }

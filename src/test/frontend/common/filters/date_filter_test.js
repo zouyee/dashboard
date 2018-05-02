@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import filtersModule from 'common/filters/filters_module';
+import filtersModule from 'common/filters/module';
 
 describe('Items per page filter', () => {
   /** @type {function(string, string, string): string} */
@@ -27,7 +27,7 @@ describe('Items per page filter', () => {
   });
 
   it('should format date with a default format', () => {
-    expect(dateFilter('2016-06-06T19:13:12Z')).toEqual('2016-06-06T19:13');
+    expect(dateFilter('2016-06-06T19:13:12Z')).toEqual('2016-06-06T19:13 UTC');
   });
   it('should format date with an explicit format', () => {
     expect(dateFilter('2016-06-06T19:13:12Z', 'yyyy-MM-ddThh:mm:ss'))

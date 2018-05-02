@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,17 +17,18 @@ package node
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // NodeAllocatedResources describes node allocated resources.
@@ -69,22 +70,22 @@ type NodeAllocatedResources struct {
 
 	// PodCapacity is maximum number of pods, that can be allocated on the node.
 	PodCapacity int64 `json:"podCapacity"`
+
+	// PodFraction is a fraction of pods, that can be allocated on given node.
+	PodFraction float64 `json:"podFraction"`
 }
 
 // NodeDetail is a presentation layer view of Kubernetes Node resource. This means it is Node plus
 // additional augmented data we can get from other sources.
 type NodeDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// NodePhase is the current lifecycle phase of the node.
-	Phase api.NodePhase `json:"phase"`
+	Phase v1.NodePhase `json:"phase"`
 
 	// Resources allocated by node.
 	AllocatedResources NodeAllocatedResources `json:"allocatedResources"`
-
-	// External ID of the node assigned by some machine database (e.g. a cloud provider).
-	ExternalID string `json:"externalID"`
 
 	// PodCIDR represents the pod IP range assigned to the node.
 	PodCIDR string `json:"podCIDR"`
@@ -96,7 +97,7 @@ type NodeDetail struct {
 	Unschedulable bool `json:"unschedulable"`
 
 	// Set of ids/uuids to uniquely identify the node.
-	NodeInfo api.NodeSystemInfo `json:"nodeInfo"`
+	NodeInfo v1.NodeSystemInfo `json:"nodeInfo"`
 
 	// Conditions is an array of current node conditions.
 	Conditions []common.Condition `json:"conditions"`
@@ -111,51 +112,68 @@ type NodeDetail struct {
 	EventList common.EventList `json:"eventList"`
 
 	// Metrics collected for this resource
-	Metrics []metric.Metric `json:"metrics"`
+	Metrics []metricapi.Metric `json:"metrics"`
+
+	// Taints
+	Taints []v1.Taint `json:"taints,omitempty"`
+
+	// Addresses is a list of addresses reachable to the node. Queried from cloud provider, if available.
+	Addresses []v1.NodeAddress `json:"addresses,omitempty"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetNodeDetail gets node details.
-func GetNodeDetail(client k8sClient.Interface, heapsterClient client.HeapsterClient, name string) (*NodeDetail, error) {
+func GetNodeDetail(client k8sClient.Interface, metricClient metricapi.MetricClient, name string,
+	dsQuery *dataselect.DataSelectQuery) (*NodeDetail, error) {
 	log.Printf("Getting details of %s node", name)
 
-	node, err := client.Core().Nodes().Get(name, metaV1.GetOptions{})
+	node, err := client.CoreV1().Nodes().Get(name, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Download standard metrics. Currently metrics are hard coded, but it is possible to replace
 	// dataselect.StdMetricsDataSelect with data select provided in the request.
-	_, metricPromises := dataselect.GenericDataSelectWithMetrics(toCells([]api.Node{*node}),
-		dataselect.StdMetricsDataSelect,
-		dataselect.NoResourceCache, &heapsterClient)
+	_, metricPromises := dataselect.GenericDataSelectWithMetrics(toCells([]v1.Node{*node}),
+		dsQuery,
+		metricapi.NoResourceCache, metricClient)
 
 	pods, err := getNodePods(client, *node)
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	podList, err := GetNodePods(client, heapsterClient, dataselect.DefaultDataSelect, name)
+	podList, err := GetNodePods(client, metricClient, dsQuery, name)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
+	}
 
-	eventList, err := event.GetNodeEvents(client, dataselect.DefaultDataSelect, node.Name)
-	if err != nil {
-		return nil, err
+	eventList, err := event.GetNodeEvents(client, dsQuery, node.Name)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	allocatedResources, err := getNodeAllocatedResources(*node, pods)
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	metrics, _ := metricPromises.GetMetrics()
-	nodeDetails := toNodeDetail(*node, podList, eventList, allocatedResources, metrics)
+	nodeDetails := toNodeDetail(*node, podList, eventList, allocatedResources, metrics, nonCriticalErrors)
 	return &nodeDetails, nil
 }
 
-func getNodeAllocatedResources(node api.Node, podList *api.PodList) (NodeAllocatedResources, error) {
-	reqs, limits := map[api.ResourceName]resource.Quantity{}, map[api.ResourceName]resource.Quantity{}
+func getNodeAllocatedResources(node v1.Node, podList *v1.PodList) (NodeAllocatedResources, error) {
+	reqs, limits := map[v1.ResourceName]resource.Quantity{}, map[v1.ResourceName]resource.Quantity{}
 
 	for _, pod := range podList.Items {
-		podReqs, podLimits, err := api.PodRequestsAndLimits(&pod)
+		podReqs, podLimits, err := PodRequestsAndLimits(&pod)
 		if err != nil {
 			return NodeAllocatedResources{}, err
 		}
@@ -177,8 +195,8 @@ func getNodeAllocatedResources(node api.Node, podList *api.PodList) (NodeAllocat
 		}
 	}
 
-	cpuRequests, cpuLimits, memoryRequests, memoryLimits := reqs[api.ResourceCPU],
-		limits[api.ResourceCPU], reqs[api.ResourceMemory], limits[api.ResourceMemory]
+	cpuRequests, cpuLimits, memoryRequests, memoryLimits := reqs[v1.ResourceCPU],
+		limits[v1.ResourceCPU], reqs[v1.ResourceMemory], limits[v1.ResourceMemory]
 
 	var cpuRequestsFraction, cpuLimitsFraction float64 = 0, 0
 	if capacity := float64(node.Status.Capacity.Cpu().MilliValue()); capacity > 0 {
@@ -190,6 +208,12 @@ func getNodeAllocatedResources(node api.Node, podList *api.PodList) (NodeAllocat
 	if capacity := float64(node.Status.Capacity.Memory().MilliValue()); capacity > 0 {
 		memoryRequestsFraction = float64(memoryRequests.MilliValue()) / capacity * 100
 		memoryLimitsFraction = float64(memoryLimits.MilliValue()) / capacity * 100
+	}
+
+	var podFraction float64 = 0
+	var podCapacity int64 = node.Status.Capacity.Pods().Value()
+	if podCapacity > 0 {
+		podFraction = float64(len(podList.Items)) / float64(podCapacity) * 100
 	}
 
 	return NodeAllocatedResources{
@@ -204,47 +228,108 @@ func getNodeAllocatedResources(node api.Node, podList *api.PodList) (NodeAllocat
 		MemoryLimitsFraction:   memoryLimitsFraction,
 		MemoryCapacity:         node.Status.Capacity.Memory().Value(),
 		AllocatedPods:          len(podList.Items),
-		PodCapacity:            node.Status.Capacity.Pods().Value(),
+		PodCapacity:            podCapacity,
+		PodFraction:            podFraction,
 	}, nil
 }
 
-func GetNodePods(client k8sClient.Interface, heapsterClient client.HeapsterClient, dsQuery *dataselect.DataSelectQuery, name string) (*pod.PodList, error) {
-	node, err := client.Core().Nodes().Get(name, metaV1.GetOptions{})
+// PodRequestsAndLimits returns a dictionary of all defined resources summed up for all
+// containers of the pod.
+func PodRequestsAndLimits(pod *v1.Pod) (reqs map[v1.ResourceName]resource.Quantity, limits map[v1.ResourceName]resource.Quantity, err error) {
+	reqs, limits = map[v1.ResourceName]resource.Quantity{}, map[v1.ResourceName]resource.Quantity{}
+	for _, container := range pod.Spec.Containers {
+		for name, quantity := range container.Resources.Requests {
+			if value, ok := reqs[name]; !ok {
+				reqs[name] = *quantity.Copy()
+			} else {
+				value.Add(quantity)
+				reqs[name] = value
+			}
+		}
+		for name, quantity := range container.Resources.Limits {
+			if value, ok := limits[name]; !ok {
+				limits[name] = *quantity.Copy()
+			} else {
+				value.Add(quantity)
+				limits[name] = value
+			}
+		}
+	}
+	// init containers define the minimum of any resource
+	for _, container := range pod.Spec.InitContainers {
+		for name, quantity := range container.Resources.Requests {
+			value, ok := reqs[name]
+			if !ok {
+				reqs[name] = *quantity.Copy()
+				continue
+			}
+			if quantity.Cmp(value) > 0 {
+				reqs[name] = *quantity.Copy()
+			}
+		}
+		for name, quantity := range container.Resources.Limits {
+			value, ok := limits[name]
+			if !ok {
+				limits[name] = *quantity.Copy()
+				continue
+			}
+			if quantity.Cmp(value) > 0 {
+				limits[name] = *quantity.Copy()
+			}
+		}
+	}
+	return
+}
+
+// GetNodePods return pods list in given named node
+func GetNodePods(client k8sClient.Interface, metricClient metricapi.MetricClient,
+	dsQuery *dataselect.DataSelectQuery, name string) (*pod.PodList, error) {
+	podList := pod.PodList{
+		Pods:              []pod.Pod{},
+		CumulativeMetrics: []metricapi.Metric{},
+	}
+
+	node, err := client.CoreV1().Nodes().Get(name, metaV1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return &podList, err
 	}
 
 	pods, err := getNodePods(client, *node)
 	if err != nil {
-		return nil, err
+		return &podList, err
 	}
 
-	podList := pod.CreatePodList(pods.Items, []api.Event{}, dsQuery, heapsterClient)
+	events, err := event.GetPodsEvents(client, v1.NamespaceAll, pods.Items)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return &podList, criticalError
+	}
+
+	podList = pod.ToPodList(pods.Items, events, nonCriticalErrors, dsQuery, metricClient)
 	return &podList, nil
 }
 
-func getNodePods(client k8sClient.Interface, node api.Node) (*api.PodList, error) {
+func getNodePods(client k8sClient.Interface, node v1.Node) (*v1.PodList, error) {
 	fieldSelector, err := fields.ParseSelector("spec.nodeName=" + node.Name +
-		",status.phase!=" + string(api.PodSucceeded) +
-		",status.phase!=" + string(api.PodFailed))
+		",status.phase!=" + string(v1.PodSucceeded) +
+		",status.phase!=" + string(v1.PodFailed))
 
 	if err != nil {
 		return nil, err
 	}
 
-	return client.Core().Pods(api.NamespaceAll).List(metaV1.ListOptions{
+	return client.CoreV1().Pods(v1.NamespaceAll).List(metaV1.ListOptions{
 		FieldSelector: fieldSelector.String(),
 	})
 }
 
-func toNodeDetail(node api.Node, pods *pod.PodList, eventList *common.EventList,
-	allocatedResources NodeAllocatedResources, metrics []metric.Metric) NodeDetail {
+func toNodeDetail(node v1.Node, pods *pod.PodList, eventList *common.EventList,
+	allocatedResources NodeAllocatedResources, metrics []metricapi.Metric, nonCriticalErrors []error) NodeDetail {
 
 	return NodeDetail{
-		ObjectMeta:         common.NewObjectMeta(node.ObjectMeta),
-		TypeMeta:           common.NewTypeMeta(common.ResourceKindNode),
+		ObjectMeta:         api.NewObjectMeta(node.ObjectMeta),
+		TypeMeta:           api.NewTypeMeta(api.ResourceKindNode),
 		Phase:              node.Status.Phase,
-		ExternalID:         node.Spec.ExternalID,
 		ProviderID:         node.Spec.ProviderID,
 		PodCIDR:            node.Spec.PodCIDR,
 		Unschedulable:      node.Spec.Unschedulable,
@@ -255,5 +340,8 @@ func toNodeDetail(node api.Node, pods *pod.PodList, eventList *common.EventList,
 		EventList:          *eventList,
 		AllocatedResources: allocatedResources,
 		Metrics:            metrics,
+		Taints:             node.Spec.Taints,
+		Addresses:          node.Status.Addresses,
+		Errors:             nonCriticalErrors,
 	}
 }

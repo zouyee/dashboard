@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,21 +17,25 @@ package deployment
 import (
 	"log"
 
-	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/horizontalpodautoscaler"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	hpa "github.com/kubernetes/dashboard/src/app/backend/resource/horizontalpodautoscaler"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/replicaset"
+	apps "k8s.io/api/apps/v1beta2"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	client "k8s.io/client-go/kubernetes"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // RollingUpdateStrategy is behavior of a rolling update. See RollingUpdateDeployment K8s object.
 type RollingUpdateStrategy struct {
-	MaxSurge       int `json:"maxSurge"`
-	MaxUnavailable int `json:"maxUnavailable"`
+	MaxSurge       *intstr.IntOrString `json:"maxSurge"`
+	MaxUnavailable *intstr.IntOrString `json:"maxUnavailable"`
 }
 
 type StatusInfo struct {
@@ -51,8 +55,8 @@ type StatusInfo struct {
 
 // DeploymentDetail is a presentation layer view of Kubernetes Deployment resource.
 type DeploymentDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Detailed information about Pods belonging to this Deployment.
 	PodList pod.PodList `json:"podList"`
@@ -65,7 +69,7 @@ type DeploymentDetail struct {
 
 	// The deployment strategy to use to replace existing pods with new ones.
 	// Valid options: Recreate, RollingUpdate
-	Strategy extensions.DeploymentStrategyType `json:"strategy"`
+	Strategy apps.DeploymentStrategyType `json:"strategy"`
 
 	// Min ready seconds
 	MinReadySeconds int32 `json:"minReadySeconds"`
@@ -86,21 +90,23 @@ type DeploymentDetail struct {
 	EventList common.EventList `json:"eventList"`
 
 	// List of Horizontal Pod AutoScalers targeting this Deployment
-	HorizontalPodAutoscalerList horizontalpodautoscaler.HorizontalPodAutoscalerList `json:"horizontalPodAutoscalerList"`
+	HorizontalPodAutoscalerList hpa.HorizontalPodAutoscalerList `json:"horizontalPodAutoscalerList"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetDeploymentDetail returns model object of deployment and error, if any.
-func GetDeploymentDetail(client client.Interface, heapsterClient heapster.HeapsterClient, namespace string,
+func GetDeploymentDetail(client client.Interface, metricClient metricapi.MetricClient, namespace string,
 	deploymentName string) (*DeploymentDetail, error) {
 
 	log.Printf("Getting details of %s deployment in %s namespace", deploymentName, namespace)
 
-	deployment, err := client.Extensions().Deployments(namespace).Get(deploymentName, metaV1.GetOptions{})
+	deployment, err := client.AppsV1beta2().Deployments(namespace).Get(deploymentName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO fix not to use kubernetes utils
 	selector, err := metaV1.LabelSelectorAsSelector(deployment.Spec.Selector)
 	if err != nil {
 		return nil, err
@@ -115,48 +121,64 @@ func GetDeploymentDetail(client client.Interface, heapsterClient heapster.Heapst
 	}
 
 	rawRs := <-channels.ReplicaSetList.List
-	if err := <-channels.ReplicaSetList.Error; err != nil {
-		return nil, err
+	err = <-channels.ReplicaSetList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
+
 	rawPods := <-channels.PodList.List
-	if err := <-channels.PodList.Error; err != nil {
-		return nil, err
+	err = <-channels.PodList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	// Pods
-	podList, err := GetDeploymentPods(client, heapsterClient, dataselect.DefaultDataSelectWithMetrics, namespace, deploymentName)
-	if err != nil {
-		return nil, err
-	}
-	// Events
-	eventList, err := GetDeploymentEvents(client, dataselect.DefaultDataSelect, namespace, deploymentName)
-	if err != nil {
-		return nil, err
-	}
-	// Horizontal Pod Autoscalers
-	hpas, err := horizontalpodautoscaler.GetHorizontalPodAutoscalerListForResource(client, namespace, "Deployment", deploymentName)
-	if err != nil {
-		return nil, err
+	podList, err := GetDeploymentPods(client, metricClient, dataselect.DefaultDataSelectWithMetrics, namespace, deploymentName)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	// Old Replica Sets
+	eventList, err := event.GetResourceEvents(client, dataselect.DefaultDataSelect, namespace, deploymentName)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	hpas, err := hpa.GetHorizontalPodAutoscalerListForResource(client, namespace, "Deployment", deploymentName)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
 	oldReplicaSetList, err := GetDeploymentOldReplicaSets(client, dataselect.DefaultDataSelect, namespace, deploymentName)
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	// New Replica Set
-	rawRepSets := make([]*extensions.ReplicaSet, 0)
+	rawRepSets := make([]*apps.ReplicaSet, 0)
 	for i := range rawRs.Items {
 		rawRepSets = append(rawRepSets, &rawRs.Items[i])
 	}
 	newRs, err := FindNewReplicaSet(deployment, rawRepSets)
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
+
 	var newReplicaSet replicaset.ReplicaSet
 	if newRs != nil {
-		newRsPodInfo := common.GetPodInfo(newRs.Status.Replicas, *newRs.Spec.Replicas, rawPods.Items)
+		matchingPods := common.FilterPodsByControllerRef(newRs, rawPods.Items)
+		newRsPodInfo := common.GetPodInfo(newRs.Status.Replicas, newRs.Spec.Replicas, matchingPods)
+		events, err := event.GetPodsEvents(client, namespace, matchingPods)
+		nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+		if criticalError != nil {
+			return nil, criticalError
+		}
+
+		newRsPodInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 		newReplicaSet = replicaset.ToReplicaSet(newRs, &newRsPodInfo)
 	}
 
@@ -164,14 +186,14 @@ func GetDeploymentDetail(client client.Interface, heapsterClient heapster.Heapst
 	var rollingUpdateStrategy *RollingUpdateStrategy
 	if deployment.Spec.Strategy.RollingUpdate != nil {
 		rollingUpdateStrategy = &RollingUpdateStrategy{
-			MaxSurge:       deployment.Spec.Strategy.RollingUpdate.MaxSurge.IntValue(),
-			MaxUnavailable: deployment.Spec.Strategy.RollingUpdate.MaxUnavailable.IntValue(),
+			MaxSurge:       deployment.Spec.Strategy.RollingUpdate.MaxSurge,
+			MaxUnavailable: deployment.Spec.Strategy.RollingUpdate.MaxUnavailable,
 		}
 	}
 
 	return &DeploymentDetail{
-		ObjectMeta:                  common.NewObjectMeta(deployment.ObjectMeta),
-		TypeMeta:                    common.NewTypeMeta(common.ResourceKindDeployment),
+		ObjectMeta:                  api.NewObjectMeta(deployment.ObjectMeta),
+		TypeMeta:                    api.NewTypeMeta(api.ResourceKindDeployment),
 		PodList:                     *podList,
 		Selector:                    deployment.Spec.Selector.MatchLabels,
 		StatusInfo:                  GetStatusInfo(&deployment.Status),
@@ -183,11 +205,12 @@ func GetDeploymentDetail(client client.Interface, heapsterClient heapster.Heapst
 		RevisionHistoryLimit:        deployment.Spec.RevisionHistoryLimit,
 		EventList:                   *eventList,
 		HorizontalPodAutoscalerList: *hpas,
+		Errors: nonCriticalErrors,
 	}, nil
 
 }
 
-func GetStatusInfo(deploymentStatus *extensions.DeploymentStatus) StatusInfo {
+func GetStatusInfo(deploymentStatus *apps.DeploymentStatus) StatusInfo {
 	return StatusInfo{
 		Replicas:    deploymentStatus.Replicas,
 		Updated:     deploymentStatus.UpdatedReplicas,

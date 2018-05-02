@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,70 +17,71 @@ package namespace
 import (
 	"log"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // NamespaceList contains a list of namespaces in the cluster.
 type NamespaceList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta api.ListMeta `json:"listMeta"`
 
 	// Unordered list of Namespaces.
 	Namespaces []Namespace `json:"namespaces"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // Namespace is a presentation layer view of Kubernetes namespaces. This means it is namespace plus
 // additional augmented data we can get from other sources.
 type Namespace struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Phase is the current lifecycle phase of the namespace.
-	Phase api.NamespacePhase `json:"phase"`
+	Phase v1.NamespacePhase `json:"phase"`
 }
 
 // GetNamespaceListFromChannels returns a list of all namespaces in the cluster.
-func GetNamespaceListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (*NamespaceList,
-	error) {
-	log.Printf("Getting namespace list")
-
+func GetNamespaceListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (*NamespaceList, error) {
 	namespaces := <-channels.NamespaceList.List
-	if err := <-channels.NamespaceList.Error; err != nil {
-		return nil, err
+	err := <-channels.NamespaceList.Error
+
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return toNamespaceList(namespaces.Items, dsQuery), nil
+	return toNamespaceList(namespaces.Items, nonCriticalErrors, dsQuery), nil
 }
 
 // GetNamespaceList returns a list of all namespaces in the cluster.
-func GetNamespaceList(client *client.Clientset, dsQuery *dataselect.DataSelectQuery) (*NamespaceList,
-	error) {
-	log.Printf("Getting namespace list")
+func GetNamespaceList(client kubernetes.Interface, dsQuery *dataselect.DataSelectQuery) (*NamespaceList, error) {
+	log.Println("Getting list of namespaces")
+	namespaces, err := client.CoreV1().Namespaces().List(api.ListEverything)
 
-	namespaces, err := client.Namespaces().List(metaV1.ListOptions{
-		LabelSelector: labels.Everything().String(),
-		FieldSelector: fields.Everything().String(),
-	})
-
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return toNamespaceList(namespaces.Items, dsQuery), nil
+	return toNamespaceList(namespaces.Items, nonCriticalErrors, dsQuery), nil
 }
 
-func toNamespaceList(namespaces []api.Namespace, dsQuery *dataselect.DataSelectQuery) *NamespaceList {
+func toNamespaceList(namespaces []v1.Namespace, nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery) *NamespaceList {
 	namespaceList := &NamespaceList{
 		Namespaces: make([]Namespace, 0),
-		ListMeta:   common.ListMeta{TotalItems: len(namespaces)},
+		ListMeta:   api.ListMeta{TotalItems: len(namespaces)},
 	}
 
-	namespaces = fromCells(dataselect.GenericDataSelect(toCells(namespaces), dsQuery))
+	namespaceCells, filteredTotal := dataselect.GenericDataSelectWithFilter(toCells(namespaces), dsQuery)
+	namespaces = fromCells(namespaceCells)
+	namespaceList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
+	namespaceList.Errors = nonCriticalErrors
 
 	for _, namespace := range namespaces {
 		namespaceList.Namespaces = append(namespaceList.Namespaces, toNamespace(namespace))
@@ -89,10 +90,10 @@ func toNamespaceList(namespaces []api.Namespace, dsQuery *dataselect.DataSelectQ
 	return namespaceList
 }
 
-func toNamespace(namespace api.Namespace) Namespace {
+func toNamespace(namespace v1.Namespace) Namespace {
 	return Namespace{
-		ObjectMeta: common.NewObjectMeta(namespace.ObjectMeta),
-		TypeMeta:   common.NewTypeMeta(common.ResourceKindNamespace),
+		ObjectMeta: api.NewObjectMeta(namespace.ObjectMeta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindNamespace),
 		Phase:      namespace.Status.Phase,
 	}
 }

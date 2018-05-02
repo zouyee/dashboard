@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,65 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'replicationcontroller/detail/state';
-
-/**
- * Controller for the replication controller card menu
- *
- * @final
- */
-export default class ReplicationControllerCardMenuController {
-  /**
-   * @param {!ui.router.$state} $state
-   * @param {!./../detail/delete_service.ReplicationControllerService}
-   * kdReplicationControllerService
-   * @ngInject
-   */
-  constructor($state, kdReplicationControllerService) {
-    /**
-     * Initialized from the scope.
-     * @export {!backendApi.ReplicationController}
-     */
-    this.replicationController;
-
-    /** @private {!ui.router.$state} */
-    this.state_ = $state;
-
-    /** @private {!./../detail/delete_service.ReplicationControllerService} */
-    this.kdReplicationControllerService_ = kdReplicationControllerService;
-  }
-
-  /**
-   * @param {!function(!MouseEvent)} $mdOpenMenu
-   * @param {!MouseEvent} $event
-   * @export
-   */
-  openMenu($mdOpenMenu, $event) {
-    $mdOpenMenu($event);
-  }
-
-  /**
-   * @export
-   */
-  viewDetails() {
-    this.state_.go(
-        stateName,
-        new StateParams(
-            this.replicationController.objectMeta.namespace,
-            this.replicationController.objectMeta.name));
-  }
-
-  /**
-   * @export
-   */
-  showUpdateReplicasDialog() {
-    this.kdReplicationControllerService_.showUpdateReplicasDialog(
-        this.replicationController.objectMeta.namespace, this.replicationController.objectMeta.name,
-        this.replicationController.pods.current, this.replicationController.pods.desired);
-  }
-}
-
 /**
  * @return {!angular.Component}
  */
@@ -78,6 +19,5 @@ export const replicationControllerCardMenuComponent = {
   bindings: {
     'replicationController': '=',
   },
-  controller: ReplicationControllerCardMenuController,
   templateUrl: 'replicationcontroller/list/cardmenu.html',
 };

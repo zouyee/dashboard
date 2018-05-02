@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,9 +20,10 @@ export class ResourceCardDeleteMenuItemController {
   /**
    * @param {!./../../resource/verber_service.VerberService} kdResourceVerberService
    * @param {!ui.router.$state} $state
+   * @param {!angular.$log} $log
    * @ngInject
    */
-  constructor(kdResourceVerberService, $state) {
+  constructor(kdResourceVerberService, $state, $log) {
     /**
      * Initialized from require just before $onInit is called.
      * @export {!./resourcecard_component.ResourceCardController}
@@ -37,6 +38,9 @@ export class ResourceCardDeleteMenuItemController {
 
     /** @private {!ui.router.$state}} */
     this.state_ = $state;
+
+    /** @private {!angular.$log} */
+    this.log_ = $log;
   }
 
   /**
@@ -49,6 +53,11 @@ export class ResourceCardDeleteMenuItemController {
         .then(() => {
           // For now just reload the state. Later we can remove the item in place.
           this.state_.reload();
+        })
+        .catch((err) => {
+          if (err) {
+            this.log_.error('Error showing delete dialog:', err);
+          }
         });
   }
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,22 @@ export class ServiceDetailController {
   /**
    * @param {!backendApi.ServiceDetail} serviceDetail
    * @param {!angular.Resource} kdServicePodsResource
+   * @param {!angular.Resource} kdServiceEventsResource
+   * @param {!angular.Resource} kdServiceEndpointResource
    * @ngInject
    */
-  constructor(serviceDetail, kdServicePodsResource) {
+  constructor(
+      serviceDetail, kdServicePodsResource, kdServiceEventsResource, kdServiceEndpointResource) {
     /** @export {!backendApi.ServiceDetail} */
     this.serviceDetail = serviceDetail;
 
     /** {!angular.Resource} */
     this.servicePodsResource = kdServicePodsResource;
+
+    /** @export {!angular.Resource} */
+    this.eventListResource = kdServiceEventsResource;
+
+    /** @export {!angular.Resource} */
+    this.endpointListResource = kdServiceEndpointResource;
   }
 }

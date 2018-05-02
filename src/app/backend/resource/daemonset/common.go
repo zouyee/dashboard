@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,24 +15,26 @@
 package daemonset
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // Based on given selector returns list of services that are candidates for deletion.
 // Services are matched by daemon sets' label selector. They are deleted if given
 // label selector is targeting only 1 daemon set.
 func GetServicesForDSDeletion(client client.Interface, labelSelector labels.Selector,
-	namespace string) ([]api.Service, error) {
+	namespace string) ([]v1.Service, error) {
 
-	daemonSet, err := client.Extensions().DaemonSets(namespace).List(metaV1.ListOptions{
+	daemonSet, err := client.AppsV1beta2().DaemonSets(namespace).List(metaV1.ListOptions{
 		LabelSelector: labelSelector.String(),
 		FieldSelector: fields.Everything().String(),
 	})
@@ -44,10 +46,10 @@ func GetServicesForDSDeletion(client client.Interface, labelSelector labels.Sele
 	// then we can delete services targeted by this label selector,
 	// otherwise we can not delete any services so just return empty list
 	if len(daemonSet.Items) != 1 {
-		return []api.Service{}, nil
+		return []v1.Service{}, nil
 	}
 
-	services, err := client.Core().Services(namespace).List(metaV1.ListOptions{
+	services, err := client.CoreV1().Services(namespace).List(metaV1.ListOptions{
 		LabelSelector: labelSelector.String(),
 		FieldSelector: fields.Everything().String(),
 	})
@@ -58,9 +60,9 @@ func GetServicesForDSDeletion(client client.Interface, labelSelector labels.Sele
 	return services.Items, nil
 }
 
-// The code below allows to perform complex data section on []extensions.DaemonSet
+// The code below allows to perform complex data section on Daemon Set
 
-type DaemonSetCell extensions.DaemonSet
+type DaemonSetCell apps.DaemonSet
 
 func (self DaemonSetCell) GetProperty(name dataselect.PropertyName) dataselect.ComparableValue {
 	switch name {
@@ -76,16 +78,16 @@ func (self DaemonSetCell) GetProperty(name dataselect.PropertyName) dataselect.C
 	}
 }
 
-func (self DaemonSetCell) GetResourceSelector() *metric.ResourceSelector {
-	return &metric.ResourceSelector{
-		Namespace:     self.ObjectMeta.Namespace,
-		ResourceType:  common.ResourceKindDaemonSet,
-		ResourceName:  self.ObjectMeta.Name,
-		LabelSelector: self.Spec.Selector,
+func (self DaemonSetCell) GetResourceSelector() *metricapi.ResourceSelector {
+	return &metricapi.ResourceSelector{
+		Namespace:    self.ObjectMeta.Namespace,
+		ResourceType: api.ResourceKindDaemonSet,
+		ResourceName: self.ObjectMeta.Name,
+		UID:          self.UID,
 	}
 }
 
-func ToCells(std []extensions.DaemonSet) []dataselect.DataCell {
+func ToCells(std []apps.DaemonSet) []dataselect.DataCell {
 	cells := make([]dataselect.DataCell, len(std))
 	for i := range std {
 		cells[i] = DaemonSetCell(std[i])
@@ -93,10 +95,34 @@ func ToCells(std []extensions.DaemonSet) []dataselect.DataCell {
 	return cells
 }
 
-func FromCells(cells []dataselect.DataCell) []extensions.DaemonSet {
-	std := make([]extensions.DaemonSet, len(cells))
+func FromCells(cells []dataselect.DataCell) []apps.DaemonSet {
+	std := make([]apps.DaemonSet, len(cells))
 	for i := range std {
-		std[i] = extensions.DaemonSet(cells[i].(DaemonSetCell))
+		std[i] = apps.DaemonSet(cells[i].(DaemonSetCell))
 	}
 	return std
+}
+
+func getStatus(list *apps.DaemonSetList, pods []v1.Pod, events []v1.Event) common.ResourceStatus {
+	info := common.ResourceStatus{}
+	if list == nil {
+		return info
+	}
+
+	for _, daemonSet := range list.Items {
+		matchingPods := common.FilterPodsByControllerRef(&daemonSet, pods)
+		podInfo := common.GetPodInfo(daemonSet.Status.CurrentNumberScheduled,
+			&daemonSet.Status.DesiredNumberScheduled, matchingPods)
+		warnings := event.GetPodsEventWarnings(events, matchingPods)
+
+		if len(warnings) > 0 {
+			info.Failed++
+		} else if podInfo.Pending > 0 {
+			info.Pending++
+		} else {
+			info.Running++
+		}
+	}
+
+	return info
 }

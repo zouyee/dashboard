@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,18 @@ limitations under the License.
     <md-icon class="material-icons kd-error"
              ng-if="::$ctrl.hasWarnings()">
       error
-      <md-tooltip md-direction="right">[[One or more pods have errors.|Tooltip for failed pod card icon.]]</md-tooltip>
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        [[One or more pods have errors.|Tooltip for failed pod card icon.]]
+      </md-tooltip>
     </md-icon>
     <md-icon class="material-icons"
              ng-if="::$ctrl.isPending()">
       timelapse
-      <md-tooltip md-direction="right">[[One or more pods are in pending state.|Tooltip for pending pod card icon.]]</md-tooltip>
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        [[One or more pods are in pending state.|Tooltip for pending pod card icon.]]
+      </md-tooltip>
     </md-icon>
     <md-icon class="material-icons kd-success"
              ng-if="::$ctrl.isSuccess()">
@@ -58,16 +64,23 @@ limitations under the License.
     </kd-resource-card-column>
     <kd-resource-card-column>
       {{::$ctrl.daemonSet.objectMeta.creationTimestamp | relativeTime}}
-      <md-tooltip>
-        {{::$ctrl.getCreatedAtTooltip()}}
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        [[Created at| Tooltip for the age column ]] {{::$ctrl.daemonSet.objectMeta.creationTimestamp | date}}
       </md-tooltip>
     </kd-resource-card-column>
     <kd-resource-card-column>
       <div ng-repeat="image in ::$ctrl.daemonSet.containerImages track by $index">
         <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
       </div>
+      <div ng-repeat="image in ::$ctrl.daemonSet.initContainerImages track by $index">
+        <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
+      </div>
     </kd-resource-card-column>
     <kd-resource-card-column class="kd-row-layout-column kd-icon-column">
+      <kd-logs-button object-meta="::$ctrl.daemonSet.objectMeta"
+                      resource-kind-name="::$ctrl.daemonSet.typeMeta.kind">
+      </kd-logs-button>
       <kd-resource-card-menu>
         <kd-resource-card-delete-menu-item resource-kind-name="[[Daemon Set|Title 'Daemon Set' which is used as a title for the delete/update
    dialogs (that can be opened on the daemon set list view).]]">
@@ -78,4 +91,7 @@ limitations under the License.
       </kd-resource-card-menu>
     </kd-resource-card-column>
   </kd-resource-card-columns>
+  <kd-resource-card-footer ng-if="::$ctrl.hasWarnings()">
+    <kd-pod-warnings warnings="::$ctrl.daemonSet.pods.warnings"></kd-pod-warnings>
+  </kd-resource-card-footer>
 </kd-resource-card>

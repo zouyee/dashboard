@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,123 +17,139 @@ package deployment
 import (
 	"log"
 
-	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
-// ReplicationSetList contains a list of Deployments in the cluster.
+// DeploymentList contains a list of Deployments in the cluster.
 type DeploymentList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta          api.ListMeta       `json:"listMeta"`
+	CumulativeMetrics []metricapi.Metric `json:"cumulativeMetrics"`
+
+	// Basic information about resources status on the list.
+	Status common.ResourceStatus `json:"status"`
 
 	// Unordered list of Deployments.
-	Deployments       []Deployment    `json:"deployments"`
-	CumulativeMetrics []metric.Metric `json:"cumulativeMetrics"`
+	Deployments []Deployment `json:"deployments"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // Deployment is a presentation layer view of Kubernetes Deployment resource. This means
 // it is Deployment plus additional augmented data we can get from other sources
 // (like services that target the same pods).
 type Deployment struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Aggregate information about pods belonging to this Deployment.
 	Pods common.PodInfo `json:"pods"`
 
 	// Container images of the Deployment.
 	ContainerImages []string `json:"containerImages"`
+
+	// Init Container images of the Deployment.
+	InitContainerImages []string `json:"initContainerImages"`
 }
 
 // GetDeploymentList returns a list of all Deployments in the cluster.
-func GetDeploymentList(client client.Interface, nsQuery *common.NamespaceQuery,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*DeploymentList, error) {
+func GetDeploymentList(client client.Interface, nsQuery *common.NamespaceQuery, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) (*DeploymentList, error) {
 	log.Print("Getting list of all deployments in the cluster")
 
 	channels := &common.ResourceChannels{
 		DeploymentList: common.GetDeploymentListChannel(client, nsQuery, 1),
 		PodList:        common.GetPodListChannel(client, nsQuery, 1),
 		EventList:      common.GetEventListChannel(client, nsQuery, 1),
+		ReplicaSetList: common.GetReplicaSetListChannel(client, nsQuery, 1),
 	}
 
-	return GetDeploymentListFromChannels(channels, dsQuery, heapsterClient)
+	return GetDeploymentListFromChannels(channels, dsQuery, metricClient)
 }
 
 // GetDeploymentList returns a list of all Deployments in the cluster
 // reading required resource list once from the channels.
-func GetDeploymentListFromChannels(channels *common.ResourceChannels,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*DeploymentList, error) {
+func GetDeploymentListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) (*DeploymentList, error) {
 
 	deployments := <-channels.DeploymentList.List
-	if err := <-channels.DeploymentList.Error; err != nil {
-		statusErr, ok := err.(*k8serrors.StatusError)
-		if ok && statusErr.ErrStatus.Reason == "NotFound" {
-			// NotFound - this means that the server does not support Deployment objects, which
-			// is fine.
-			emptyList := &DeploymentList{
-				Deployments: make([]Deployment, 0),
-			}
-			return emptyList, nil
-		}
-		return nil, err
+	err := <-channels.DeploymentList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	pods := <-channels.PodList.List
-	if err := <-channels.PodList.Error; err != nil {
-		return nil, err
+	err = <-channels.PodList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	events := <-channels.EventList.List
-	if err := <-channels.EventList.Error; err != nil {
-		return nil, err
+	err = <-channels.EventList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return CreateDeploymentList(deployments.Items, pods.Items, events.Items, dsQuery, heapsterClient), nil
+	rs := <-channels.ReplicaSetList.List
+	err = <-channels.ReplicaSetList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	deploymentList := toDeploymentList(deployments.Items, pods.Items, events.Items, rs.Items, nonCriticalErrors,
+		dsQuery, metricClient)
+	deploymentList.Status = getStatus(deployments, rs.Items, pods.Items, events.Items)
+	return deploymentList, nil
 }
 
-// CreateDeploymentList returns a list of all Deployment model objects in the cluster, based on all
-// Kubernetes Deployment API objects.
-func CreateDeploymentList(deployments []extensions.Deployment, pods []api.Pod,
-	events []api.Event, dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) *DeploymentList {
+func toDeploymentList(deployments []apps.Deployment, pods []v1.Pod, events []v1.Event, rs []apps.ReplicaSet,
+	nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) *DeploymentList {
 
 	deploymentList := &DeploymentList{
 		Deployments: make([]Deployment, 0),
-		ListMeta:    common.ListMeta{TotalItems: len(deployments)},
+		ListMeta:    api.ListMeta{TotalItems: len(deployments)},
+		Errors:      nonCriticalErrors,
 	}
 
-	cachedResources := &dataselect.CachedResources{
+	cachedResources := &metricapi.CachedResources{
 		Pods: pods,
 	}
-	replicationControllerCells, metricPromises := dataselect.GenericDataSelectWithMetrics(toCells(deployments), dsQuery, cachedResources, heapsterClient)
-	deployments = fromCells(replicationControllerCells)
+	deploymentCells, metricPromises, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(
+		toCells(deployments), dsQuery, cachedResources, metricClient)
+	deployments = fromCells(deploymentCells)
+	deploymentList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, deployment := range deployments {
-
-		matchingPods := common.FilterNamespacedPodsBySelector(pods, deployment.ObjectMeta.Namespace,
-			deployment.Spec.Selector.MatchLabels)
-		podInfo := common.GetPodInfo(deployment.Status.Replicas, *deployment.Spec.Replicas,
-			matchingPods)
+		matchingPods := common.FilterDeploymentPodsByOwnerReference(deployment, rs, pods)
+		podInfo := common.GetPodInfo(deployment.Status.Replicas, deployment.Spec.Replicas, matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 
 		deploymentList.Deployments = append(deploymentList.Deployments,
 			Deployment{
-				ObjectMeta:      common.NewObjectMeta(deployment.ObjectMeta),
-				TypeMeta:        common.NewTypeMeta(common.ResourceKindDeployment),
-				ContainerImages: common.GetContainerImages(&deployment.Spec.Template.Spec),
-				Pods:            podInfo,
+				ObjectMeta:          api.NewObjectMeta(deployment.ObjectMeta),
+				TypeMeta:            api.NewTypeMeta(api.ResourceKindDeployment),
+				ContainerImages:     common.GetContainerImages(&deployment.Spec.Template.Spec),
+				InitContainerImages: common.GetInitContainerImages(&deployment.Spec.Template.Spec),
+				Pods:                podInfo,
 			})
 	}
 
 	cumulativeMetrics, err := metricPromises.GetMetrics()
 	deploymentList.CumulativeMetrics = cumulativeMetrics
 	if err != nil {
-		deploymentList.CumulativeMetrics = make([]metric.Metric, 0)
+		deploymentList.CumulativeMetrics = make([]metricapi.Metric, 0)
 	}
 
 	return deploymentList

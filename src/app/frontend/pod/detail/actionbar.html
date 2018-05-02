@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,6 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
+
+<kd-actionbar-shell-button namespace="$ctrl.details.objectMeta.namespace"
+                           pod-name="$ctrl.details.objectMeta.name">
+</kd-actionbar-shell-button>
+
+<kd-actionbar-logs resource-kind-name="$ctrl.details.typeMeta.kind"
+                   object-meta="$ctrl.details.objectMeta">
+</kd-actionbar-logs>
 
 <kd-actionbar-detail-buttons resource-kind-name="[[Pod|Label 'Pod' which appears at the top of the delete dialog, opened from a pod details page.]]"
                              type-meta="$ctrl.details.typeMeta"

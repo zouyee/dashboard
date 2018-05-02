@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chromeModule from 'chrome/module';
-import namespaceModule from 'namespace/module';
-import nodeModule from 'node/module';
-import persistentVolumeModule from 'persistentvolume/module';
-import roleModule from 'role/module';
-import storageClassModule from 'storageclass/module';
+import chromeModule from '../chrome/module';
+import namespaceModule from '../namespace/module';
+import nodeModule from '../node/module';
+import persistentVolumeModule from '../persistentvolume/module';
+import roleModule from '../role/module';
+import storageClassModule from '../storageclass/module';
 
 import stateConfig from './stateconfig';
 

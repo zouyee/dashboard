@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import module from 'common/appconfig/appconfig_module';
-import {AppConfigService} from 'common/appconfig/appconfig_service';
+import module from 'common/appconfig/module';
+import {AppConfigService} from 'common/appconfig/service';
 
 describe('Appconfig service test', () => {
   it(`increment time when getting server time`, () => {
@@ -30,9 +30,9 @@ describe('Appconfig service test', () => {
         20,    // hour
         30,    // minute
         40     // second
-        );
+    );
     jasmine.clock().mockDate(currentTime);
-    /** @type {!common/appconfig/appconfig_service.AppConfigService} */
+    /** @type {!common/appconfig/service.AppConfigService} */
     let kdAppConfigService = new AppConfigService({serverTime: 1234567890123});
 
     expect(kdAppConfigService.getServerTime().getTime()).toBe(1234567890123);

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,48 +17,48 @@ package replicaset
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // GetReplicaSetPods return list of pods targeting replica set.
-func GetReplicaSetPods(client k8sClient.Interface, heapsterClient client.HeapsterClient,
+func GetReplicaSetPods(client k8sClient.Interface, metricClient metricapi.MetricClient,
 	dsQuery *dataselect.DataSelectQuery, petSetName, namespace string) (*pod.PodList, error) {
 	log.Printf("Getting replication controller %s pods in namespace %s", petSetName, namespace)
 
 	pods, err := getRawReplicaSetPods(client, petSetName, namespace)
 	if err != nil {
-		return nil, err
+		return pod.EmptyPodList, err
 	}
 
-	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	events, err := event.GetPodsEvents(client, namespace, pods)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	podList := pod.ToPodList(pods, events, nonCriticalErrors, dsQuery, metricClient)
 	return &podList, nil
 }
 
-// Returns array of api pods targeting replica set with given name.
-func getRawReplicaSetPods(client k8sClient.Interface, petSetName, namespace string) (
-	[]api.Pod, error) {
-
-	replicaSet, err := client.Extensions().ReplicaSets(namespace).Get(petSetName, metaV1.GetOptions{})
+func getRawReplicaSetPods(client k8sClient.Interface, petSetName, namespace string) ([]v1.Pod, error) {
+	rs, err := client.AppsV1beta2().ReplicaSets(namespace).Get(petSetName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	labelSelector := labels.SelectorFromSet(replicaSet.Spec.Selector.MatchLabels)
 	channels := &common.ResourceChannels{
-		PodList: common.GetPodListChannelWithOptions(client, common.NewSameNamespaceQuery(namespace),
-			metaV1.ListOptions{
-				LabelSelector: labelSelector.String(),
-				FieldSelector: fields.Everything().String(),
-			}, 1),
+		PodList: common.GetPodListChannel(client, common.NewSameNamespaceQuery(namespace), 1),
 	}
 
 	podList := <-channels.PodList.List
@@ -66,17 +66,13 @@ func getRawReplicaSetPods(client k8sClient.Interface, petSetName, namespace stri
 		return nil, err
 	}
 
-	return podList.Items, nil
+	return common.FilterPodsByControllerRef(rs, podList.Items), nil
 }
 
-// Returns simple info about pods(running, desired, failing, etc.) related to given replica set.
-func getReplicaSetPodInfo(client k8sClient.Interface, replicaSet *extensions.ReplicaSet) (
-	*common.PodInfo, error) {
-
+func getReplicaSetPodInfo(client k8sClient.Interface, replicaSet *apps.ReplicaSet) (*common.PodInfo, error) {
 	labelSelector := labels.SelectorFromSet(replicaSet.Spec.Selector.MatchLabels)
 	channels := &common.ResourceChannels{
-		PodList: common.GetPodListChannelWithOptions(client, common.NewSameNamespaceQuery(
-			replicaSet.Namespace),
+		PodList: common.GetPodListChannelWithOptions(client, common.NewSameNamespaceQuery(replicaSet.Namespace),
 			metaV1.ListOptions{
 				LabelSelector: labelSelector.String(),
 				FieldSelector: fields.Everything().String(),
@@ -88,6 +84,6 @@ func getReplicaSetPodInfo(client k8sClient.Interface, replicaSet *extensions.Rep
 		return nil, err
 	}
 
-	podInfo := common.GetPodInfo(replicaSet.Status.Replicas, *replicaSet.Spec.Replicas, pods.Items)
+	podInfo := common.GetPodInfo(replicaSet.Status.Replicas, replicaSet.Spec.Replicas, pods.Items)
 	return &podInfo, nil
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -40,5 +40,29 @@ describe('Config Map card list', () => {
 
   it('should return the value from Namespace service', () => {
     expect(ctrl.areMultipleNamespacesSelected()).toBe(data.areMultipleNamespacesSelected());
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'configmaps';
+    ctrl.configMapList = {};
+    ctrl.configMapListResource = {};
+
+    // when
+    let result = ctrl.getSelectId();
+
+    // then
+    expect(result).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let result = ctrl.getSelectId();
+
+    // then
+    expect(result).toBe(expected);
   });
 });

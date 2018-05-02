@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import componentsModule from 'common/components/components_module';
+import {breadcrumbsConfig} from 'common/components/breadcrumbs/service';
+import componentsModule from 'common/components/module';
 
 describe('Actionbar delete item component', () => {
   /** @type {BreadcrumbsController} */
@@ -26,6 +26,8 @@ describe('Actionbar delete item component', () => {
   let q;
   /** @type {!angular.$scope} **/
   let scope;
+  /** {ui.router.$globals} */
+  let globals;
 
   /**
    * Create simple mock object for state.
@@ -48,12 +50,18 @@ describe('Actionbar delete item component', () => {
   }
 
   beforeEach(() => {
-    angular.mock.module(componentsModule.name);
+    angular.mock.module(componentsModule.name, ($provide) => {
+
+      let localizerService = {localize: function() {}};
+
+      $provide.value('localizerService', localizerService);
+    });
 
     angular.mock.inject(
         ($componentController, $state, _kdBreadcrumbsService_, _kdResourceVerberService_, $q,
-         $rootScope) => {
+         $rootScope, $uiRouterGlobals, localizerService) => {
           state = $state;
+          globals = $uiRouterGlobals;
           kdResourceVerberService = _kdResourceVerberService_;
           q = $q;
           scope = $rootScope.$new();
@@ -63,6 +71,7 @@ describe('Actionbar delete item component', () => {
                 kdBreadcrumbsService: _kdBreadcrumbsService_,
                 kdResourceVerberService: _kdResourceVerberService_,
                 $scope: scope,
+                localizerService: localizerService,
               },
               {
                 resourceKindName: 'resource',
@@ -78,7 +87,7 @@ describe('Actionbar delete item component', () => {
     let httpStatusOk = 200;
     spyOn(kdResourceVerberService, 'showDeleteDialog').and.returnValue(deferred.promise);
     spyOn(state, 'go');
-    state.$current = getStateMock('testState', 'testLabel', 'testParent');
+    globals.$current = getStateMock('testState', 'testLabel', 'testParent');
 
     // when
     ctrl.remove();

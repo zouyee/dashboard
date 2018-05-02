@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {AboutController} from 'about/controller';
+import {ActionBarController} from 'about/actionbar_controller';
 import module from 'about/module';
-import appconfig_module from 'common/appconfig/appconfig_module';
+import appconfig_module from 'common/appconfig/module';
 
-describe('About controller', () => {
-  /** @type {!about/controller.AboutController} */
+describe('About actionbar controller', () => {
+  /** @type {!about/actionbar_controller.ActionBarController} */
   let ctrl;
 
   beforeEach(() => {
     angular.mock.module(module.name);
     angular.mock.module(appconfig_module.name);
     angular.mock.inject(($controller, kdAppConfigService) => {
-      ctrl = $controller(AboutController, {
+      ctrl = $controller(ActionBarController, {
         'kdAppConfigService': kdAppConfigService,
       });
     });

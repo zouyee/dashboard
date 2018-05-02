@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,34 +15,38 @@
 package replicationcontroller
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // ReplicationController (aka. Replication Controller) plus zero or more Kubernetes services that
 // target the Replication Controller.
 type ReplicationController struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Aggregate information about pods belonging to this Replication Controller.
 	Pods common.PodInfo `json:"pods"`
 
 	// Container images of the Replication Controller.
 	ContainerImages []string `json:"containerImages"`
+
+	// Init Container images of the Replication Controller.
+	InitContainerImages []string `json:"initContainerImages"`
 }
 
 // Transforms simple selector map to labels.Selector object that can be used when querying for
 // object.
 func toLabelSelector(selector map[string]string) (labels.Selector, error) {
-	labelSelector, err := v1.LabelSelectorAsSelector(&v1.LabelSelector{MatchLabels: selector})
+	labelSelector, err := metaV1.LabelSelectorAsSelector(&metaV1.LabelSelector{MatchLabels: selector})
 
 	if err != nil {
 		return nil, err
@@ -55,9 +59,9 @@ func toLabelSelector(selector map[string]string) (labels.Selector, error) {
 // Services are matched by replication controllers' label selector. They are deleted if given
 // label selector is targeting only 1 replication controller.
 func getServicesForDeletion(client client.Interface, labelSelector labels.Selector,
-	namespace string) ([]api.Service, error) {
+	namespace string) ([]v1.Service, error) {
 
-	replicationControllers, err := client.Core().ReplicationControllers(namespace).List(metaV1.ListOptions{
+	replicationControllers, err := client.CoreV1().ReplicationControllers(namespace).List(metaV1.ListOptions{
 		LabelSelector: labelSelector.String(),
 		FieldSelector: fields.Everything().String(),
 	})
@@ -69,10 +73,10 @@ func getServicesForDeletion(client client.Interface, labelSelector labels.Select
 	// then we can delete services targeted by this label selector,
 	// otherwise we can not delete any services so just return empty list
 	if len(replicationControllers.Items) != 1 {
-		return []api.Service{}, nil
+		return []v1.Service{}, nil
 	}
 
-	services, err := client.Core().Services(namespace).List(metaV1.ListOptions{
+	services, err := client.CoreV1().Services(namespace).List(metaV1.ListOptions{
 		LabelSelector: labelSelector.String(),
 		FieldSelector: fields.Everything().String(),
 	})
@@ -85,20 +89,21 @@ func getServicesForDeletion(client client.Interface, labelSelector labels.Select
 
 // ToReplicationController converts replication controller api object to replication controller
 // model object.
-func ToReplicationController(replicationController *api.ReplicationController,
+func ToReplicationController(replicationController *v1.ReplicationController,
 	podInfo *common.PodInfo) ReplicationController {
 
 	return ReplicationController{
-		ObjectMeta:      common.NewObjectMeta(replicationController.ObjectMeta),
-		TypeMeta:        common.NewTypeMeta(common.ResourceKindReplicationController),
-		Pods:            *podInfo,
-		ContainerImages: common.GetContainerImages(&replicationController.Spec.Template.Spec),
+		ObjectMeta:          api.NewObjectMeta(replicationController.ObjectMeta),
+		TypeMeta:            api.NewTypeMeta(api.ResourceKindReplicationController),
+		Pods:                *podInfo,
+		ContainerImages:     common.GetContainerImages(&replicationController.Spec.Template.Spec),
+		InitContainerImages: common.GetInitContainerImages(&replicationController.Spec.Template.Spec),
 	}
 }
 
 // The code below allows to perform complex data section on []api.ReplicationController
 
-type ReplicationControllerCell api.ReplicationController
+type ReplicationControllerCell v1.ReplicationController
 
 func (self ReplicationControllerCell) GetProperty(name dataselect.PropertyName) dataselect.ComparableValue {
 	switch name {
@@ -113,16 +118,16 @@ func (self ReplicationControllerCell) GetProperty(name dataselect.PropertyName) 
 		return nil
 	}
 }
-func (self ReplicationControllerCell) GetResourceSelector() *metric.ResourceSelector {
-	return &metric.ResourceSelector{
+func (self ReplicationControllerCell) GetResourceSelector() *metricapi.ResourceSelector {
+	return &metricapi.ResourceSelector{
 		Namespace:    self.ObjectMeta.Namespace,
-		ResourceType: common.ResourceKindReplicationController,
+		ResourceType: api.ResourceKindReplicationController,
 		ResourceName: self.ObjectMeta.Name,
-		Selector:     self.ObjectMeta.Labels,
+		UID:          self.UID,
 	}
 }
 
-func ToCells(std []api.ReplicationController) []dataselect.DataCell {
+func toCells(std []v1.ReplicationController) []dataselect.DataCell {
 	cells := make([]dataselect.DataCell, len(std))
 	for i := range std {
 		cells[i] = ReplicationControllerCell(std[i])
@@ -130,10 +135,33 @@ func ToCells(std []api.ReplicationController) []dataselect.DataCell {
 	return cells
 }
 
-func FromCells(cells []dataselect.DataCell) []api.ReplicationController {
-	std := make([]api.ReplicationController, len(cells))
+func fromCells(cells []dataselect.DataCell) []v1.ReplicationController {
+	std := make([]v1.ReplicationController, len(cells))
 	for i := range std {
-		std[i] = api.ReplicationController(cells[i].(ReplicationControllerCell))
+		std[i] = v1.ReplicationController(cells[i].(ReplicationControllerCell))
 	}
 	return std
+}
+
+func getStatus(list *v1.ReplicationControllerList, pods []v1.Pod, events []v1.Event) common.ResourceStatus {
+	info := common.ResourceStatus{}
+	if list == nil {
+		return info
+	}
+
+	for _, ss := range list.Items {
+		matchingPods := common.FilterPodsByControllerRef(&ss, pods)
+		podInfo := common.GetPodInfo(ss.Status.Replicas, ss.Spec.Replicas, matchingPods)
+		warnings := event.GetPodsEventWarnings(events, matchingPods)
+
+		if len(warnings) > 0 {
+			info.Failed++
+		} else if podInfo.Pending > 0 {
+			info.Pending++
+		} else {
+			info.Running++
+		}
+	}
+
+	return info
 }

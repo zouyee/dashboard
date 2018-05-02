@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<kd-content-card ng-if="!ctrl.shouldShowZeroState()">
+<kd-content-card>
   <kd-content>
-    <kd-horizontal-pod-autoscaler-card-list horizontal-pod-autoscaler-list="::ctrl.horizontalPodAutoscalerList"
-                                            horizontal-pod-autoscaler-list-resource="::ctrl.horizontalPodAutoscalerListResource"
+    <kd-horizontal-pod-autoscaler-card-list ng-if="!ctrl.shouldShowZeroState()"
+                                            horizontal-pod-autoscaler-list="ctrl.horizontalPodAutoscalerList"
+                                            horizontal-pod-autoscaler-list-resource="ctrl.horizontalPodAutoscalerListResource"
                                             show-scale-target="true">
 
     </kd-horizontal-pod-autoscaler-card-list>
+    <kd-zero-state ng-if="ctrl.shouldShowZeroState()"></kd-zero-state>
   </kd-content>
 </kd-content-card>
-<kd-zero-state ng-if="ctrl.shouldShowZeroState()"></kd-zero-state>

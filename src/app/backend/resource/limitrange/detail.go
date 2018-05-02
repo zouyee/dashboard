@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 package limitrange
 
-import api "k8s.io/client-go/pkg/api/v1"
+import api "k8s.io/api/core/v1"
 
 // limitRanges provides set of limit ranges by limit types and resource names
 type limitRangesMap map[api.LimitType]rangeMap

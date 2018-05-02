@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 import module from 'chrome/nav/module';
 
 describe('Nav item component', () => {
-  /** @type {!chrome/nav/navitem_component.NavItemController} */
+  /** @type {!chrome/nav/component.NavItemController} */
   let ctrl;
-  /** @type {!chrome/nav/nav_service.NavService} */
+  /** @type {!chrome/nav/service.NavService} */
   let kdNavService;
 
   beforeEach(() => {

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 /**
  * @fileoverview Gulp tasks for building the project.
  */
@@ -21,7 +22,7 @@ import gulpUrlAdjuster from 'gulp-css-url-adjuster';
 import gulpHtmlmin from 'gulp-htmlmin';
 import gulpIf from 'gulp-if';
 import gulpMinifyCss from 'gulp-minify-css';
-import GulpRevAll from 'gulp-rev-all';
+import revAll from 'gulp-rev-all';
 import gulpUglify from 'gulp-uglify';
 import gulpUseref from 'gulp-useref';
 import mergeStream from 'merge-stream';
@@ -216,7 +217,7 @@ function createFrontendCopies(outputDirs) {
   let searchPath = [
     // To resolve local paths.
     path.relative(conf.paths.base, conf.paths.prodTmp),
-    // To resolve bower_components/... paths.
+    // To resolve node_modules/... paths.
     path.relative(conf.paths.base, conf.paths.base),
   ];
 
@@ -234,7 +235,10 @@ function createFrontendCopies(outputDirs) {
                      replace: ['prod/', ''],
                    })))
       .pipe(gulpIf('**/vendor.js', gulpUglify({
-                     preserveComments: uglifySaveLicense,
+                     output: {
+                       comments: uglifySaveLicense,
+                     },
+                     // preserveComments: uglifySaveLicense,
                      // Disable compression of unused vars. This speeds up minification a lot (like
                      // 10 times).
                      // See https://github.com/mishoo/UglifyJS2/issues/321
@@ -250,17 +254,17 @@ function createFrontendCopies(outputDirs) {
 
 /**
  * Creates revisions of all .js anc .css files at once (for production).
- * Replaces the occurances of those files in index.html with their new names.
+ * Replaces the occurences of those files in index.html with their new names.
  * index.html does not get renamed in the process.
  * The processed files are then moved to the dist directory.
  * @return {stream}
  */
 function doRevision() {
-  // Do not update references other than in index.html. Do not rev index.html itself.
-  let revAll =
-      new GulpRevAll({dontRenameFile: ['index.html'], dontSearchFile: [/^(?!.*index\.html$).*$/]});
-  return gulp.src([path.join(conf.paths.distPre, '**'), '!**/assets/**/*'])
-      .pipe(revAll.revision())
+  return gulp
+      .src([path.join(conf.paths.distPre, '**'), '!**/assets/**/*'])
+      // Do not update references other than in index.html. Do not rev index.html itself.
+      .pipe(revAll.revision(
+          {dontRenameFile: ['index.html'], dontSearchFile: [/^(?!.*index\.html$).*$/]}))
       .pipe(gulp.dest(conf.paths.distRoot));
 }
 

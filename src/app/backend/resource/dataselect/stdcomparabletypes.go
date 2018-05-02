@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,11 +32,20 @@ func (self StdComparableInt) Compare(otherV ComparableValue) int {
 	return intsCompare(int(self), int(other))
 }
 
+func (self StdComparableInt) Contains(otherV ComparableValue) bool {
+	return self.Compare(otherV) == 0
+}
+
 type StdComparableString string
 
 func (self StdComparableString) Compare(otherV ComparableValue) int {
 	other := otherV.(StdComparableString)
 	return strings.Compare(string(self), string(other))
+}
+
+func (self StdComparableString) Contains(otherV ComparableValue) bool {
+	other := otherV.(StdComparableString)
+	return strings.Contains(string(self), string(other))
 }
 
 // StdComparableRFC3339Timestamp takes RFC3339 Timestamp strings and compares them as TIMES. In case of time parsing error compares values as strings.
@@ -56,11 +65,19 @@ func (self StdComparableRFC3339Timestamp) Compare(otherV ComparableValue) int {
 	}
 }
 
+func (self StdComparableRFC3339Timestamp) Contains(otherV ComparableValue) bool {
+	return self.Compare(otherV) == 0
+}
+
 type StdComparableTime time.Time
 
 func (self StdComparableTime) Compare(otherV ComparableValue) int {
 	other := otherV.(StdComparableTime)
 	return ints64Compare(time.Time(self).Unix(), time.Time(other).Unix())
+}
+
+func (self StdComparableTime) Contains(otherV ComparableValue) bool {
+	return self.Compare(otherV) == 0
 }
 
 // Int comparison functions. Similar to strings.Compare.

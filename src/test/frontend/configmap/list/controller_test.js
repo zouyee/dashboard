@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {ConfigMapListController} from 'configmap/list/controller';
 import configMapListModule from 'configmap/module';
 
 describe('Config Map list controller', () => {
-  /** @type {!ConfigMapListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(configMapListModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(ConfigMapListController, {configMapList: {items: []}});
-    });
   });
 
   it('should initialize config map controller', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Config Map list controller', () => {
 
     expect(ctrl.configMapList.items).toBe(ctrls);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBe(true);
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.configMapList = {items: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBe(false);
-  });
 });

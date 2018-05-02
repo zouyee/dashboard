@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import authModule from 'common/auth/module';
+import commonErrorModule from 'common/errorhandling/module';
+import historyModule from 'common/history/module';
 import {InternalErrorController} from 'error/controller';
 import errorModule from 'error/module';
 import {StateParams} from 'error/state';
@@ -24,10 +27,19 @@ describe('Internal error controller', () => {
 
   beforeEach(() => {
     angular.mock.module(errorModule.name);
+    angular.mock.module(commonErrorModule.name);
+    angular.mock.module(authModule.name);
+    angular.mock.module(historyModule.name);
 
     angular.mock.inject(($controller) => {
       stateParams = new StateParams({status: undefined});
-      ctrl = $controller(InternalErrorController, {$stateParams: stateParams});
+      ctrl = $controller(InternalErrorController, {
+        $transition$: {
+          'params': function() {
+            return stateParams;
+          },
+        },
+      });
     });
   });
 

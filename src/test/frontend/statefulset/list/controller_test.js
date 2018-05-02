@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {StatefulSetListController} from 'statefulset/list/controller';
 import statefulSetModule from 'statefulset/module';
 
 describe('Stateful Set list controller', () => {
-  /** @type {!StatefulSetListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(statefulSetModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(StatefulSetListController, {statefulSetList: {statefulSets: []}});
-    });
   });
 
   it('should initialize stateful set controller', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Stateful Set list controller', () => {
 
     expect(ctrl.statefulSetList.statefulSets).toBe(ctrls);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.statefulSetList = {statefulSets: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

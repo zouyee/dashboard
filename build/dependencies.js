@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All rights reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
 import gulp from 'gulp';
 import gulputil from 'gulp-util';
 import ncu from 'npm-check-updates';
@@ -23,33 +24,19 @@ import conf from './conf';
 /**
  * Updates npm dependencies.
  */
-gulp.task('update-npm-dependencies', function() {
+gulp.task('update-npm-deps', function() {
   return gulp.src([path.join(conf.paths.base, 'package.json')]).pipe(updateDependencies('npm'));
 });
 
 /**
  * Checks npm dependencies which need to be updated.
  */
-gulp.task('check-npm-dependencies', function() {
+gulp.task('check-npm-deps', function() {
   return gulp.src([path.join(conf.paths.base, 'package.json')]).pipe(checkDependencies('npm'));
 });
 
 /**
- * Updates bower dependencies.
- */
-gulp.task('update-bower-dependencies', function() {
-  return gulp.src([path.join(conf.paths.base, 'bower.json')]).pipe(updateDependencies('bower'));
-});
-
-/**
- * Checks bower dependencies which need to be updated.
- */
-gulp.task('check-bower-dependencies', function() {
-  return gulp.src([path.join(conf.paths.base, 'bower.json')]).pipe(checkDependencies('bower'));
-});
-
-/**
- * Updates dependencies of given package manager by updating related package/bower json file.
+ * Updates dependencies of given package manager by updating related package json file.
  *
  * @param {string} packageManager
  * @return {stream}
@@ -93,7 +80,7 @@ function checkDependencies(packageManager) {
           if (dependenciesStr.length !== 0) {
             gulputil.log(gulputil.colors.yellow(
                 `Dependencies needed to update:\n${dependenciesStr}\n` +
-                `Run: 'gulp update-${packageManager}-dependencies', then '${packageManager} ` +
+                `Run: 'gulp update-${packageManager}-deps', then '${packageManager} ` +
                 `install' to update dependencies.\n`));
           }
 

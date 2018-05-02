@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 
 .kd-actionbar-breadcrumbs {
   align-items: center;
-  line-height: 5 * $baseline-grid;
+  line-height: 2 * $baseline-grid;
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
@@ -50,13 +50,19 @@
   }
 }
 
-.kd-actionbar-icon-button {
-  margin-right: .25 * $baseline-grid;
-}
-
 .kd-actionbar-divider {
-  border-left: 1px solid $hue-3;
+  border-left: 1px solid $foreground-4;
   height: 4 * $baseline-grid;
   margin-left: 1.5 * $baseline-grid;
   margin-right: $baseline-grid;
+}
+
+.kd-actionbar-button {
+  display: flex;
+  flex-direction: row;
+
+  .kd-actionbar-button-text {
+    margin-left: $baseline-grid / 2;
+    padding-right: $baseline-grid / 2;
+  }
 }

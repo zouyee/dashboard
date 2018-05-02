@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chromeModule from 'chrome/module';
+import chromeModule from '../chrome/module';
+import {isError, kdErrors} from '../common/errorhandling/errors';
+import {stateName as loginState, StateParams as LoginStateParams} from '../login/state';
 
 import {stateName, StateParams} from './state';
 import stateConfig from './stateconfig';
@@ -33,17 +35,18 @@ export default angular
 /**
  * Configures event catchers for the error views.
  *
- * @param {!angular.Scope} $rootScope
- * @param {!ui.router.$state} $state
+ * @param {!kdUiRouter.$state} $state
+ * @param {!../common/auth/service.AuthService} kdAuthService
  * @ngInject
  */
-function errorConfig($rootScope, $state) {
-  let deregistrationHandler = $rootScope.$on(
-      '$stateChangeError', (event, toState, toParams, fromState, fromParams, error) => {
-        if (toState.name !== stateName) {
-          $state.go(stateName, new StateParams(error, toParams.namespace));
-        }
-      });
+function errorConfig($state, kdAuthService) {
+  $state.defaultErrorHandler((err) => {
+    if (isError(err.detail.data, kdErrors.TOKEN_EXPIRED, kdErrors.ENCRYPTION_KEY_CHANGED)) {
+      kdAuthService.removeAuthCookies();
+      $state.go(loginState, new LoginStateParams(err.detail));
+      return;
+    }
 
-  $rootScope.$on('$destroy', deregistrationHandler);
+    $state.go(stateName, new StateParams(err.detail, $state.params.namespace));
+  });
 }

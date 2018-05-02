@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'job/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../detail/state';
 
 /**
  * Controller for the job card.
  *
  * @final
  */
-export default class JobCardController {
+class JobCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!../../common/namespace/service.NamespaceService} kdNamespaceService
    * @ngInject
    */
   constructor($state, kdNamespaceService) {
@@ -36,7 +36,8 @@ export default class JobCardController {
     /** @private {!ui.router.$state} */
     this.state_ = $state;
 
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+
+    /** @private {!../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
   }
 

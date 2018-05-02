@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,35 +18,35 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
-func TestGetConfigMapList(t *testing.T) {
+func TestToConfigMapList(t *testing.T) {
 	cases := []struct {
-		configMaps []api.ConfigMap
+		configMaps []v1.ConfigMap
 		expected   *ConfigMapList
 	}{
 		{nil, &ConfigMapList{Items: []ConfigMap{}}},
 		{
-			[]api.ConfigMap{
+			[]v1.ConfigMap{
 				{Data: map[string]string{"app": "my-name"}, ObjectMeta: metaV1.ObjectMeta{Name: "foo"}},
 			},
 			&ConfigMapList{
-				ListMeta: common.ListMeta{TotalItems: 1},
+				ListMeta: api.ListMeta{TotalItems: 1},
 				Items: []ConfigMap{{
-					TypeMeta:   common.TypeMeta{Kind: "configmap"},
-					ObjectMeta: common.ObjectMeta{Name: "foo"},
+					TypeMeta:   api.TypeMeta{Kind: "configmap"},
+					ObjectMeta: api.ObjectMeta{Name: "foo"},
 				}},
 			},
 		},
 	}
 	for _, c := range cases {
-		actual := getConfigMapList(c.configMaps, dataselect.NoDataSelect)
+		actual := toConfigMapList(c.configMaps, nil, dataselect.NoDataSelect)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("getConfigMapList(%#v) == \n%#v\nexpected \n%#v\n",
+			t.Errorf("toConfigMapList(%#v) == \n%#v\nexpected \n%#v\n",
 				c.configMaps, actual, c.expected)
 		}
 	}

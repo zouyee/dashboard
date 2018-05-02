@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,15 +14,17 @@
 
 import module from 'cluster/module';
 import {resolveResource} from 'cluster/stateconfig';
+import settingsServiceModule from 'common/settings/module';
 
 describe('StateConfig for cluster list', () => {
-  /** @type {!common/pagination/pagination_service.PaginationService} */
-  let kdPaginationService;
+  /** @type {!common/dataselect/dataselect_service.DataSelectService} */
+  let kdDataSelectService;
 
   beforeEach(() => {
     angular.mock.module(module.name);
-    angular.mock.inject((_kdPaginationService_) => {
-      kdPaginationService = _kdPaginationService_;
+    angular.mock.module(settingsServiceModule.name);
+    angular.mock.inject((_kdDataSelectService_) => {
+      kdDataSelectService = _kdDataSelectService_;
     });
   });
 
@@ -34,9 +36,9 @@ describe('StateConfig for cluster list', () => {
       return {$promise: promise};
     });
 
-    let actual = resolveResource(resource, kdPaginationService);
+    let actual = resolveResource(resource, kdDataSelectService);
 
-    expect(resource.get).toHaveBeenCalledWith(kdPaginationService.getDefaultResourceQuery());
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery());
     expect(actual).toBe(promise);
   }));
 });

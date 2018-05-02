@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {stateName as parentStateName} from 'cluster/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {stateUrl} from '../state';
+import {stateName as parentStateName} from '../../cluster/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+
+import {stateName as parentState, stateUrl} from '../state';
 import {RoleListController} from './controller';
 
 const i18n = {
@@ -30,7 +30,7 @@ const i18n = {
  */
 export const config = {
   url: stateUrl,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'roleList': resolveRoleList,
   },
@@ -55,17 +55,16 @@ export const config = {
  * @ngInject
  */
 export function roleListResource($resource) {
-  return $resource('api/v1/rbacrole');
+  return $resource('api/v1/rbac/role');
 }
 
 /**
  * @param {!angular.Resource} kdRoleListResource
- * @param {!./../../common/pagination/pagination_service.PaginationService} kdPaginationService
- * @returns {!angular.$q.Promise}
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
+ * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveRoleList(kdRoleListResource, kdPaginationService) {
-  /** @type {!backendApi.PaginationQuery} */
-  let query = kdPaginationService.getDefaultResourceQuery('');
+export function resolveRoleList(kdRoleListResource, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery('');
   return kdRoleListResource.get(query).$promise;
 }

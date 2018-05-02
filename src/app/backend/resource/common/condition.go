@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
 package common
 
 import (
+	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // Condition represents a single condition of a pod or node.

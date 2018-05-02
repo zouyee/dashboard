@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,97 +15,104 @@
 package secret
 
 import (
+	"log"
+
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	kubernetes "k8s.io/client-go/kubernetes"
 )
 
-// SecretSpec - common interface for the specification of different secrets.
+// SecretSpec is a common interface for the specification of different secrets.
 type SecretSpec interface {
 	GetName() string
-	GetType() api.SecretType
+	GetType() v1.SecretType
 	GetNamespace() string
 	GetData() map[string][]byte
 }
 
-// ImagePullSecretSpec - specification of an image pull secret implements SecretSpec
+// ImagePullSecretSpec is a specification of an image pull secret implements SecretSpec
 type ImagePullSecretSpec struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+
 	// The value of the .dockercfg property. It must be Base64 encoded.
 	Data []byte `json:"data"`
 }
 
-// GetName - return the name of the ImagePullSecret
+// GetName returns the name of the ImagePullSecret
 func (spec *ImagePullSecretSpec) GetName() string {
 	return spec.Name
 }
 
-// GetType - return the type of the ImagePullSecret, which is always api.SecretTypeDockercfg
-func (spec *ImagePullSecretSpec) GetType() api.SecretType {
-	return api.SecretTypeDockercfg
+// GetType returns the type of the ImagePullSecret, which is always api.SecretTypeDockercfg
+func (spec *ImagePullSecretSpec) GetType() v1.SecretType {
+	return v1.SecretTypeDockercfg
 }
 
-// GetNamespace - return the namespace of the ImagePullSecret
+// GetNamespace returns the namespace of the ImagePullSecret
 func (spec *ImagePullSecretSpec) GetNamespace() string {
 	return spec.Namespace
 }
 
-// GetData - return the data the secret carries, it is a single key-value pair
+// GetData returns the data the secret carries, it is a single key-value pair
 func (spec *ImagePullSecretSpec) GetData() map[string][]byte {
-	return map[string][]byte{api.DockerConfigKey: spec.Data}
+	return map[string][]byte{v1.DockerConfigKey: spec.Data}
 }
 
-// Secret - a single secret returned to the frontend.
+// Secret is a single secret returned to the frontend.
 type Secret struct {
-	common.ObjectMeta `json:"objectMeta"`
-	common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
+	Type       v1.SecretType  `json:"type"`
 }
 
-// SecretsList - response structure for a queried secrets list.
+// SecretsList is a response structure for a queried secrets list.
 type SecretList struct {
-	common.ListMeta `json:"listMeta"`
+	api.ListMeta `json:"listMeta"`
 
 	// Unordered list of Secrets.
 	Secrets []Secret `json:"secrets"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
-// GetSecretList - return all secrets in the given namespace.
-func GetSecretList(client *client.Clientset, namespace *common.NamespaceQuery,
+// GetSecretList returns all secrets in the given namespace.
+func GetSecretList(client kubernetes.Interface, namespace *common.NamespaceQuery,
 	dsQuery *dataselect.DataSelectQuery) (*SecretList, error) {
-	secretList, err := client.Secrets(namespace.ToRequestParam()).List(metaV1.ListOptions{
-		LabelSelector: labels.Everything().String(),
-		FieldSelector: fields.Everything().String(),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return NewSecretList(secretList.Items, dsQuery), err
-}
+	log.Printf("Getting list of secrets in %s namespace\n", namespace)
+	secretList, err := client.CoreV1().Secrets(namespace.ToRequestParam()).List(api.ListEverything)
 
-// GetSecretListFromChannels returns a list of all Config Maps in the cluster
-// reading required resource list once from the channels.
-func GetSecretListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (
-	*SecretList, error) {
-
-	list := <-channels.SecretList.List
-	if err := <-channels.SecretList.Error; err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	result := NewSecretList(list.Items, dsQuery)
-
-	return result, nil
+	return toSecretList(secretList.Items, nonCriticalErrors, dsQuery), nil
 }
 
-// CreateSecret - create a single secret using the cluster API client
-func CreateSecret(client *client.Clientset, spec SecretSpec) (*Secret, error) {
+// GetSecretListFromChannels returns a list of all Secrets in the cluster reading required resource list once from the channels.
+func GetSecretListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (*SecretList, error) {
+	secretList := <-channels.SecretList.List
+	err := <-channels.SecretList.Error
+
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	return toSecretList(secretList.Items, nonCriticalErrors, dsQuery), nil
+
+}
+
+// CreateSecret creates a single secret using the cluster API client
+func CreateSecret(client kubernetes.Interface, spec SecretSpec) (*Secret, error) {
 	namespace := spec.GetNamespace()
-	secret := &api.Secret{
+	secret := &v1.Secret{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:      spec.GetName(),
 			Namespace: namespace,
@@ -113,27 +120,31 @@ func CreateSecret(client *client.Clientset, spec SecretSpec) (*Secret, error) {
 		Type: spec.GetType(),
 		Data: spec.GetData(),
 	}
-	_, err := client.Secrets(namespace).Create(secret)
-	return NewSecret(secret), err
+	_, err := client.CoreV1().Secrets(namespace).Create(secret)
+	return toSecret(secret), err
 }
 
-// NewSecret - creates a new instance of Secret struct based on K8s Secret.
-func NewSecret(secret *api.Secret) *Secret {
-	return &Secret{common.NewObjectMeta(secret.ObjectMeta),
-		common.NewTypeMeta(common.ResourceKindSecret)}
+func toSecret(secret *v1.Secret) *Secret {
+	return &Secret{
+		ObjectMeta: api.NewObjectMeta(secret.ObjectMeta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindSecret),
+		Type:       secret.Type,
+	}
 }
 
-// NewSecret - creates a new instance of SecretList struct based on K8s Secrets array.
-func NewSecretList(secrets []api.Secret, dsQuery *dataselect.DataSelectQuery) *SecretList {
+func toSecretList(secrets []v1.Secret, nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery) *SecretList {
 	newSecretList := &SecretList{
-		ListMeta: common.ListMeta{TotalItems: len(secrets)},
+		ListMeta: api.ListMeta{TotalItems: len(secrets)},
 		Secrets:  make([]Secret, 0),
+		Errors:   nonCriticalErrors,
 	}
 
-	secrets = fromCells(dataselect.GenericDataSelect(toCells(secrets), dsQuery))
+	secretCells, filteredTotal := dataselect.GenericDataSelectWithFilter(toCells(secrets), dsQuery)
+	secrets = fromCells(secretCells)
+	newSecretList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, secret := range secrets {
-		newSecretList.Secrets = append(newSecretList.Secrets, *NewSecret(&secret))
+		newSecretList.Secrets = append(newSecretList.Secrets, *toSecret(&secret))
 	}
 
 	return newSecretList

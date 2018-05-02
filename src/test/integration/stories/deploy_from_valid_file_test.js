@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import ReplicationControllersPageObject from '../replicationcontrollerslist/repl
 
 
 // Test assumes, that there are no replication controllers in the cluster at the beginning.
-describe('Deploy from valid file user story test', () => {
+xdescribe('Deploy from valid file user story test', () => {
 
   /** @type {!DeployFromFilePageObject} */
   let deployFromFilePage;
@@ -40,7 +40,8 @@ describe('Deploy from valid file user story test', () => {
     deployFromFilePage = new DeployFromFilePageObject();
     replicationControllersPage = new ReplicationControllersPageObject();
     deleteDialog = new DeleteReplicationControllerDialogObject();
-    browser.get('#!/deploy/file');
+    browser.get('#!/deploy');
+    deployFromFilePage.deployFromFileTab.click();
   });
 
   it('should upload the file', () => {
@@ -49,12 +50,11 @@ describe('Deploy from valid file user story test', () => {
     let absolutePath = path.resolve(__dirname, fileToUpload);
 
     // when
-    deployFromFilePage.makeInputVisible();
-    deployFromFilePage.setFile(absolutePath);
+    deployFromFilePage.filePicker.sendKeys(absolutePath);
     deployFromFilePage.deployButton.click();
 
     // then
-    expect(browser.getCurrentUrl()).toContain('workload');
+    expect(browser.getCurrentUrl()).toContain('overview');
 
     let cardNameLink = replicationControllersPage.getElementByAppName(
         replicationControllersPage.cardDetailsPageLinkQuery, appName);

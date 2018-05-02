@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
 import module from 'chrome/nav/module';
 
 describe('Hamburger component', () => {
-  /** @type {!chrome/nav/nav_component.NavController} */
+  /** @type {!chrome/nav/component.NavController} */
   let ctrl;
-  /** @type {!chrome/nav/nav_service.NavService} */
+  /** @type {!chrome/nav/service.NavService} */
   let navService;
 
   beforeEach(() => {

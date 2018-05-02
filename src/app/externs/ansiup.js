@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,14 +13,17 @@
 // limitations under the License.
 
 /**
- * @fileoverview Externs for https://github.com/drudru/ansi_up
+ * @fileoverview Externs for https://github.com/mariusstaicu/ansi-up
  *
  * @externs
  */
 
-const ansi_up = {};
+/**
+ * @constructor
+ */
+const AnsiUp = function() {};
 
 /**
  * @param {string} ansi
  */
-ansi_up.ansi_to_html = function(ansi) {};
+AnsiUp.prototype.ansi_to_html = function(ansi) {};

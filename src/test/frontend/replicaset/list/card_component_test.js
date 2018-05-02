@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import scalingModule from 'common/scaling/module';
 import replicaSetModule from 'replicaset/module';
 
 describe('Replica Set card', () => {
@@ -19,10 +20,14 @@ describe('Replica Set card', () => {
   let ctrl;
 
   beforeEach(() => {
+    angular.mock.module(scalingModule.name);
     angular.mock.module(replicaSetModule.name);
 
-    angular.mock.inject(($componentController, $rootScope) => {
-      ctrl = $componentController('kdReplicaSetCard', {$scope: $rootScope});
+    angular.mock.inject(($componentController, $state, $interpolate) => {
+      ctrl = $componentController('kdReplicaSetCard', {}, {
+        state_: $state,
+        interpolate_: $interpolate,
+      });
     });
   });
 
@@ -115,10 +120,5 @@ describe('Replica Set card', () => {
     // then
     expect(ctrl.isPending()).toBe(false);
     expect(ctrl.isSuccess()).toBe(true);
-  });
-
-  it('should format the "created at" tooltip correctly', () => {
-    expect(ctrl.getCreatedAtTooltip('2016-06-06T09:13:12Z'))
-        .toMatch('Created at 2016-06-06T09:13.*');
   });
 });

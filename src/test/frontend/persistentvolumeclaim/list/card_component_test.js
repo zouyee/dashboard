@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ describe('Persistent Volume Claim card', () => {
   it('should return true when persistent volume claim is bound', () => {
     // given
     ctrl.persistentVolumeClaim = {
-      Status: 'Bound',
+      status: 'Bound',
     };
 
     // then
@@ -47,7 +47,7 @@ describe('Persistent Volume Claim card', () => {
   it('should return true when persistent volume claim is pending', () => {
     // given
     ctrl.persistentVolumeClaim = {
-      Status: 'Pending',
+      status: 'Pending',
     };
 
     // then
@@ -57,7 +57,7 @@ describe('Persistent Volume Claim card', () => {
   it('should return true when persistent volume claim is lost', () => {
     // given
     ctrl.persistentVolumeClaim = {
-      Status: 'Lost',
+      status: 'Lost',
     };
 
     // then
@@ -77,10 +77,5 @@ describe('Persistent Volume Claim card', () => {
 
   it('should return the value from Namespace service', () => {
     expect(ctrl.areMultipleNamespacesSelected()).toBe(data.areMultipleNamespacesSelected());
-  });
-
-  it('should format the "created at" tooltip correctly', () => {
-    expect(ctrl.getCreatedAtTooltip('2016-06-06T09:13:12Z'))
-        .toMatch('Created at 2016-06-06T09:13.*');
   });
 });

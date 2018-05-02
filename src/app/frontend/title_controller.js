@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,33 +20,51 @@
 export class TitleController {
   /**
    * @param {!angular.$interpolate} $interpolate
-   * @param {!./common/state/futurestate_service.FutureStateService} kdFutureStateService
+   * @param {!./common/state/service.FutureStateService} kdFutureStateService
+   * @param {!./common/components/breadcrumbs/service.BreadcrumbsService} kdBreadcrumbsService
+   * @param {!./common/settings/service.SettingsService} kdSettingsService
    * @ngInject
    */
-  constructor($interpolate, kdFutureStateService) {
-    /** @private {!./common/state/futurestate_service.FutureStateService} */
-    this.kdFutureStateService_ = kdFutureStateService;
+  constructor($interpolate, kdFutureStateService, kdBreadcrumbsService, kdSettingsService) {
+    /** @private {!./common/state/service.FutureStateService} */
+    this.futureStateService_ = kdFutureStateService;
+
+    /** @private {!./common/components/breadcrumbs/service.BreadcrumbsService} */
+    this.kdBreadcrumbsService_ = kdBreadcrumbsService;
+
+    /** @private {!./common/settings/service.SettingsService} */
+    this.settingsService_ = kdSettingsService;
 
     /** @private {!angular.$interpolate} */
     this.interpolate_ = $interpolate;
+
+    /** @private {string} */
+    this.defaultTitle_ = 'Kubernetes Dashboard';
   }
 
   /**
-   * Returns title of browser window based on current state's breadcrumb label.
+   * Returns title of browser window based on current state's breadcrumb label and cluster name set
+   * in settings.
    *
    * @export
    * @return {string}
    */
   title() {
-    if (this.kdFutureStateService_.state && this.kdFutureStateService_.state.data &&
-        this.kdFutureStateService_.state.data.kdBreadcrumbs &&
-        this.kdFutureStateService_.state.data.kdBreadcrumbs.label) {
-      let breadcrumbs = this.kdFutureStateService_.state.data.kdBreadcrumbs;
-      let params = this.kdFutureStateService_.params;
-      let state = this.interpolate_(breadcrumbs.label)({'$stateParams': params}).toString();
-      return `${state} - Kubernetes Dashboard`;
-    } else {
-      return 'Kubernetes Dashboard';
+    let windowTitle = '';
+
+    let clusterName = this.settingsService_.getClusterName();
+    if (clusterName) {
+      windowTitle += `${clusterName} - `;
     }
+
+    let conf = this.kdBreadcrumbsService_.getBreadcrumbConfig(this.futureStateService_.state);
+    if (conf && conf.label) {
+      let params = this.futureStateService_.params;
+      let stateLabel = this.interpolate_(conf.label)({'$stateParams': params}).toString();
+      windowTitle += `${stateLabel} - `;
+    }
+
+    windowTitle += this.defaultTitle_;
+    return windowTitle;
   }
 }

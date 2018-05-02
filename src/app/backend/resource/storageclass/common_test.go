@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
+	storage "k8s.io/api/storage/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	storage "k8s.io/client-go/pkg/apis/storage/v1beta1"
 )
 
 func TestToStorageClass(t *testing.T) {
@@ -31,24 +32,61 @@ func TestToStorageClass(t *testing.T) {
 		{
 			storage: &storage.StorageClass{},
 			expected: StorageClass{
-				TypeMeta: common.TypeMeta{Kind: common.ResourceKindStorageClass},
+				TypeMeta: api.TypeMeta{Kind: api.ResourceKindStorageClass},
 			},
 		}, {
 			storage: &storage.StorageClass{
 				ObjectMeta: metaV1.ObjectMeta{Name: "test-storage"}},
 			expected: StorageClass{
-				ObjectMeta: common.ObjectMeta{Name: "test-storage"},
-				TypeMeta:   common.TypeMeta{Kind: common.ResourceKindStorageClass},
+				ObjectMeta: api.ObjectMeta{Name: "test-storage"},
+				TypeMeta:   api.TypeMeta{Kind: api.ResourceKindStorageClass},
 			},
 		},
 	}
 
 	for _, c := range cases {
-		actual := ToStorageClass(c.storage)
+		actual := toStorageClass(c.storage)
 
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("ToStorageClass(%#v) == \ngot %#v, \nexpected %#v", c.storage, actual,
-				c.expected)
+			t.Errorf("toStorageClass(%#v) == \ngot %#v, \nexpected %#v", c.storage, actual, c.expected)
+		}
+	}
+}
+
+func TestToStorageClassDetail(t *testing.T) {
+	cases := []struct {
+		storage              *storage.StorageClass
+		persistentVolumeList persistentvolume.PersistentVolumeList
+		expected             StorageClassDetail
+	}{
+		{
+			&storage.StorageClass{},
+			persistentvolume.PersistentVolumeList{},
+			StorageClassDetail{
+				TypeMeta: api.TypeMeta{Kind: api.ResourceKindStorageClass},
+			},
+		},
+		{
+			&storage.StorageClass{ObjectMeta: metaV1.ObjectMeta{Name: "storage-class"}},
+			persistentvolume.PersistentVolumeList{Items: []persistentvolume.PersistentVolume{{ObjectMeta: api.ObjectMeta{Name: "pv-1"}}}},
+			StorageClassDetail{
+				ObjectMeta: api.ObjectMeta{Name: "storage-class"},
+				TypeMeta:   api.TypeMeta{Kind: api.ResourceKindStorageClass},
+				PersistentVolumeList: persistentvolume.PersistentVolumeList{
+					Items: []persistentvolume.PersistentVolume{{
+						ObjectMeta: api.ObjectMeta{Name: "pv-1"},
+					}},
+				},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		actual := toStorageClassDetail(c.storage, &c.persistentVolumeList)
+
+		if !reflect.DeepEqual(actual, c.expected) {
+			t.Errorf("toStorageClassDetail(%#v, %#v) == \ngot %#v, \nexpected %#v",
+				c.storage, c.persistentVolumeList, actual, c.expected)
 		}
 	}
 }

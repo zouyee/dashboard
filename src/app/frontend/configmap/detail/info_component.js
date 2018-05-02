@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,28 +13,11 @@
 // limitations under the License.
 
 /**
- * @final
- */
-export default class ConfigMapInfoController {
-  /**
-   * Constructs statefultion controller info object.
-   */
-  constructor() {
-    /**
-     * Config map details. Initialized from the scope.
-     * @export {!backendApi.ConfigMapDetail}
-     */
-    this.configMap;
-  }
-}
-
-/**
  * Definition object for the component that displays config map info.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const configMapInfoComponent = {
-  controller: ConfigMapInfoController,
   templateUrl: 'configmap/detail/info.html',
   bindings: {
     /** {!backendApi.ConfigMapDetail} */

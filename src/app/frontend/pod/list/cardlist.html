@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -16,21 +16,26 @@ limitations under the License.
 
 <kd-resource-card-list selectable="::$ctrl.selectable"
                        with-statuses="::$ctrl.withStatuses"
-                       ng-if="::$ctrl.podList.pods">
-  <kd-resource-card-list-header ng-transclude="header">
-    [[Pods|Label which appears above the list of such objects.]]
+                       select-id="{{::$ctrl.getSelectId()}}"
+                       list="$ctrl.podList"
+                       list-resource="$ctrl.podListResource">
+  <kd-resource-card-list-header>
+    <kd-resource-card-list-title ng-transclude="header">
+      [[Pods|Label which appears above the list of such objects.]]
+    </kd-resource-card-list-title>
+    <kd-resource-card-list-filter></kd-resource-card-list-filter>
   </kd-resource-card-list-header>
-  <kd-resource-card-list-pagination pagination-id="pods"
-                                    list="$ctrl.podList"
-                                    list-resource="$ctrl.podListResource">
-  </kd-resource-card-list-pagination>
-  <div ng-show="!$ctrl.podList.listMeta.totalItems"
-       class="kd-zerostate-message"
-       ng-transclude="zerostate"></div>
 
-  <kd-resource-card-header-columns ng-show="::$ctrl.podList.listMeta.totalItems">
+  <kd-zero-state ng-if="!$ctrl.podList.listMeta.totalItems">
+    <kd-zero-state-text ng-transclude="zerostate">
+      [[There are no Pods to display.|Text for pods card list zerostate.]]
+    </kd-zero-state-text>
+  </kd-zero-state>
+  <kd-resource-card-header-columns ng-show="$ctrl.podList.listMeta.totalItems">
     <kd-resource-card-header-column size="small"
-                                    grow="2">
+                                    grow="2"
+                                    sortable="true"
+                                    sort-id="$root.SortableProperties.NAME">
       [[Name|Title of a column]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
@@ -40,6 +45,12 @@ limitations under the License.
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
                                     grow="1">
+      [[Node|Title of a column showing name of the node that pod is running at]]
+    </kd-resource-card-header-column>
+    <kd-resource-card-header-column size="small"
+                                    grow="1"
+                                    sortable="true"
+                                    sort-id="$root.SortableProperties.STATUS">
       [[Status|Title of a pod status column]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
@@ -47,7 +58,9 @@ limitations under the License.
       [[Restarts|Title of a restarts column for a pod]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
-                                    grow="nogrow">
+                                    grow="nogrow"
+                                    sortable="true"
+                                    sort-id="$root.SortableProperties.AGE">
       [[Age|Title of a column for the age of a pod]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
@@ -64,17 +77,14 @@ limitations under the License.
                                     grow="nogrow">
     </kd-resource-card-header-column>
   </kd-resource-card-header-columns>
-  <kd-pod-card ng-if="::$ctrl.podListResource"
-               dir-paginate="pod in $ctrl.podList.pods | itemsPerPage: default"
-               pagination-id="pods"
+  <kd-pod-card dir-paginate="pod in $ctrl.podList.pods | itemsPerPage: default"
+               pagination-id="{{::$ctrl.getSelectId()}}"
                pod="pod"
                show-metrics="::$ctrl.showMetrics()"
                total-items="::$ctrl.podList.listMeta.totalItems">
   </kd-pod-card>
-  <kd-pod-card ng-if="::!$ctrl.podListResource"
-               show-metrics="::$ctrl.showMetrics()"
-               dir-paginate="pod in $ctrl.podList.pods | itemsPerPage: default"
-               pagination-id="pods"
-               pod="pod">
-  </kd-pod-card>
+
+  <kd-resource-card-list-footer>
+    <kd-resource-card-list-pagination></kd-resource-card-list-pagination>
+  </kd-resource-card-list-footer>
 </kd-resource-card-list>

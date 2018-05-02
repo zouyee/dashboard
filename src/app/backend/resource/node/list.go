@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,102 +17,111 @@ package node
 import (
 	"log"
 
-	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/api/core/v1"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // NodeList contains a list of nodes in the cluster.
 type NodeList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta          api.ListMeta       `json:"listMeta"`
+	Nodes             []Node             `json:"nodes"`
+	CumulativeMetrics []metricapi.Metric `json:"cumulativeMetrics"`
 
-	// Unordered list of Nodes.
-	Nodes             []Node          `json:"nodes"`
-	CumulativeMetrics []metric.Metric `json:"cumulativeMetrics"`
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // Node is a presentation layer view of Kubernetes nodes. This means it is node plus additional
 // augmented data we can get from other sources.
 type Node struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
-
-	// Ready Status of the node
-	Ready api.ConditionStatus `json:"ready"`
+	ObjectMeta         api.ObjectMeta         `json:"objectMeta"`
+	TypeMeta           api.TypeMeta           `json:"typeMeta"`
+	Ready              v1.ConditionStatus     `json:"ready"`
+	AllocatedResources NodeAllocatedResources `json:"allocatedResources"`
 }
 
 // GetNodeListFromChannels returns a list of all Nodes in the cluster.
-func GetNodeListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery,
-	heapsterClient *heapster.HeapsterClient) (*NodeList, error) {
-	log.Print("Getting node list")
+func GetNodeListFromChannels(client client.Interface, channels *common.ResourceChannels,
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*NodeList, error) {
 
 	nodes := <-channels.NodeList.List
-	if err := <-channels.NodeList.Error; err != nil {
-		return nil, err
+	err := <-channels.NodeList.Error
+
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return toNodeList(nodes.Items, dsQuery, heapsterClient), nil
+	return toNodeList(client, nodes.Items, nonCriticalErrors, dsQuery, metricClient), nil
 }
 
 // GetNodeList returns a list of all Nodes in the cluster.
-func GetNodeList(client client.Interface, dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*NodeList, error) {
-	log.Print("Getting list of all nodes in the cluster")
+func GetNodeList(client client.Interface, dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*NodeList, error) {
+	nodes, err := client.CoreV1().Nodes().List(api.ListEverything)
 
-	nodes, err := client.Core().Nodes().List(metaV1.ListOptions{
-		LabelSelector: labels.Everything().String(),
-		FieldSelector: fields.Everything().String(),
-	})
-
-	if err != nil {
-		return nil, err
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return toNodeList(nodes.Items, dsQuery, heapsterClient), nil
+	return toNodeList(client, nodes.Items, nonCriticalErrors, dsQuery, metricClient), nil
 }
 
-func toNodeList(nodes []api.Node, dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) *NodeList {
+func toNodeList(client client.Interface, nodes []v1.Node, nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) *NodeList {
 	nodeList := &NodeList{
 		Nodes:    make([]Node, 0),
-		ListMeta: common.ListMeta{TotalItems: len(nodes)},
+		ListMeta: api.ListMeta{TotalItems: len(nodes)},
+		Errors:   nonCriticalErrors,
 	}
 
-	replicationControllerCells, metricPromises := dataselect.GenericDataSelectWithMetrics(toCells(nodes), dsQuery, dataselect.NoResourceCache, heapsterClient)
-	nodes = fromCells(replicationControllerCells)
+	nodeCells, metricPromises, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(toCells(nodes),
+		dsQuery, metricapi.NoResourceCache, metricClient)
+	nodes = fromCells(nodeCells)
+	nodeList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, node := range nodes {
-		nodeList.Nodes = append(nodeList.Nodes, toNode(node))
+		pods, err := getNodePods(client, node)
+		if err != nil {
+			log.Printf("Couldn't get pods of %s node: %s\n", node.Name, err)
+		}
+
+		nodeList.Nodes = append(nodeList.Nodes, toNode(node, pods))
 	}
 
-	// this may be slow because heapster does not support all in one download for nodes.
 	cumulativeMetrics, err := metricPromises.GetMetrics()
 	nodeList.CumulativeMetrics = cumulativeMetrics
 	if err != nil {
-		nodeList.CumulativeMetrics = make([]metric.Metric, 0)
+		nodeList.CumulativeMetrics = make([]metricapi.Metric, 0)
 	}
 
 	return nodeList
 }
 
-func toNode(node api.Node) Node {
+func toNode(node v1.Node, pods *v1.PodList) Node {
+	allocatedResources, err := getNodeAllocatedResources(node, pods)
+	if err != nil {
+		log.Printf("Couldn't get allocated resources of %s node: %s\n", node.Name, err)
+	}
+
 	return Node{
-		ObjectMeta: common.NewObjectMeta(node.ObjectMeta),
-		TypeMeta:   common.NewTypeMeta(common.ResourceKindNode),
-		Ready:      getNodeConditionStatus(node, api.NodeReady),
+		ObjectMeta:         api.NewObjectMeta(node.ObjectMeta),
+		TypeMeta:           api.NewTypeMeta(api.ResourceKindNode),
+		Ready:              getNodeConditionStatus(node, v1.NodeReady),
+		AllocatedResources: allocatedResources,
 	}
 }
 
-// Returns the status (True, False, Unknown) of a particular NodeConditionType
-func getNodeConditionStatus(node api.Node, conditionType api.NodeConditionType) api.ConditionStatus {
+func getNodeConditionStatus(node v1.Node, conditionType v1.NodeConditionType) v1.ConditionStatus {
 	for _, condition := range node.Status.Conditions {
 		if condition.Type == conditionType {
 			return condition.Status
 		}
 	}
-	return api.ConditionUnknown
+	return v1.ConditionUnknown
 }

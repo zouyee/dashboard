@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import errorhandlingModule from 'common/errorhandling/errorhandling_module';
+import {isError, kdErrors} from 'common/errorhandling/errors';
+import errorhandlingModule from 'common/errorhandling/module';
 
 describe('Errorhandling service', () => {
   /** @type {!ErrorDialog} */
@@ -38,5 +39,29 @@ describe('Errorhandling service', () => {
     errorDialog.open(errorTitle, errorMessage);
     // and expect it to show
     expect(mdDialog.show).toHaveBeenCalled();
+  });
+});
+
+describe('Errorhandling', () => {
+  it('should return true when error message matches one of the provided errors', () => {
+    // given
+    let errMsg = 'MSG_ENCRYPTION_KEY_CHANGED';
+
+    // when
+    let result = isError(errMsg, kdErrors.TOKEN_EXPIRED, kdErrors.ENCRYPTION_KEY_CHANGED);
+
+    // then
+    expect(result).toBeTruthy();
+  });
+
+  it('should return false when error message does not match on of the provided errors', () => {
+    // given
+    let errMsg = 'MSG_ENCRYPTION_KEY_CHANGED';
+
+    // when
+    let result = isError(errMsg, kdErrors.TOKEN_EXPIRED);
+
+    // then
+    expect(result).toBeFalsy();
   });
 });

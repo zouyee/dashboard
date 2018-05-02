@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,27 +17,28 @@ package persistentvolumeclaim
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // PersistentVolumeClaimDetail provides the presentation layer view of Kubernetes Persistent Volume Claim resource.
 type PersistentVolumeClaimDetail struct {
-	ObjectMeta  common.ObjectMeta                `json:"objectMeta"`
-	TypeMeta    common.TypeMeta                  `json:"typeMeta"`
-	Status      api.PersistentVolumeClaimPhase   `json:"status"`
-	Volume      string                           `json:"volume"`
-	Capacity    api.ResourceList                 `json:"capacity"`
-	AccessModes []api.PersistentVolumeAccessMode `json:"accessModes"`
+	ObjectMeta   api.ObjectMeta                  `json:"objectMeta"`
+	TypeMeta     api.TypeMeta                    `json:"typeMeta"`
+	Status       v1.PersistentVolumeClaimPhase   `json:"status"`
+	Volume       string                          `json:"volume"`
+	Capacity     v1.ResourceList                 `json:"capacity"`
+	AccessModes  []v1.PersistentVolumeAccessMode `json:"accessModes"`
+	StorageClass *string                         `json:"storageClass"`
 }
 
 // GetPersistentVolumeClaimDetail returns detailed information about a persistent volume claim
-func GetPersistentVolumeClaimDetail(client *client.Clientset, namespace string, name string) (*PersistentVolumeClaimDetail, error) {
+func GetPersistentVolumeClaimDetail(client kubernetes.Interface, namespace string, name string) (*PersistentVolumeClaimDetail, error) {
 	log.Printf("Getting details of %s persistent volume claim", name)
 
-	rawPersistentVolumeClaim, err := client.PersistentVolumeClaims(namespace).Get(name, metaV1.GetOptions{})
+	rawPersistentVolumeClaim, err := client.CoreV1().PersistentVolumeClaims(namespace).Get(name, metaV1.GetOptions{})
 
 	if err != nil {
 		return nil, err
@@ -46,14 +47,15 @@ func GetPersistentVolumeClaimDetail(client *client.Clientset, namespace string, 
 	return getPersistentVolumeClaimDetail(rawPersistentVolumeClaim), nil
 }
 
-func getPersistentVolumeClaimDetail(persistentVolumeClaim *api.PersistentVolumeClaim) *PersistentVolumeClaimDetail {
+func getPersistentVolumeClaimDetail(persistentVolumeClaim *v1.PersistentVolumeClaim) *PersistentVolumeClaimDetail {
 
 	return &PersistentVolumeClaimDetail{
-		ObjectMeta:  common.NewObjectMeta(persistentVolumeClaim.ObjectMeta),
-		TypeMeta:    common.NewTypeMeta(common.ResourceKindPersistentVolumeClaim),
-		Status:      persistentVolumeClaim.Status.Phase,
-		Volume:      persistentVolumeClaim.Spec.VolumeName,
-		Capacity:    persistentVolumeClaim.Status.Capacity,
-		AccessModes: persistentVolumeClaim.Spec.AccessModes,
+		ObjectMeta:   api.NewObjectMeta(persistentVolumeClaim.ObjectMeta),
+		TypeMeta:     api.NewTypeMeta(api.ResourceKindPersistentVolumeClaim),
+		Status:       persistentVolumeClaim.Status.Phase,
+		Volume:       persistentVolumeClaim.Spec.VolumeName,
+		Capacity:     persistentVolumeClaim.Status.Capacity,
+		AccessModes:  persistentVolumeClaim.Spec.AccessModes,
+		StorageClass: persistentVolumeClaim.Spec.StorageClassName,
 	}
 }

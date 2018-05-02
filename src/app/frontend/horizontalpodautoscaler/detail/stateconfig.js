@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {actionbarViewName, stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {appendDetailParamsToUrl} from 'common/resource/resourcedetail';
-import {stateName as horizontalPodAutoscalerList} from 'horizontalpodautoscaler/list/state';
+import {actionbarViewName, stateName as chromeStateName} from '../../chrome/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+import {appendDetailParamsToUrl} from '../../common/resource/resourcedetail';
+import {stateName as horizontalPodAutoscalerList} from '../../horizontalpodautoscaler/list/state';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ActionBarController} from './actionbar_controller';
 import {HorizontalPodAutoscalerDetailController} from './controller';
 
@@ -28,7 +28,7 @@ import {HorizontalPodAutoscalerDetailController} from './controller';
  */
 export const config = {
   url: appendDetailParamsToUrl(stateUrl),
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'horizontalPodAutoscalerDetailResource': getHorizontalPodAutoscalerDetailResource,
     'horizontalPodAutoscalerDetail': getHorizontalPodAutoscalerDetail,
@@ -45,7 +45,7 @@ export const config = {
       controllerAs: '$ctrl',
       templateUrl: 'horizontalpodautoscaler/detail/detail.html',
     },
-    [actionbarViewName]: {
+    [`${actionbarViewName}@${chromeStateName}`]: {
       controller: ActionBarController,
       controllerAs: '$ctrl',
       templateUrl: 'horizontalpodautoscaler/detail/actionbar.html',
@@ -56,7 +56,7 @@ export const config = {
 /**
  * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
  * @param {!angular.$resource} $resource
- * @return {!angular.Resource<!backendApi.HorizontalPodAutoscalerDetail>}
+ * @return {!angular.Resource}
  * @ngInject
  */
 export function getHorizontalPodAutoscalerDetailResource($resource, $stateParams) {
@@ -65,7 +65,7 @@ export function getHorizontalPodAutoscalerDetailResource($resource, $stateParams
 }
 
 /**
- * @param {!angular.Resource<!backendApi.HorizontalPodAutoscalerDetail>} horizontalPodAutoscalerDetailResource
+ * @param {!angular.Resource} horizontalPodAutoscalerDetailResource
  * @return {!angular.$q.Promise}
  * @ngInject
  */

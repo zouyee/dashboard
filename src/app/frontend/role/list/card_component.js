@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,24 +17,16 @@
  *
  * @final
  */
-export default class RoleCardController {
+class RoleCardController {
   /**
-   * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
    * @ngInject
    */
-  constructor($state, $interpolate) {
+  constructor() {
     /**
      * Initialized from the scope.
      * @export {!backendApi.Role}
      */
     this.role;
-
-    /** @private {!ui.router.$state} */
-    this.state_ = $state;
-
-    /** @private */
-    this.interpolate_ = $interpolate;
   }
 }
 

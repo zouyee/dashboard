@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,42 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import filtersModule from 'common/filters/filters_module';
-import paginationModule from 'common/pagination/pagination_module';
-import {DEFAULT_ROWS_LIMIT} from 'common/pagination/pagination_service';
+import dataSelectModule from 'common/dataselect/module';
+import filtersModule from 'common/filters/module';
+import settingsServiceModule from 'common/settings/module';
 
 describe('Items per page filter', () => {
   /** @type {function(!Array<Object>, number, string): !Array<Object>} */
   let itemsPerPageFilter;
-  /** @type {!Object} - service related to third party pagination module */
+  /** @type {!DataSelectService} - service related to data select module */
+  let dataSelectService;
+  /** @type {!Object} */
   let paginationService;
+  /** @type {number} */
+  let itemsPerPage = 10;
 
   beforeEach(() => {
-    angular.mock.module(paginationModule.name);
+    angular.mock.module(dataSelectModule.name);
     angular.mock.module('angularUtils.directives.dirPagination');
     angular.mock.module(filtersModule.name);
+    angular.mock.module(settingsServiceModule.name);
 
-    angular.mock.inject((_itemsPerPageFilter_, _paginationService_) => {
-      itemsPerPageFilter = _itemsPerPageFilter_;
-      paginationService = _paginationService_;
-    });
+    angular.mock.inject(
+        (_itemsPerPageFilter_, _kdDataSelectService_, _paginationService_, _kdSettingsService_) => {
+          itemsPerPageFilter = _itemsPerPageFilter_;
+          dataSelectService = _kdDataSelectService_;
+          paginationService = _paginationService_;
+          itemsPerPage = _kdSettingsService_.getItemsPerPage();
+        });
   });
 
   it('should format memory', () => {
     // given
-    let paginationId = 'test-id';
-    paginationService.registerInstance(paginationId);
+    let dataSelectId = 'test-id';
+    paginationService.registerInstance(dataSelectId);
+    dataSelectService.registerInstance(dataSelectId);
 
     // then
-    expect(itemsPerPageFilter(new Array(20), 5, paginationId).length).toEqual(5);
-    expect(itemsPerPageFilter(new Array(100), 0, paginationId).length).toEqual(100);
-    expect(itemsPerPageFilter(new Array(DEFAULT_ROWS_LIMIT + 10), undefined, paginationId).length)
-        .toEqual(DEFAULT_ROWS_LIMIT);
-    expect(itemsPerPageFilter(new Array(DEFAULT_ROWS_LIMIT + 1), undefined, paginationId).length)
-        .toEqual(DEFAULT_ROWS_LIMIT);
-    expect(itemsPerPageFilter(new Array(DEFAULT_ROWS_LIMIT), undefined, paginationId).length)
-        .toEqual(DEFAULT_ROWS_LIMIT);
-    expect(itemsPerPageFilter(new Array(DEFAULT_ROWS_LIMIT - 1), undefined, paginationId).length)
-        .toEqual(DEFAULT_ROWS_LIMIT - 1);
+    expect(itemsPerPageFilter(new Array(20), 5, dataSelectId).length).toEqual(5);
+    expect(itemsPerPageFilter(new Array(100), 0, dataSelectId).length).toEqual(100);
+    expect(itemsPerPageFilter(new Array(itemsPerPage + 10), undefined, dataSelectId).length)
+        .toEqual(itemsPerPage);
+    expect(itemsPerPageFilter(new Array(itemsPerPage + 1), undefined, dataSelectId).length)
+        .toEqual(itemsPerPage);
+    expect(itemsPerPageFilter(new Array(itemsPerPage), undefined, dataSelectId).length)
+        .toEqual(itemsPerPage);
+    expect(itemsPerPageFilter(new Array(itemsPerPage - 1), undefined, dataSelectId).length)
+        .toEqual(itemsPerPage - 1);
   });
 });

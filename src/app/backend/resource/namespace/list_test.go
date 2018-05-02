@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,33 +18,44 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 func TestGetNamespaceList(t *testing.T) {
 	cases := []struct {
-		namespaces []api.Namespace
+		namespaces []v1.Namespace
 		expected   *NamespaceList
 	}{
-		{nil, &NamespaceList{Namespaces: []Namespace{}}},
 		{
-			[]api.Namespace{
-				{ObjectMeta: metaV1.ObjectMeta{Name: "foo"}},
+			nil,
+			&NamespaceList{
+				Namespaces: []Namespace{},
+			},
+		},
+		{
+			[]v1.Namespace{
+				{
+					ObjectMeta: metaV1.ObjectMeta{
+						Name: "foo",
+					},
+				},
 			},
 			&NamespaceList{
-				ListMeta: common.ListMeta{TotalItems: 1},
+				ListMeta: api.ListMeta{
+					TotalItems: 1,
+				},
 				Namespaces: []Namespace{{
-					TypeMeta:   common.TypeMeta{Kind: "namespace"},
-					ObjectMeta: common.ObjectMeta{Name: "foo"},
+					TypeMeta:   api.TypeMeta{Kind: "namespace"},
+					ObjectMeta: api.ObjectMeta{Name: "foo"},
 				}},
 			},
 		},
 	}
 	for _, c := range cases {
-		actual := toNamespaceList(c.namespaces, dataselect.NoDataSelect)
+		actual := toNamespaceList(c.namespaces, nil, dataselect.NoDataSelect)
 		if !reflect.DeepEqual(actual, c.expected) {
 			t.Errorf("getNamespaceList(%#v) == \n%#v\nexpected \n%#v\n",
 				c.namespaces, actual, c.expected)

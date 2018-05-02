@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -23,12 +23,14 @@ limitations under the License.
         <i class="material-icons kd-error-view-icon">error_outline</i>
         <span>{{ctrl.getErrorStatus()}}</span>
       </h2>
-      <pre>{{ctrl.getErrorData()}}</pre>
-      <div layout="row"
+      <pre ng-class="{'kd-error-spacer': ctrl.isKnownError()}">{{ctrl.getErrorData()}}</pre>
+      <pre ng-if="ctrl.isNotFoundError()">[[Redirecting to previous state in 3 seconds...|Redirect info in case of 404 error.]]</pre>
+      <div ng-if="!ctrl.isKnownError()"
+           layout="row"
            layout-align="end center">
         <a ng-href="{{ctrl.getLinkToFeedbackPage()}}">
           <md-button class="kd-error-feedback-button">
-            [[Send feedback|This is a label for button displayed on error page used to send feedback to GitHub new issue.]]
+            [[Send feedback|Label for a button displayed on error page used to send feedback to GitHub new issue.]]
           </md-button>
         </a>
       </div>

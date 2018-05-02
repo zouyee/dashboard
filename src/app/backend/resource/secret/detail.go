@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@ package secret
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // SecretDetail API resource provides mechanisms to inject containers with configuration data while keeping
 // containers agnostic of Kubernetes
 type SecretDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Data contains the secret data.  Each key must be a valid DNS_SUBDOMAIN
 	// or leading dot followed by valid DNS_SUBDOMAIN.
@@ -36,15 +36,14 @@ type SecretDetail struct {
 	Data map[string][]byte `json:"data"`
 
 	// Used to facilitate programmatic handling of secret data.
-	Type api.SecretType `json:"type"`
+	Type v1.SecretType `json:"type"`
 }
 
 // GetSecretDetail returns returns detailed information about a secret
-func GetSecretDetail(client *client.Clientset, namespace, name string) (*SecretDetail, error) {
-	log.Printf("Getting details of %s secret in %s namespace", name, namespace)
+func GetSecretDetail(client kubernetes.Interface, namespace, name string) (*SecretDetail, error) {
+	log.Printf("Getting details of %s secret in %s namespace\n", name, namespace)
 
-	rawSecret, err := client.Secrets(namespace).Get(name, metaV1.GetOptions{})
-
+	rawSecret, err := client.CoreV1().Secrets(namespace).Get(name, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -52,10 +51,10 @@ func GetSecretDetail(client *client.Clientset, namespace, name string) (*SecretD
 	return getSecretDetail(rawSecret), nil
 }
 
-func getSecretDetail(rawSecret *api.Secret) *SecretDetail {
+func getSecretDetail(rawSecret *v1.Secret) *SecretDetail {
 	return &SecretDetail{
-		ObjectMeta: common.NewObjectMeta(rawSecret.ObjectMeta),
-		TypeMeta:   common.NewTypeMeta(common.ResourceKindSecret),
+		ObjectMeta: api.NewObjectMeta(rawSecret.ObjectMeta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindSecret),
 		Data:       rawSecret.Data,
 		Type:       rawSecret.Type,
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import componentsModule from 'common/components/components_module';
-import SerializedReferenceController from 'common/components/serializedreference/serializedreference_controller';
+import componentsModule from 'common/components/module';
 import {stateName as jobState} from 'job/detail/state';
 
 describe('SerializedReference controller', () => {
@@ -27,9 +26,9 @@ describe('SerializedReference controller', () => {
 
   beforeEach(() => {
     angular.mock.module(componentsModule.name);
-    angular.mock.inject(($controller, $rootScope) => {
+    angular.mock.inject(($componentController, $rootScope) => {
       scope = $rootScope;
-      ctrl = $controller(SerializedReferenceController, {$scope: $rootScope});
+      ctrl = $componentController('kdSerializedReference', {$scope: $rootScope});
     });
     spyOn(ctrl.state_, 'href');
   });

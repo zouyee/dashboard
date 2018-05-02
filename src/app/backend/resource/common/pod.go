@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,89 +15,102 @@
 package common
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	api "k8s.io/client-go/pkg/api/v1"
+	apps "k8s.io/api/apps/v1beta2"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// FilterNamespacedPodsBySelector returns pods targeted by given resource label selector in given
-// namespace.
-func FilterNamespacedPodsBySelector(pods []api.Pod, namespace string,
-	resourceSelector map[string]string) []api.Pod {
-
-	var matchingPods []api.Pod
-	for _, pod := range pods {
-		if pod.ObjectMeta.Namespace == namespace &&
-			IsSelectorMatching(resourceSelector, pod.Labels) {
-			matchingPods = append(matchingPods, pod)
-		}
-	}
+// FilterPodsByControllerResource returns a subset of pods controlled by given deployment.
+func FilterDeploymentPodsByOwnerReference(deployment apps.Deployment, allRS []apps.ReplicaSet,
+	allPods []v1.Pod) []v1.Pod {
+	var matchingPods []v1.Pod
+  for _, rs := range allRS {
+    if metav1.IsControlledBy(&rs, &deployment) {
+      matchingPods = append(matchingPods, FilterPodsByControllerRef(&rs, allPods)...)
+    }
+  }
 
 	return matchingPods
 }
 
-// FilterPodsByControllerResource returns set of pods controlled by given resource.
-// Please note, that OwnerReference is still in development phase:
-// https://github.com/kubernetes/community/blob/master/contributors/design-proposals/controller-ref.md.
-// Currently works for given resources: Replication Controllers.
-func FilterPodsByControllerResource(resourceNamespace string, resourceUID types.UID, allPods []api.Pod) []api.Pod {
-	var pods []api.Pod
+// FilterPodsByControllerRef returns a subset of pods controlled by given controller resource, excluding deployments.
+func FilterPodsByControllerRef(owner metav1.Object, allPods []v1.Pod) []v1.Pod {
+	var matchingPods []v1.Pod
 	for _, pod := range allPods {
-		if pod.Namespace == resourceNamespace {
-			for _, ownerRef := range pod.OwnerReferences {
-				if ownerRef.Controller != nil && *ownerRef.Controller == true && ownerRef.UID == resourceUID {
-					pods = append(pods, pod)
-				}
-			}
-		}
-	}
-	return pods
-}
-
-// FilterPodsBySelector returns pods targeted by given resource selector.
-func FilterPodsBySelector(pods []api.Pod, resourceSelector map[string]string) []api.Pod {
-
-	var matchingPods []api.Pod
-	for _, pod := range pods {
-		if IsSelectorMatching(resourceSelector, pod.Labels) {
+		if metav1.IsControlledBy(&pod, owner) {
 			matchingPods = append(matchingPods, pod)
 		}
 	}
 	return matchingPods
 }
 
-// FilterNamespacedPodsByLabelSelector returns pods targeted by given resource label selector in
-// given namespace.
-func FilterNamespacedPodsByLabelSelector(pods []api.Pod, namespace string,
-	labelSelector *v1.LabelSelector) []api.Pod {
-
-	var matchingPods []api.Pod
+func FilterPodsForJob(job batch.Job, pods []v1.Pod) []v1.Pod {
+	result := make([]v1.Pod, 0)
 	for _, pod := range pods {
-		if pod.ObjectMeta.Namespace == namespace &&
-			IsLabelSelectorMatching(pod.Labels, labelSelector) {
-			matchingPods = append(matchingPods, pod)
+		if pod.Namespace == job.Namespace && pod.Labels["controller-uid"] ==
+			job.Spec.Selector.MatchLabels["controller-uid"] {
+			result = append(result, pod)
 		}
 	}
-	return matchingPods
-}
 
-// FilterPodsByLabelSelector returns pods targeted by given resource label selector.
-func FilterPodsByLabelSelector(pods []api.Pod, labelSelector *v1.LabelSelector) []api.Pod {
-
-	var matchingPods []api.Pod
-	for _, pod := range pods {
-		if IsLabelSelectorMatching(pod.Labels, labelSelector) {
-			matchingPods = append(matchingPods, pod)
-		}
-	}
-	return matchingPods
+	return result
 }
 
 // GetContainerImages returns container image strings from the given pod spec.
-func GetContainerImages(podTemplate *api.PodSpec) []string {
+func GetContainerImages(podTemplate *v1.PodSpec) []string {
 	var containerImages []string
 	for _, container := range podTemplate.Containers {
 		containerImages = append(containerImages, container.Image)
 	}
 	return containerImages
+}
+
+// GetInitContainerImages returns init container image strings from the given pod spec.
+func GetInitContainerImages(podTemplate *v1.PodSpec) []string {
+	var initContainerImages []string
+	for _, initContainer := range podTemplate.InitContainers {
+		initContainerImages = append(initContainerImages, initContainer.Image)
+	}
+	return initContainerImages
+}
+
+// GetContainerNames returns the container image name without the version number from the given pod spec.
+func GetContainerNames(podTemplate *v1.PodSpec) []string {
+	var containerNames []string
+	for _, container := range podTemplate.Containers {
+		containerNames = append(containerNames, container.Name)
+	}
+	return containerNames
+}
+
+// GetInitContainerNames returns the init container image name without the version number from the given pod spec.
+func GetInitContainerNames(podTemplate *v1.PodSpec) []string {
+	var initContainerNames []string
+	for _, initContainer := range podTemplate.InitContainers {
+		initContainerNames = append(initContainerNames, initContainer.Name)
+	}
+	return initContainerNames
+}
+
+// EqualIgnoreHash returns true if two given podTemplateSpec are equal, ignoring the diff in value of Labels[pod-template-hash]
+// We ignore pod-template-hash because the hash result would be different upon podTemplateSpec API changes
+// (e.g. the addition of a new field will cause the hash code to change)
+// Note that we assume input podTemplateSpecs contain non-empty labels
+func EqualIgnoreHash(template1, template2 v1.PodTemplateSpec) bool {
+	// First, compare template.Labels (ignoring hash)
+	labels1, labels2 := template1.Labels, template2.Labels
+	if len(labels1) > len(labels2) {
+		labels1, labels2 = labels2, labels1
+	}
+	// We make sure len(labels2) >= len(labels1)
+	for k, v := range labels2 {
+		if labels1[k] != v && k != apps.DefaultDeploymentUniqueLabelKey {
+			return false
+		}
+	}
+	// Then, compare the templates without comparing their labels
+	template1.Labels, template2.Labels = nil, nil
+	return equality.Semantic.DeepEqual(template1, template2)
 }

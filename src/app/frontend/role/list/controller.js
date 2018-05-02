@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 export class RoleListController {
   /**
    * @param {!backendApi.RoleList} roleList
-   * @param {!angular.Resource}kdRoleListResource
+   * @param {!angular.Resource} kdRoleListResource
    * @ngInject
    */
   constructor(roleList, kdRoleListResource) {
@@ -27,13 +27,5 @@ export class RoleListController {
 
     /** @export {!angular.Resource} */
     this.roleListResource = kdRoleListResource;
-  }
-
-  /**
-   * @return {boolean}
-   * @export
-   */
-  shouldShowZeroState() {
-    return this.roleList.items === null || this.roleList.items.length === 0;
   }
 }

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,10 +15,13 @@
 package statefulset
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 )
 
 // The code below allows to perform complex data section on []apps.StatefulSet
@@ -39,16 +42,16 @@ func (self StatefulSetCell) GetProperty(name dataselect.PropertyName) dataselect
 	}
 }
 
-func (self StatefulSetCell) GetResourceSelector() *metric.ResourceSelector {
-	return &metric.ResourceSelector{
+func (self StatefulSetCell) GetResourceSelector() *metricapi.ResourceSelector {
+	return &metricapi.ResourceSelector{
 		Namespace:    self.ObjectMeta.Namespace,
-		ResourceType: common.ResourceKindStatefulSet,
+		ResourceType: api.ResourceKindStatefulSet,
 		ResourceName: self.ObjectMeta.Name,
-		Selector:     self.Spec.Selector.MatchLabels,
+		UID:          self.UID,
 	}
 }
 
-func ToCells(std []apps.StatefulSet) []dataselect.DataCell {
+func toCells(std []apps.StatefulSet) []dataselect.DataCell {
 	cells := make([]dataselect.DataCell, len(std))
 	for i := range std {
 		cells[i] = StatefulSetCell(std[i])
@@ -56,10 +59,33 @@ func ToCells(std []apps.StatefulSet) []dataselect.DataCell {
 	return cells
 }
 
-func FromCells(cells []dataselect.DataCell) []apps.StatefulSet {
+func fromCells(cells []dataselect.DataCell) []apps.StatefulSet {
 	std := make([]apps.StatefulSet, len(cells))
 	for i := range std {
 		std[i] = apps.StatefulSet(cells[i].(StatefulSetCell))
 	}
 	return std
+}
+
+func getStatus(list *apps.StatefulSetList, pods []v1.Pod, events []v1.Event) common.ResourceStatus {
+	info := common.ResourceStatus{}
+	if list == nil {
+		return info
+	}
+
+	for _, ss := range list.Items {
+		matchingPods := common.FilterPodsByControllerRef(&ss, pods)
+		podInfo := common.GetPodInfo(ss.Status.Replicas, ss.Spec.Replicas, matchingPods)
+		warnings := event.GetPodsEventWarnings(events, matchingPods)
+
+		if len(warnings) > 0 {
+			info.Failed++
+		} else if podInfo.Pending > 0 {
+			info.Pending++
+		} else {
+			info.Running++
+		}
+	}
+
+	return info
 }

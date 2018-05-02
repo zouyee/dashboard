@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,29 +17,35 @@ package replicaset
 import (
 	"log"
 
-	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
-// ReplicationSetList contains a list of Replica Sets in the cluster.
+// ReplicaSetList contains a list of Replica Sets in the cluster.
 type ReplicaSetList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta          api.ListMeta       `json:"listMeta"`
+	CumulativeMetrics []metricapi.Metric `json:"cumulativeMetrics"`
+
+	// Basic information about resources status on the list.
+	Status common.ResourceStatus `json:"status"`
 
 	// Unordered list of Replica Sets.
-	ReplicaSets       []ReplicaSet    `json:"replicaSets"`
-	CumulativeMetrics []metric.Metric `json:"cumulativeMetrics"`
+	ReplicaSets []ReplicaSet `json:"replicaSets"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetReplicaSetList returns a list of all Replica Sets in the cluster.
 func GetReplicaSetList(client client.Interface, nsQuery *common.NamespaceQuery,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*ReplicaSetList, error) {
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*ReplicaSetList, error) {
 	log.Print("Getting list of all replica sets in the cluster")
 
 	channels := &common.ResourceChannels{
@@ -48,70 +54,73 @@ func GetReplicaSetList(client client.Interface, nsQuery *common.NamespaceQuery,
 		EventList:      common.GetEventListChannel(client, nsQuery, 1),
 	}
 
-	return GetReplicaSetListFromChannels(channels, dsQuery, heapsterClient)
+	return GetReplicaSetListFromChannels(channels, dsQuery, metricClient)
 }
 
 // GetReplicaSetListFromChannels returns a list of all Replica Sets in the cluster
 // reading required resource list once from the channels.
 func GetReplicaSetListFromChannels(channels *common.ResourceChannels,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*ReplicaSetList, error) {
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*ReplicaSetList, error) {
 
 	replicaSets := <-channels.ReplicaSetList.List
-	if err := <-channels.ReplicaSetList.Error; err != nil {
-		statusErr, ok := err.(*k8serrors.StatusError)
-		if ok && statusErr.ErrStatus.Reason == "NotFound" {
-			// NotFound - this means that the server does not support Replica Set objects, which
-			// is fine.
-			emptyList := &ReplicaSetList{
-				ReplicaSets: make([]ReplicaSet, 0),
-			}
-			return emptyList, nil
-		}
-		return nil, err
+	err := <-channels.ReplicaSetList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	pods := <-channels.PodList.List
-	if err := <-channels.PodList.Error; err != nil {
-		return nil, err
+	err = <-channels.PodList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	events := <-channels.EventList.List
-	if err := <-channels.EventList.Error; err != nil {
-		return nil, err
+	err = <-channels.EventList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
-	return CreateReplicaSetList(replicaSets.Items, pods.Items, events.Items, dsQuery, heapsterClient), nil
+
+	rsList := ToReplicaSetList(replicaSets.Items, pods.Items, events.Items, nonCriticalErrors, dsQuery, metricClient)
+	rsList.Status = getStatus(replicaSets, pods.Items, events.Items)
+	return rsList, nil
 }
 
-// CreateReplicaSetList creates paginated list of Replica Set model
+// ToReplicaSetList creates paginated list of Replica Set model
 // objects based on Kubernetes Replica Set objects array and related resources arrays.
-func CreateReplicaSetList(replicaSets []extensions.ReplicaSet, pods []api.Pod,
-	events []api.Event, dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) *ReplicaSetList {
+func ToReplicaSetList(replicaSets []apps.ReplicaSet, pods []v1.Pod, events []v1.Event, nonCriticalErrors []error,
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) *ReplicaSetList {
 
 	replicaSetList := &ReplicaSetList{
 		ReplicaSets: make([]ReplicaSet, 0),
-		ListMeta:    common.ListMeta{TotalItems: len(replicaSets)},
+		ListMeta:    api.ListMeta{TotalItems: len(replicaSets)},
+		Errors:      nonCriticalErrors,
 	}
 
-	cachedResources := &dataselect.CachedResources{
+	cachedResources := &metricapi.CachedResources{
 		Pods: pods,
 	}
-	rsCells, metricPromises := dataselect.GenericDataSelectWithMetrics(ToCells(replicaSets), dsQuery, cachedResources, heapsterClient)
+	rsCells, metricPromises, filteredTotal := dataselect.
+		GenericDataSelectWithFilterAndMetrics(
+			ToCells(replicaSets), dsQuery, cachedResources, metricClient)
 	replicaSets = FromCells(rsCells)
+	replicaSetList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, replicaSet := range replicaSets {
-		matchingPods := common.FilterNamespacedPodsBySelector(pods, replicaSet.ObjectMeta.Namespace,
-			replicaSet.Spec.Selector.MatchLabels)
-		podInfo := common.GetPodInfo(replicaSet.Status.Replicas,
-			*replicaSet.Spec.Replicas, matchingPods)
+		matchingPods := common.FilterPodsByControllerRef(&replicaSet, pods)
+		podInfo := common.GetPodInfo(replicaSet.Status.Replicas, replicaSet.Spec.Replicas,
+			matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
-
-		replicaSetList.ReplicaSets = append(replicaSetList.ReplicaSets, ToReplicaSet(&replicaSet, &podInfo))
+		replicaSetList.ReplicaSets = append(replicaSetList.ReplicaSets,
+			ToReplicaSet(&replicaSet, &podInfo))
 	}
 
 	cumulativeMetrics, err := metricPromises.GetMetrics()
 	replicaSetList.CumulativeMetrics = cumulativeMetrics
 	if err != nil {
-		replicaSetList.CumulativeMetrics = make([]metric.Metric, 0)
+		replicaSetList.CumulativeMetrics = make([]metricapi.Metric, 0)
 	}
 
 	return replicaSetList

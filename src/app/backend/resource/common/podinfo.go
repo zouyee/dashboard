@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,7 +14,9 @@
 
 package common
 
-import api "k8s.io/client-go/pkg/api/v1"
+import (
+	api "k8s.io/api/core/v1"
+)
 
 // PodInfo represents aggregate information about controller's pods.
 type PodInfo struct {
@@ -22,7 +24,7 @@ type PodInfo struct {
 	Current int32 `json:"current"`
 
 	// Number of pods that are desired.
-	Desired int32 `json:"desired"`
+	Desired *int32 `json:"desired,omitempty"`
 
 	// Number of pods that are currently running.
 	Running int32 `json:"running"`
@@ -41,7 +43,7 @@ type PodInfo struct {
 }
 
 // GetPodInfo returns aggregate information about a group of pods.
-func GetPodInfo(current int32, desired int32, pods []api.Pod) PodInfo {
+func GetPodInfo(current int32, desired *int32, pods []api.Pod) PodInfo {
 	result := PodInfo{
 		Current:  current,
 		Desired:  desired,

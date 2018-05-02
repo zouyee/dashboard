@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,75 +17,75 @@ package statefulset
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	ds "github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	apps "k8s.io/api/apps/v1beta2"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sClient "k8s.io/client-go/kubernetes"
-	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
+	"k8s.io/client-go/kubernetes"
 )
 
-// StatefulSetDetail is a presentation layer view of Kubernetes Pet Set resource. This means
-// it is Pet Set plus additional augmented data we can get from other sources
-// (like services that target the same pods).
+// StatefulSetDetail is a presentation layer view of Kubernetes Stateful Set resource. This means it is Stateful
+// Set plus additional augmented data we can get from other sources (like services that target the same pods).
 type StatefulSetDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta          api.ObjectMeta   `json:"objectMeta"`
+	TypeMeta            api.TypeMeta     `json:"typeMeta"`
+	PodInfo             common.PodInfo   `json:"podInfo"`
+	PodList             pod.PodList      `json:"podList"`
+	ContainerImages     []string         `json:"containerImages"`
+	InitContainerImages []string         `json:"initContainerImages"`
+	EventList           common.EventList `json:"eventList"`
 
-	// Aggregate information about pods belonging to this Pet Set.
-	PodInfo common.PodInfo `json:"podInfo"`
-
-	// Detailed information about Pods belonging to this Pet Set.
-	PodList pod.PodList `json:"podList"`
-
-	// Container images of the Pet Set.
-	ContainerImages []string `json:"containerImages"`
-
-	// List of events related to this Pet Set.
-	EventList common.EventList `json:"eventList"`
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
-// GetStatefulSetDetail gets pet set details.
-func GetStatefulSetDetail(client *k8sClient.Clientset, heapsterClient client.HeapsterClient,
-	namespace, name string) (*StatefulSetDetail, error) {
+// GetStatefulSetDetail gets Stateful Set details.
+func GetStatefulSetDetail(client kubernetes.Interface, metricClient metricapi.MetricClient, namespace,
+	name string) (*StatefulSetDetail, error) {
+	log.Printf("Getting details of %s statefulset in %s namespace", name, namespace)
 
-	log.Printf("Getting details of %s service in %s namespace", name, namespace)
-
-	// TODO(floreks): Use channels.
-	statefulSetData, err := client.Apps().StatefulSets(namespace).Get(name, metaV1.GetOptions{})
+	ss, err := client.AppsV1beta2().StatefulSets(namespace).Get(name, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	podList, err := GetStatefulSetPods(client, heapsterClient, dataselect.DefaultDataSelectWithMetrics, name, namespace)
-	if err != nil {
-		return nil, err
+	podList, err := GetStatefulSetPods(client, metricClient, ds.DefaultDataSelectWithMetrics, name, namespace)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	podInfo, err := getStatefulSetPodInfo(client, statefulSetData)
-	if err != nil {
-		return nil, err
+	podInfo, err := getStatefulSetPodInfo(client, ss)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	events, err := GetStatefulSetEvents(client, dataselect.DefaultDataSelect, statefulSetData.Namespace, statefulSetData.Name)
-	if err != nil {
-		return nil, err
+	events, err := event.GetResourceEvents(client, ds.DefaultDataSelect, ss.Namespace, ss.Name)
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	statefulSet := getStatefulSetDetail(statefulSetData, heapsterClient, *events, *podList, *podInfo)
-	return &statefulSet, nil
+	ssDetail := getStatefulSetDetail(ss, *events, *podList, *podInfo, nonCriticalErrors)
+	return &ssDetail, nil
 }
 
-func getStatefulSetDetail(statefulSet *apps.StatefulSet, heapsterClient client.HeapsterClient,
-	eventList common.EventList, podList pod.PodList, podInfo common.PodInfo) StatefulSetDetail {
-
+func getStatefulSetDetail(statefulSet *apps.StatefulSet, eventList common.EventList, podList pod.PodList,
+	podInfo common.PodInfo, nonCriticalErrors []error) StatefulSetDetail {
 	return StatefulSetDetail{
-		ObjectMeta:      common.NewObjectMeta(statefulSet.ObjectMeta),
-		TypeMeta:        common.NewTypeMeta(common.ResourceKindStatefulSet),
-		ContainerImages: common.GetContainerImages(&statefulSet.Spec.Template.Spec),
-		PodInfo:         podInfo,
-		PodList:         podList,
-		EventList:       eventList,
+		ObjectMeta:          api.NewObjectMeta(statefulSet.ObjectMeta),
+		TypeMeta:            api.NewTypeMeta(api.ResourceKindStatefulSet),
+		ContainerImages:     common.GetContainerImages(&statefulSet.Spec.Template.Spec),
+		InitContainerImages: common.GetInitContainerImages(&statefulSet.Spec.Template.Spec),
+		PodInfo:             podInfo,
+		PodList:             podList,
+		EventList:           eventList,
+		Errors:              nonCriticalErrors,
 	}
 }

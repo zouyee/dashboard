@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@ package replicationcontroller
 import (
 	"testing"
 
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	api "k8s.io/client-go/pkg/api/v1"
 	core "k8s.io/client-go/testing"
 )
 
@@ -28,14 +28,14 @@ func TestUpdateReplicasCount(t *testing.T) {
 	cases := []struct {
 		namespace, replicationControllerName string
 		replicationControllerSpec            *ReplicationControllerSpec
-		replicationController                *api.ReplicationController
+		replicationController                *v1.ReplicationController
 		expected                             *int32
 		expectedActions                      []string
 	}{
 		{
 			"ns-1", "rc-1",
 			&ReplicationControllerSpec{Replicas: 5},
-			&api.ReplicationController{ObjectMeta: metaV1.ObjectMeta{
+			&v1.ReplicationController{ObjectMeta: metaV1.ObjectMeta{
 				Name: "rc-1", Namespace: "ns-1", Labels: map[string]string{},
 			}},
 			&expectedReplicas,
@@ -48,7 +48,7 @@ func TestUpdateReplicasCount(t *testing.T) {
 
 		UpdateReplicasCount(fakeClient, c.namespace, c.replicationControllerName, c.replicationControllerSpec)
 
-		actual := fakeClient.Actions()[1].(core.UpdateActionImpl).GetObject().(*api.ReplicationController)
+		actual := fakeClient.Actions()[1].(core.UpdateActionImpl).GetObject().(*v1.ReplicationController)
 		if *actual.Spec.Replicas != *c.expected {
 			t.Errorf("UpdateReplicasCount(client, %+v, %+v, %+v). Got %+v, expected %+v",
 				c.namespace, c.replicationControllerName, c.replicationControllerSpec, *actual.Spec.Replicas, *c.expected)

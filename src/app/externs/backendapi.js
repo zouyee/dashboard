@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,13 +26,20 @@ const backendApi = {};
 
 /**
  * @typedef {{
- *    itemsPerPage: number,
- *    page: number,
- *    namespace: string,
- *    name: (string|undefined)
+ *   ErrStatus: !backendApi.ErrStatus,
  * }}
  */
-backendApi.PaginationQuery;
+backendApi.Error;
+
+/**
+ * @typedef {{
+ *   message: string,
+ *   code: number,
+ *   status: string,
+ *   reason: string
+ * }}
+ */
+backendApi.ErrStatus;
 
 /**
  * @typedef {{
@@ -88,11 +95,12 @@ backendApi.AppDeploymentSpec;
 /**
  * @typedef {{
  *   name: string,
+ *   namespace: string,
  *   content: string,
  *   validate: boolean,
  * }}
  */
-backendApi.AppDeploymentFromFileSpec;
+backendApi.AppDeploymentContentSpec;
 
 /**
  * @typedef {{
@@ -122,7 +130,9 @@ backendApi.Event;
 /**
  * @typedef {{
  *   replicationControllers: !Array<!backendApi.ReplicationController>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ReplicationControllerList;
@@ -132,10 +142,32 @@ backendApi.ReplicationControllerList;
  *   deploymentList: !backendApi.DeploymentList,
  *   replicaSetList: !backendApi.ReplicaSetList,
  *   jobList: !backendApi.JobList,
+ *   cronJobList: !backendApi.CronJobList,
  *   replicationControllerList: !backendApi.ReplicationControllerList,
  *   podList: !backendApi.PodList,
  *   daemonSetList: !backendApi.DaemonSetList,
- *   statefulSetList: !backendApi.StatefulSetList
+ *   statefulSetList: !backendApi.StatefulSetList,
+ *   serviceList: !backendApi.ServiceList,
+ *   ingressList: !backendApi.IngressList,
+ *   configMapList: !backendApi.ConfigMapList,
+ *   persistentVolumeClaimList: !backendApi.PersistentVolumeClaimList,
+ *   secretList: !backendApi.SecretList,
+ *   errors: !Array<!backendApi.Error>
+ * }}
+ */
+backendApi.Overview;
+
+/**
+ * @typedef {{
+ *   deploymentList: !backendApi.DeploymentList,
+ *   replicaSetList: !backendApi.ReplicaSetList,
+ *   jobList: !backendApi.JobList,
+ *   cronJobList: !backendApi.CronJobList,
+ *   replicationControllerList: !backendApi.ReplicationControllerList,
+ *   podList: !backendApi.PodList,
+ *   daemonSetList: !backendApi.DaemonSetList,
+ *   statefulSetList: !backendApi.StatefulSetList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.Workloads;
@@ -147,6 +179,7 @@ backendApi.Workloads;
  *   persistentVolumeList: !backendApi.PersistentVolumeList,
  *   roleList: !backendApi.RoleList,
  *   storageClassList: !backendApi.StorageClassList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.Cluster;
@@ -155,6 +188,7 @@ backendApi.Cluster;
  * @typedef {{
  *   serviceList: !backendApi.ServiceList,
  *   ingressList: !backendApi.IngressList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.Discovery;
@@ -164,9 +198,34 @@ backendApi.Discovery;
  *   configMapList: !backendApi.ConfigMapList,
  *   persistentVolumeClaimList: !backendApi.PersistentVolumeClaimList,
  *   secretList: !backendApi.SecretList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.Config;
+
+/**
+ * @typedef {{
+ *   deploymentList: !backendApi.DeploymentList,
+ *   replicaSetList: !backendApi.ReplicaSetList,
+ *   jobList: !backendApi.JobList,
+ *   replicationControllerList: !backendApi.ReplicationControllerList,
+ *   podList: !backendApi.PodList,
+ *   daemonSetList: !backendApi.DaemonSetList,
+ *   statefulSetList: !backendApi.StatefulSetList,
+ *   nodeList: !backendApi.NodeList,
+ *   namespaceList: !backendApi.NamespaceList,
+ *   persistentVolumeList: !backendApi.PersistentVolumeList,
+ *   roleList: !backendApi.RoleList,
+ *   storageClassList: !backendApi.StorageClassList,
+ *   serviceList: !backendApi.ServiceList,
+ *   ingressList: !backendApi.IngressList,
+ *   configMapList: !backendApi.ConfigMapList,
+ *   persistentVolumeClaimList: !backendApi.PersistentVolumeClaimList,
+ *   secretList: !backendApi.SecretList,
+ *   errors: !Array<!backendApi.Error>
+ * }}
+ */
+backendApi.Search;
 
 /**
  * @typedef {{
@@ -213,6 +272,7 @@ backendApi.PodInfo;
  *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>
  * }}
  */
 backendApi.ReplicationController;
@@ -223,6 +283,7 @@ backendApi.ReplicationController;
  *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>
  * }}
  */
 backendApi.ReplicaSet;
@@ -234,7 +295,9 @@ backendApi.ReplicaSet;
  *   podInfo: !backendApi.PodInfo,
  *   podList: !backendApi.PodList,
  *   containerImages: !Array<string>,
- *   eventList: !backendApi.EventList
+ *   initContainerImages: !Array<string>,
+ *   eventList: !backendApi.EventList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ReplicaSetDetail;
@@ -242,7 +305,9 @@ backendApi.ReplicaSetDetail;
 /**
  * @typedef {{
  *   replicaSets: !Array<!backendApi.ReplicaSet>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ReplicaSetList;
@@ -252,7 +317,9 @@ backendApi.ReplicaSetList;
  *   objectMeta: !backendApi.ObjectMeta,
  *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
- *   containerImages: !Array<string>
+ *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>,
+ *   parallelism: number
  * }}
  */
 backendApi.Job;
@@ -264,8 +331,9 @@ backendApi.Job;
  *   podInfo: !backendApi.PodInfo,
  *   podList: !backendApi.PodList,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>,
  *   eventList: !backendApi.EventList,
- *   paralleism: number,
+ *   parallelism: number,
  *   completions: number
  * }}
  */
@@ -274,7 +342,9 @@ backendApi.JobDetail;
 /**
  * @typedef {{
  *   jobs: !Array<!backendApi.Job>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.JobList;
@@ -283,8 +353,47 @@ backendApi.JobList;
  * @typedef {{
  *   objectMeta: !backendApi.ObjectMeta,
  *   typeMeta: !backendApi.TypeMeta,
+ *   schedule: string,
+ *   suspend: boolean,
+ *   active: number,
+ *   lastSchedule: string
+ * }}
+ */
+backendApi.CronJob;
+
+/**
+ * @typedef {{
+ *   objectMeta: !backendApi.ObjectMeta,
+ *   typeMeta: !backendApi.TypeMeta,
+ *   schedule: string,
+ *   suspend: boolean,
+ *   active: number,
+ *   lastSchedule: string,
+ *   concurrencyPolicy: string,
+ *   startingDeadlineSeconds: number,
+ *   activeJobs: !backendApi.JobList,
+ *   events: !backendApi.EventList
+ * }}
+ */
+backendApi.CronJobDetail;
+
+/**
+ * @typedef {{
+ *   items: !Array<!backendApi.CronJob>,
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
+ * }}
+ */
+backendApi.CronJobList;
+
+/**
+ * @typedef {{
+ *   objectMeta: !backendApi.ObjectMeta,
+ *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>
  * }}
  */
 backendApi.StatefulSet;
@@ -296,7 +405,9 @@ backendApi.StatefulSet;
  *   podInfo: !backendApi.PodInfo,
  *   podList: !backendApi.PodList,
  *   containerImages: !Array<string>,
- *   eventList: !backendApi.EventList
+ *   initContainerImages: !Array<string>,
+ *   eventList: !backendApi.EventList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.StatefulSetDetail;
@@ -304,7 +415,9 @@ backendApi.StatefulSetDetail;
 /**
  * @typedef {{
  *   statefulSets: !Array<!backendApi.StatefulSet>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.StatefulSetList;
@@ -329,7 +442,8 @@ backendApi.ConfigMapDetail;
 /**
  * @typedef {{
  *   items: !Array<!backendApi.ConfigMap>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ConfigMapList;
@@ -350,7 +464,8 @@ backendApi.PersistentVolume;
 /**
  * @typedef {{
  *   items: !Array<!backendApi.PersistentVolume>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.PersistentVolumeList;
@@ -533,6 +648,7 @@ backendApi.FlockerVolumeSource;
  *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>
  * }}
  */
 backendApi.Deployment;
@@ -540,15 +656,17 @@ backendApi.Deployment;
 /**
  * @typedef {{
  *   deployments: !Array<!backendApi.Deployment>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.DeploymentList;
 
 /**
  * @typedef {{
- *   maxSurge: !number,
- *   maxUnavailable: !number,
+ *   maxSurge: !(number|string),
+ *   maxUnavailable: !(number|string),
  * }}
  */
 backendApi.RollingUpdateStrategy;
@@ -576,6 +694,7 @@ backendApi.DeploymentInfo;
  *   oldReplicaSetList: !backendApi.ReplicaSetList,
  *   newReplicaSet: !backendApi.ReplicaSet,
  *   events: !backendApi.EventList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.DeploymentDetail;
@@ -584,7 +703,10 @@ backendApi.DeploymentDetail;
  * @typedef {{
  *   pods: !Array<!backendApi.Pod>,
  *   listMeta: !backendApi.ListMeta,
+ *   status: !backendApi.Status,
+ *   podInfo: !backendApi.PodInfo,
  *   cumulativeMetrics: (!Array<!backendApi.Metric>|null),
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.PodList;
@@ -611,7 +733,8 @@ backendApi.DataPoint;
  *   name: string,
  *   namespace: string,
  *   labels: !Object<string, string>,
- *   creationTimestamp: string
+ *   creationTimestamp: string,
+ *   annotations: !Object<string, string>
  * }}
  */
 backendApi.ObjectMeta;
@@ -629,25 +752,16 @@ backendApi.TypeMeta;
  *   typeMeta: !backendApi.TypeMeta,
  *   labelSelector: !Object<string, string>,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>,
  *   podInfo: !backendApi.PodInfo,
  *   podList: !backendApi.PodList,
  *   serviceList: !backendApi.ServiceList,
  *   eventList: !backendApi.EventList,
- *   hasMetrics: boolean
+ *   hasMetrics: boolean,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ReplicationControllerDetail;
-
-/**
- * @typedef {{
- *   name: string,
- *   image: string,
- *   env: !Array<!backendApi.EnvVar>,
- *   commands: Array<string>,
- *   args: Array<string>
- * }}
- */
-backendApi.Container;
 
 /**
  * @typedef {{
@@ -660,14 +774,15 @@ backendApi.EnvVar;
 
 /**
  * @typedef {{
- *   configMapKeyRef: backendApi.ConfigMapKeyRef
+ *   configMapKeyRef: backendApi.ConfigMapKeyRef,
+ *   secretKeyRef: backendApi.SecretKeyRef
  * }}
  */
 backendApi.EnvVarSource;
 
 /**
  * @typedef {{
- *   Name: string,
+ *   name: string,
  *   key: string,
  * }}
  */
@@ -675,10 +790,26 @@ backendApi.ConfigMapKeyRef;
 
 /**
  * @typedef {{
+ *   name: string,
+ *   key: string,
+ * }}
+ */
+backendApi.SecretKeyRef;
+
+/**
+ * @typedef {{
  *   replicas: number
  * }}
  */
 backendApi.ReplicationControllerSpec;
+
+/**
+ * @typedef {{
+ *   desiredReplicas: number,
+ *   actualReplicas: number,
+ * }}
+ */
+backendApi.ReplicaCounts;
 
 /**
  * @typedef {{
@@ -746,23 +877,38 @@ backendApi.PodStatus;
  *   podStatus: !backendApi.PodStatus,
  *   podIP: string,
  *   restartCount: number,
+ *   qosClass: string,
  *   metrics: backendApi.PodMetrics,
- *   warnings: !Array<!backendApi.Event>
+ *   warnings: !Array<!backendApi.Event>,
+ *   nodeName: string
  * }}
  */
 backendApi.Pod;
 
 /**
  * @typedef {{
+ *   name: string,
+ *   image: string,
+ *   env: !Array<!backendApi.EnvVar>,
+ *   commands: Array<string>,
+ *   args: Array<string>
+ * }}
+ */
+backendApi.Container;
+
+/**
+ * @typedef {{
  *   objectMeta: !backendApi.ObjectMeta,
  *   typeMeta: !backendApi.TypeMeta,
+ *   initContainers: !Array<!backendApi.Container>,
  *   containers: !Array<!backendApi.Container>,
  *   podPhase: string,
  *   podIP: string,
  *   nodeName: string,
  *   restartCount: number,
  *   metrics: backendApi.PodMetrics,
- *   conditions: !backendApi.ConditionList
+ *   conditions: !backendApi.ConditionList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.PodDetail;
@@ -778,10 +924,19 @@ backendApi.Role;
 /**
  * @typedef {{
  *   items: !Array<backendApi.Role>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.RoleList;
+
+/**
+ * @typedef {{
+ *   endpoints: !Array<!backendApi.Endpoint>,
+ *   listMeta: !backendApi.ListMeta
+ * }}
+ */
+backendApi.EndpointList;
 
 /**
  * @typedef {{
@@ -789,10 +944,13 @@ backendApi.RoleList;
  *  typeMeta: !backendApi.TypeMeta,
  *  internalEndpoint: !backendApi.Endpoint,
  *  externalEndpoints: !Array<!backendApi.Endpoint>,
+ *  endpointList: !Array<!backendApi.Endpoint>,
  *  selector: !Object<string, string>,
  *  type: string,
  *  clusterIP: string,
- *  podList: !backendApi.PodList
+ *  podList: !backendApi.PodList,
+ *  sessionAffinity: string,
+ *  errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ServiceDetail;
@@ -813,7 +971,8 @@ backendApi.Service;
 /**
  * @typedef {{
  *   services: !Array<backendApi.Service>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.ServiceList;
@@ -824,11 +983,13 @@ backendApi.ServiceList;
  *  typeMeta: !backendApi.TypeMeta,
  *  labelSelector: !Object<string, string>,
  *  containerImages: !Array<string>,
+ *  initContainerImages: !Array<string>,
  *  podInfo: !backendApi.PodInfo,
  *  podList: !backendApi.PodList,
  *  serviceList: !backendApi.ServiceList,
  *  hasMetrics: boolean,
- *  eventList: !backendApi.EventList
+ *  eventList: !backendApi.EventList,
+ *  errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.DaemonSetDetail;
@@ -839,6 +1000,7 @@ backendApi.DaemonSetDetail;
  *  typeMeta: !backendApi.TypeMeta,
  *  pods: !backendApi.PodInfo,
  *  containerImages: !Array<string>,
+ *  initContainerImages: !Array<string>
  * }}
  */
 backendApi.DaemonSet;
@@ -846,15 +1008,22 @@ backendApi.DaemonSet;
 /**
  * @typedef {{
  *  daemonSets: !Array<backendApi.DaemonSet>,
- *  listMeta: !backendApi.ListMeta
+ *  listMeta: !backendApi.ListMeta,
+ *  status: !backendApi.Status,
+ *  errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.DaemonSetList;
 
 /**
  * @typedef {{
+ *  objectMeta: !backendApi.ObjectMeta,
+ *  typeMeta: !backendApi.TypeMeta,
  *  host: string,
- *  ports: !Array<{port: number, protocol: string}>
+ *  ports: !Array<{port: number, protocol: string}>,
+ *  nodeName: string,
+ *  port: number,
+ *  ready: string
  * }}
  */
 backendApi.Endpoint;
@@ -900,32 +1069,59 @@ backendApi.ReplicationControllerPods;
 
 /**
  * @typedef {{
- *   podId: string,
- *   logs: !Array<string>,
- *   container: string,
- *   firstLogLineReference: !backendApi.LogLineReference,
- *   lastLogLineReference: !backendApi.LogLineReference,
- *   logViewInfo: !backendApi.LogViewInfo
+ *   podNames: !Array<string>,
+ *   containerNames: !Array<string>,
+ *   initContainerNames: !Array<string>
  * }}
  */
-backendApi.Logs;
+backendApi.LogSources;
 
 /**
  * @typedef {{
- *   logTimestamp: string,
+ *   info: !backendApi.LogInfo,
+ *   logs: !Array<backendApi.LogLine>,
+ *   selection: !backendApi.LogSelection,
+ * }}
+ */
+backendApi.LogDetails;
+
+/**
+ * @typedef {{
+ *   podName: string,
+ *   containerName: string,
+ *   initContainerName: string,
+ *   fromDate: string,
+ *   toDate: string,
+ *   truncated: boolean
+ * }}
+ */
+backendApi.LogInfo;
+
+/**
+ * @typedef {{
+ *   timestamp: string,
+ *   content: string,
+ * }}
+ */
+backendApi.LogLine;
+
+/**
+ * @typedef {{
+ *   logFilePosition: string,
+ *   referencePoint: !backendApi.LogLineReference,
+ *   offsetFrom: number,
+ *   offsetTo: number
+ * }}
+ */
+backendApi.LogSelection;
+
+/**
+ * @typedef {{
+ *   timestamp: string,
  *   lineNum: number,
  * }}
  */
 backendApi.LogLineReference;
-
-/**
- * @typedef {{
- *   referenceLogLineId: !backendApi.LogLineReference,
- *   relativeFrom: number,
- *   relativeTo: number
- * }}
- */
-backendApi.LogViewInfo;
 
 /**
  * @typedef {{
@@ -1000,7 +1196,8 @@ backendApi.Namespace;
 /**
  * @typedef {{
  *   listMeta: !backendApi.ListMeta,
- *   namespaces: !Array<!backendApi.Namespace>
+ *   namespaces: !Array<!backendApi.Namespace>,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.NamespaceList;
@@ -1013,6 +1210,7 @@ backendApi.NamespaceList;
  *   eventList: !backendApi.EventList,
  *   resourceLimits: Array<!backendApi.LimitRange>,
  *   resourceQuotaList: !backendApi.ResourceQuotaDetailList,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.NamespaceDetail;
@@ -1021,6 +1219,7 @@ backendApi.NamespaceDetail;
  * @typedef {{
  *   objectMeta: !backendApi.ObjectMeta,
  *   typeMeta: !backendApi.TypeMeta,
+ *   type: string,
  *   data: !Object<string, string>,
  * }}
  */
@@ -1029,7 +1228,8 @@ backendApi.SecretDetail;
 /**
  * @typedef {{
  *   objectMeta: !backendApi.ObjectMeta,
- *   typeMeta: !backendApi.TypeMeta
+ *   typeMeta: !backendApi.TypeMeta,
+ *   type: string
  * }}
  */
 backendApi.Secret;
@@ -1037,7 +1237,8 @@ backendApi.Secret;
 /**
  * @typedef {{
  *   secrets: !Array<!backendApi.Secret>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.SecretList;
@@ -1061,7 +1262,8 @@ backendApi.Ingress;
 /**
  * @typedef {{
  *   listMeta: !backendApi.ListMeta,
- *   items: !Array<!backendApi.Ingress>
+ *   items: !Array<!backendApi.Ingress>,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.IngressList;
@@ -1104,10 +1306,19 @@ backendApi.NodeInfo;
  *   memoryLimitsFraction: number,
  *   memoryCapacity: number,
  *   allocatedPods: number,
- *   podCapacity: number
+ *   podCapacity: number,
+ *   podFraction: number
  * }}
  */
 backendApi.NodeAllocatedResources;
+
+/**
+ * @typedef {{
+ *   type: string,
+ *   address: string
+ * }}
+ */
+backendApi.NodeAddress;
 
 /**
  * @typedef {{
@@ -1115,15 +1326,17 @@ backendApi.NodeAllocatedResources;
  *   typeMeta: !backendApi.TypeMeta,
  *   phase: string,
  *   allocatedResources: !backendApi.NodeAllocatedResources,
- *   externalID: string,
  *   podCIDR: string,
  *   providerID: string,
  *   unschedulable: boolean,
  *   nodeInfo: !backendApi.NodeInfo,
  *   conditions: !backendApi.ConditionList,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>,
  *   podList: !backendApi.PodList,
- *   eventList: !backendApi.EventList
+ *   eventList: !backendApi.EventList,
+ *   addresses: !backendApi.NodeAddress,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.NodeDetail;
@@ -1131,7 +1344,8 @@ backendApi.NodeDetail;
 /**
  * @typedef {{
  *   nodes: !Array<!backendApi.Node>,
- *   listMeta: !backendApi.ListMeta
+ *   listMeta: !backendApi.ListMeta,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.NodeList;
@@ -1143,6 +1357,7 @@ backendApi.NodeList;
  *   status: string,
  *   volume: string,
  *   capacity: string,
+ *   storageClass: string,
  *   accessModes: !Array<string>
  * }}
  */
@@ -1161,7 +1376,8 @@ backendApi.PersistentVolumeClaim;
 /**
  * @typedef {{
  *   listMeta: !backendApi.ListMeta,
- *   items: !Array<!backendApi.PersistentVolumeClaim>
+ *   items: !Array<!backendApi.PersistentVolumeClaim>,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.PersistentVolumeClaimList;
@@ -1237,7 +1453,8 @@ backendApi.StorageClass;
 /**
  * @typedef {{
  *   listMeta: !backendApi.ListMeta,
- *   storageClasses: !Array<!backendApi.StorageClass>
+ *   storageClasses: !Array<!backendApi.StorageClass>,
+ *   errors: !Array<!backendApi.Error>
  * }}
  */
 backendApi.StorageClassList;
@@ -1248,9 +1465,19 @@ backendApi.StorageClassList;
  *   typeMeta: !backendApi.TypeMeta,
  *   pods: !backendApi.PodInfo,
  *   containerImages: !Array<string>,
+ *   initContainerImages: !Array<string>
  * }}
  */
 backendApi.Controller;
+
+/**
+ * @typedef {{
+ *   clusterName: string,
+ *   itemsPerPage: number,
+ *   autoRefreshTimeInterval: number
+ * }}
+ */
+backendApi.Settings;
 
 /**
  * @typedef {{
@@ -1261,35 +1488,84 @@ backendApi.APIVersion;
 
 /**
  * @typedef {{
- *   objectMeta: !backendApi.ObjectMeta,
- *   typeMeta: !backendApi.TypeMeta,
- *   description: string,
- *   versions: !Array<!backendApi.APIVersion>,
- * }}
- */
-backendApi.ThirdPartyResource;
-
-/**
- * @typedef {{
- *   listMeta: !backendApi.ListMeta,
- *   thirdPartyResources: !Array<!backendApi.ThirdPartyResource>
- * }}
- */
-backendApi.ThirdPartyResourceList;
-
-/**
- * @typedef {{
- *   objectMeta: !backendApi.ObjectMeta,
- * }}
- */
-backendApi.ThirdPartyResourceObject;
-
-/**
- * @typedef {{
  *   token: string
  * }}
  */
 backendApi.CsrfToken;
 
-/** @typedef {{serverTime: number}} */
-const appConfig_DO_NOT_USE_DIRECTLY = {};
+/**
+ * @typedef {{
+ *   username: string,
+ *   password: string,
+ *   token: string,
+ *   kubeConfig: string,
+ * }}
+ */
+backendApi.LoginSpec;
+
+/**
+ * @typedef {{
+ *   jweToken: string,
+ *   errors: !Array<!backendApi.Error>
+ * }}
+ */
+backendApi.AuthResponse;
+
+/**
+ * @typedef {{
+ *   tokenPresent: boolean,
+ *   headerPresent: boolean,
+ *   httpsMode: boolean
+ * }}
+ */
+backendApi.LoginStatus;
+
+/**
+ * @typedef {{
+ *   jweToken: string
+ * }}
+ */
+backendApi.TokenRefreshSpec;
+
+/** @typedef {string} */
+backendApi.AuthenticationMode;
+
+/**
+ * @typedef {{
+ *    modes: !Array<!backendApi.AuthenticationMode>
+ * }}
+ */
+backendApi.LoginModesResponse;
+
+/**
+ * @typedef {{
+ *  TOKEN: !backendApi.AuthenticationMode,
+ *  BASIC: !backendApi.AuthenticationMode,
+ *  }}
+ */
+backendApi.SupportedAuthenticationModes;
+
+/**
+ * @typedef {{
+ *  running: number,
+ *  failed: number,
+ *  pending: number,
+ *  succeeded: number,
+ *  }}
+ */
+backendApi.Status;
+
+/**
+ * @typedef {{
+ *  message: string,
+ *  severity: string
+ *  }}
+ */
+backendApi.SystemBanner;
+
+/**
+ * @typedef {{
+ *  allowed: boolean
+ * }}
+ */
+backendApi.CanIResponse;

@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -15,17 +15,27 @@ limitations under the License.
 -->
 
 <kd-resource-card-list selectable="false"
-                       with-statuses="true">
-  <kd-resource-card-list-header ng-transclude="header">
-    [[Replica Sets|Label which appears above the list of such objects.]]
+                       with-statuses="true"
+                       select-id="{{::$ctrl.getSelectId()}}"
+                       list="$ctrl.replicaSetList"
+                       list-resource="::$ctrl.replicaSetListResource">
+  <kd-resource-card-list-header>
+    <kd-resource-card-list-title ng-transclude="header">
+      [[Replica Sets|Label which appears above the list of such objects.]]
+    </kd-resource-card-list-title>
+    <kd-resource-card-list-filter></kd-resource-card-list-filter>
   </kd-resource-card-list-header>
-  <kd-resource-card-list-pagination pagination-id="replicasets"
-                                    list="$ctrl.replicaSetList"
-                                    list-resource="$ctrl.replicaSetListResource">
-  </kd-resource-card-list-pagination>
+
+  <kd-zero-state ng-if="!$ctrl.replicaSetList.listMeta.totalItems">
+    <kd-zero-state-text ng-transclude="zerostate">
+      [[There are no Replica Sets to display.|Text for replica set card list zerostate.]]
+    </kd-zero-state-text>
+  </kd-zero-state>
   <kd-resource-card-header-columns ng-show="$ctrl.replicaSetList.listMeta.totalItems">
     <kd-resource-card-header-column size="small"
-                                    grow="2">
+                                    grow="2"
+                                    sortable="true"
+                                    sort-id="$root.SortableProperties.NAME">
       [[Name|Label 'Name' which appears as a column label in the table of replica sets (replica set list view).]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
@@ -47,7 +57,9 @@ limitations under the License.
       [[Pods|Label 'Pods' which appears as a column label in the table of replica sets (replica set list view).]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
-                                    grow="1">
+                                    grow="1"
+                                    sortable="true"
+                                    sort-id="$root.SortableProperties.AGE">
       [[Age|Label 'Age' which appears as a column label in the table of replica sets (replica set list view).]]
     </kd-resource-card-header-column>
     <kd-resource-card-header-column size="small"
@@ -58,21 +70,14 @@ limitations under the License.
                                     grow="nogrow">
     </kd-resource-card-header-column>
   </kd-resource-card-header-columns>
-  <kd-replica-set-card ng-if="::$ctrl.replicaSetListResource"
-                       dir-paginate="rs in $ctrl.replicaSetList.replicaSets | itemsPerPage: default"
-                       pagination-id="replicasets"
+  <kd-replica-set-card dir-paginate="rs in $ctrl.replicaSetList.replicaSets | itemsPerPage: default"
+                       pagination-id="{{::$ctrl.getSelectId()}}"
                        replica-set="rs"
                        show-resource-kind="::$ctrl.showResourceKind"
                        total-items="::$ctrl.replicaSetList.listMeta.totalItems">
   </kd-replica-set-card>
-  <kd-replica-set-card ng-if="::!$ctrl.replicaSetListResource"
-                       dir-paginate="rs in $ctrl.replicaSetList.replicaSets | itemsPerPage: default"
-                       pagination-id="replicasets"
-                       replica-set="rs"
-                       show-resource-kind="::$ctrl.showResourceKind">
-  </kd-replica-set-card>
-  <div ng-show="!$ctrl.replicaSetList.listMeta.totalItems"
-       class="kd-zerostate-message"
-       ng-transclude="zerostate"></div>
 
+  <kd-resource-card-list-footer>
+    <kd-resource-card-list-pagination></kd-resource-card-list-pagination>
+  </kd-resource-card-list-footer>
 </kd-resource-card-list>

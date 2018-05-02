@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,15 +19,20 @@ describe('Job Card List controller', () => {
   let ctrl;
   /** @type {!NamespaceService} */
   let data;
+  /*@type {!ScaleService}*/
+  let scaleData;
 
   beforeEach(() => {
     angular.mock.module(jobModule.name);
 
-    angular.mock.inject(($componentController, kdNamespaceService) => {
+    angular.mock.inject(($componentController, kdNamespaceService, kdScaleService) => {
       /** @type {!NamespaceService} */
       data = kdNamespaceService;
+      /** @type {!ScaleService} */
+      scaleData = kdScaleService;
       /** @type {!JobCardListController} */
-      ctrl = $componentController('kdJobCardList', {kdNamespaceService_: data});
+      ctrl = $componentController(
+          'kdJobCardList', {kdNamespaceService_: data, kdScaleService_: scaleData});
     });
   });
 
@@ -37,5 +42,29 @@ describe('Job Card List controller', () => {
 
   it('should return the value from Namespace service', () => {
     expect(ctrl.areMultipleNamespacesSelected()).toBe(data.areMultipleNamespacesSelected());
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'jobs';
+    ctrl.jobList = {};
+    ctrl.jobListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
   });
 });

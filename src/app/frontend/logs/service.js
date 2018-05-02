@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,44 +17,90 @@
  * @final
  */
 export class LogsService {
-  /**
-   * @ngInject
-   */
+  /** @ngInject */
   constructor() {
     /** @private {boolean} */
     this.inverted_ = true;
 
     /** @private {boolean} */
     this.compact_ = false;
+
+    /** @private {boolean} */
+    this.showTimestamp_ = false;
+
+    /** @private {boolean} */
+    this.previous_ = false;
+
+    /** @private {boolean} */
+    this.following_ = false;
+  }
+
+  setFollowing() {
+    this.following_ = !this.following_;
   }
 
   /**
-   * Getter for inverted flag.
    * @return {boolean}
+   * @export
    */
-  getInverted() {
-    return this.inverted_;
+  getFollowing() {
+    return this.following_;
   }
 
-  /**
-   * Switches the inverted flag.
-   */
   setInverted() {
     this.inverted_ = !this.inverted_;
   }
 
   /**
-   * Switches the compact flag.
+   * @return {boolean}
+   * @export
    */
+  getInverted() {
+    return this.inverted_;
+  }
+
   setCompact() {
     this.compact_ = !this.compact_;
   }
 
   /**
-   * Getter for compact flag.
    * @return {boolean}
+   * @export
    */
   getCompact() {
     return this.compact_;
+  }
+
+  setShowTimestamp() {
+    this.showTimestamp_ = !this.showTimestamp_;
+  }
+
+  /**
+   * @return {boolean}
+   * @export
+   */
+  getShowTimestamp() {
+    return this.showTimestamp_;
+  }
+
+  setPrevious() {
+    this.previous_ = !this.previous_;
+  }
+
+  /**
+   * @return {boolean}
+   * @export
+   */
+  getPrevious() {
+    return this.previous_;
+  }
+
+  /**
+   * @param {string} pod
+   * @param {string} container
+   * @return {string}
+   */
+  getLogFileName(pod, container) {
+    return `logs-from-${container}-in-${pod}.txt`;
   }
 }

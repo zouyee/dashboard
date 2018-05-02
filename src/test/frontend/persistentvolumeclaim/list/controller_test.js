@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,16 +16,9 @@ import {PersistentVolumeClaimListController} from 'persistentvolumeclaim/list/co
 import persistentVolumeClaimModule from 'persistentvolumeclaim/module';
 
 describe('Persistent Volume list controller', () => {
-  /** @type {!PersistentVolumeClaimListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(persistentVolumeClaimModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(
-          PersistentVolumeClaimListController, {persistentVolumeClaimList: {items: []}});
-    });
   });
 
   it('should initialize persistent volume claim controller', angular.mock.inject(($controller) => {
@@ -36,16 +29,4 @@ describe('Persistent Volume list controller', () => {
 
     expect(ctrl.persistentVolumeClaimList.items).toBe(ctrls);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBe(true);
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.persistentVolumeClaimList = {items: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBe(false);
-  });
 });

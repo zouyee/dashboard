@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 import horizontalPodAutoscalerModule from 'horizontalpodautoscaler/module';
 
 describe('Horizontal Pod Autoscaler card list', () => {
@@ -28,5 +29,29 @@ describe('Horizontal Pod Autoscaler card list', () => {
 
   it('should instantiate the controller properly', () => {
     expect(ctrl).not.toBeUndefined();
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'hpas';
+    ctrl.horizontalPodAutoscalerList = {};
+    ctrl.horizontalPodAutoscalerListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
   });
 });

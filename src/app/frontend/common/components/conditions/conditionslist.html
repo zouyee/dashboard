@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@ limitations under the License.
 <kd-resource-card-list selectable="false"
                        with-statuses="false">
   <kd-resource-card-list-header>
-    [[Conditions|Label 'Conditions' for the conditions section.]]
+    <kd-resource-card-list-title>
+      [[Conditions|Label 'Conditions' for the conditions section.]]
+    </kd-resource-card-list-title>
   </kd-resource-card-list-header>
   <kd-resource-card-header-columns>
     <kd-resource-card-header-column size="small"
@@ -58,12 +60,22 @@ limitations under the License.
       </kd-resource-card-column>
       <kd-resource-card-column>
         <div ng-if="::condition.lastProbeTime">{{condition.lastProbeTime | relativeTime}}</div>
+        <md-tooltip ng-if="::condition.lastProbeTime"
+                    md-delay="500"
+                    md-autohide>
+          [[Probed at | Tooltip heartbeat column of pod conditions ]] {{condition.lastProbeTime | date}}
+        </md-tooltip>
         <div ng-if="::!condition.lastProbeTime">[[-|Label when there is no data.]]</div>
       </kd-resource-card-column>
       <kd-resource-card-column>
         <div ng-if="::condition.lastTransitionTime">
           {{condition.lastTransitionTime | relativeTime}}
         </div>
+        <md-tooltip ng-if="::condition.lastTransitionTime"
+                    md-delay="500"
+                    md-autohide>
+          [[Probed at | Tooltip transition column of pod conditions ]] {{condition.lastTransitionTime | date}}
+        </md-tooltip>
         <div ng-if="::!condition.lastTransitionTime">[[-|Label when there is no data.]]</div>
       </kd-resource-card-column>
       <kd-resource-card-column>

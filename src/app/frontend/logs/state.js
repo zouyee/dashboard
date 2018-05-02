@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams as ResourceStateParams} from 'common/resource/resourcedetail';
+import {StateParams as ResourceStateParams} from '../common/resource/resourcedetail';
 
 /** Name of the state. Can be used in, e.g., $state.go method. */
 export const stateName = 'log';
@@ -27,12 +27,12 @@ export class StateParams extends ResourceStateParams {
   /**
    * @param {string} objectNamespace
    * @param {string} objectName
-   * @param {string=} opt_container
+   * @param {string} resourceType
    */
-  constructor(objectNamespace, objectName, opt_container) {
+  constructor(objectNamespace, objectName, resourceType) {
     super(objectNamespace, objectName);
 
-    /** @export {string|undefined} Name of this pod container. */
-    this.container = opt_container;
+    /** @export {string} Resource type (e.g. ReplicaSet, Pod) */
+    this.resourceType = resourceType;
   }
 }

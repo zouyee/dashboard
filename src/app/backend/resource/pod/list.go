@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,38 +17,43 @@ package pod
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // PodList contains a list of Pods in the cluster.
 type PodList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta          api.ListMeta       `json:"listMeta"`
+	CumulativeMetrics []metricapi.Metric `json:"cumulativeMetrics"`
+
+	// Basic information about resources status on the list.
+	Status common.ResourceStatus `json:"status"`
 
 	// Unordered list of Pods.
-	Pods              []Pod           `json:"pods"`
-	CumulativeMetrics []metric.Metric `json:"cumulativeMetrics"`
+	Pods []Pod `json:"pods"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 type PodStatus struct {
-	// Status of the Pod. See Kubernetes API for reference.
-	Status          string               `json:"status"`
-	PodPhase        api.PodPhase         `json:"podPhase"`
-	ContainerStates []api.ContainerState `json:"containerStates"`
+	Status          string              `json:"status"`
+	PodPhase        v1.PodPhase         `json:"podPhase"`
+	ContainerStates []v1.ContainerState `json:"containerStates"`
 }
 
-// Pod is a presentation layer view of Kubernetes Pod resource. This means
-// it is Pod plus additional augmented data we can get from other sources
-// (like services that target it).
+// Pod is a presentation layer view of Kubernetes Pod resource. This means it is Pod plus additional augmented data
+// we can get from other sources (like services that target it).
 type Pod struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// More info on pod status
 	PodStatus PodStatus `json:"podStatus"`
@@ -57,15 +62,26 @@ type Pod struct {
 	RestartCount int32 `json:"restartCount"`
 
 	// Pod metrics.
-	Metrics *common.PodMetrics `json:"metrics"`
+	Metrics *PodMetrics `json:"metrics"`
 
 	// Pod warning events
 	Warnings []common.Event `json:"warnings"`
+
+	// Name of the Node this Pod runs on.
+	NodeName string `json:"nodeName"`
+}
+
+var EmptyPodList = &PodList{
+	Pods:   make([]Pod, 0),
+	Errors: make([]error, 0),
+	ListMeta: api.ListMeta{
+		TotalItems: 0,
+	},
 }
 
 // GetPodList returns a list of all Pods in the cluster.
-func GetPodList(client k8sClient.Interface, heapsterClient client.HeapsterClient,
-	nsQuery *common.NamespaceQuery, dsQuery *dataselect.DataSelectQuery) (*PodList, error) {
+func GetPodList(client k8sClient.Interface, metricClient metricapi.MetricClient, nsQuery *common.NamespaceQuery,
+	dsQuery *dataselect.DataSelectQuery) (*PodList, error) {
 	log.Print("Getting list of all pods in the cluster")
 
 	channels := &common.ResourceChannels{
@@ -73,65 +89,78 @@ func GetPodList(client k8sClient.Interface, heapsterClient client.HeapsterClient
 		EventList: common.GetEventListChannel(client, nsQuery, 1),
 	}
 
-	return GetPodListFromChannels(channels, dsQuery, heapsterClient)
+	return GetPodListFromChannels(channels, dsQuery, metricClient)
 }
 
 // GetPodListFromChannels returns a list of all Pods in the cluster
 // reading required resource list once from the channels.
 func GetPodListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery,
-	heapsterClient client.HeapsterClient) (*PodList, error) {
+	metricClient metricapi.MetricClient) (*PodList, error) {
 
 	pods := <-channels.PodList.List
-	if err := <-channels.PodList.Error; err != nil {
-		return nil, err
+	err := <-channels.PodList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	eventList := <-channels.EventList.List
-	if err := <-channels.EventList.Error; err != nil {
-		return nil, err
+	err = <-channels.EventList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	podList := CreatePodList(pods.Items, eventList.Items, dsQuery, heapsterClient)
+	podList := ToPodList(pods.Items, eventList.Items, nonCriticalErrors, dsQuery, metricClient)
+	podList.Status = getStatus(pods, eventList.Items)
 	return &podList, nil
 }
 
-func CreatePodList(pods []api.Pod, events []api.Event, dsQuery *dataselect.DataSelectQuery,
-	heapsterClient client.HeapsterClient) PodList {
-
-	channels := &common.ResourceChannels{
-		PodMetrics: common.GetPodListMetricsChannel(heapsterClient, pods, 1),
+func ToPodList(pods []v1.Pod, events []v1.Event, nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) PodList {
+	podList := PodList{
+		Pods:   make([]Pod, 0),
+		Errors: nonCriticalErrors,
 	}
 
-	if err := <-channels.PodMetrics.Error; err != nil {
+	podCells, cumulativeMetricsPromises, filteredTotal := dataselect.
+		GenericDataSelectWithFilterAndMetrics(toCells(pods), dsQuery, metricapi.NoResourceCache, metricClient)
+	pods = fromCells(podCells)
+	podList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
+
+	metrics, err := getMetricsPerPod(pods, metricClient, dsQuery)
+	if err != nil {
 		log.Printf("Skipping Heapster metrics because of error: %s\n", err)
 	}
-	metrics := <-channels.PodMetrics.MetricsByPod
-
-	podList := PodList{
-		Pods: make([]Pod, 0),
-	}
-
-	cache := &dataselect.CachedResources{Pods: pods}
-
-	podCells, cumulativeMetricsPromises, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(toCells(pods), dsQuery,
-		cache, &heapsterClient)
-	pods = fromCells(podCells)
-	podList.ListMeta = common.ListMeta{TotalItems: filteredTotal}
 
 	for _, pod := range pods {
-		warnings := event.GetPodsEventWarnings(events, []api.Pod{pod})
-
-		podDetail := ToPod(&pod, metrics, warnings)
-		podDetail.Warnings = warnings
+		warnings := event.GetPodsEventWarnings(events, []v1.Pod{pod})
+		podDetail := toPod(&pod, metrics, warnings)
 		podList.Pods = append(podList.Pods, podDetail)
-
 	}
-	cumulativeMetrics, err := cumulativeMetricsPromises.GetMetrics()
 
+	cumulativeMetrics, err := cumulativeMetricsPromises.GetMetrics()
 	podList.CumulativeMetrics = cumulativeMetrics
 	if err != nil {
-		podList.CumulativeMetrics = make([]metric.Metric, 0)
+		podList.CumulativeMetrics = make([]metricapi.Metric, 0)
 	}
 
 	return podList
+}
+
+func toPod(pod *v1.Pod, metrics *MetricsByPod, warnings []common.Event) Pod {
+	podDetail := Pod{
+		ObjectMeta:   api.NewObjectMeta(pod.ObjectMeta),
+		TypeMeta:     api.NewTypeMeta(api.ResourceKindPod),
+		Warnings:     warnings,
+		PodStatus:    getPodStatus(*pod, warnings),
+		RestartCount: getRestartCount(*pod),
+		NodeName:     pod.Spec.NodeName,
+	}
+
+	if m, exists := metrics.MetricsMap[pod.UID]; exists {
+		podDetail.Metrics = &m
+	}
+
+	return podDetail
 }

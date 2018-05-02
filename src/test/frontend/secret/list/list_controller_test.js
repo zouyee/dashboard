@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {SecretListController} from 'secret/list/controller';
 import secretModule from 'secret/module';
 
 describe('Secret list controller', () => {
-  /** @type {!SecretListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(secretModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(SecretListController, {secretList: {secrets: []}});
-    });
   });
 
   it('should initialize secret list', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Secret list controller', () => {
 
     expect(ctrl.secretList).toBe(data);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.secretList = {secrets: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {GlobalStateParams} from 'common/resource/globalresourcedetail';
-import {stateName as logsStateName, StateParams as LogsStateParams} from 'logs/state';
-import {stateName} from 'node/detail/state';
+import {GlobalStateParams} from '../../common/resource/globalresourcedetail';
+import {stateName} from '../../node/detail/state';
 
 /**
  * @final
  */
-export default class PodInfoController {
+class PodInfoController {
   /**
    * Constructs pod info object.
    * @param {!ui.router.$state} $state
@@ -44,22 +43,12 @@ export default class PodInfoController {
   getNodeDetailsHref() {
     return this.state_.href(stateName, new GlobalStateParams(this.pod.nodeName));
   }
-
-  /**
-   * @return {string}
-   * @export
-   */
-  getLogsHref() {
-    return this.state_.href(
-        logsStateName,
-        new LogsStateParams(this.pod.objectMeta.namespace, this.pod.objectMeta.name));
-  }
 }
 
 /**
  * Definition object for the component that displays pod info.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const podInfoComponent = {
   controller: PodInfoController,

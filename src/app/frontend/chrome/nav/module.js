@@ -1,5 +1,4 @@
-
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import stateModule from 'common/state/module';
+
+import stateModule from '../../common/state/module';
 
 import {hamburgerComponent} from './hamburger_component';
 import {navComponent} from './nav_component';
 import {NavService} from './nav_service';
 import {navItemComponent} from './navitem_component';
-import {thirdPartyResourceNavComponent} from './thirdpartyresourcenav_component';
+import {roleNavComponent} from './rolenav_component';
 
 
 /**
@@ -30,6 +30,7 @@ export default angular
         'kubernetesDashboard.chrome.nav',
         [
           'ngMaterial',
+          'ngResource',
           'ui.router',
           stateModule.name,
         ])
@@ -37,4 +38,4 @@ export default angular
     .component('kdNavHamburger', hamburgerComponent)
     .component('kdNavItem', navItemComponent)
     .component('kdNav', navComponent)
-    .component('kdThirdPartyResourceNav', thirdPartyResourceNavComponent);
+    .component('kdRoleNav', roleNavComponent);

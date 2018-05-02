@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 export class PodCardListController {
   /**
    * @ngInject
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!./../../common/namespace/service.NamespaceService} kdNamespaceService
    */
   constructor(kdNamespaceService) {
     /**
@@ -30,8 +30,25 @@ export class PodCardListController {
     /** @export {!angular.Resource} Initialized from binding. */
     this.podListResource;
 
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+    /** @private {!./../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
+  }
+
+  /**
+   * Returns select id string or undefined if podList or podListResource are not defined.
+   * It is needed to enable/disable data select support (pagination, sorting) for particular list.
+   *
+   * @return {string}
+   * @export
+   */
+  getSelectId() {
+    const selectId = 'pods';
+
+    if (this.podList !== undefined && this.podListResource !== undefined) {
+      return selectId;
+    }
+
+    return '';
   }
 
   /**
@@ -68,7 +85,7 @@ export const podCardListComponent = {
     // Optional header that is transcluded instead of the default one.
     'header': '?kdHeader',
     // Optional zerostate content that is shown when there are zero items.
-    'zerostate': '?kdZerostate',
+    'zerostate': '?kdEmptyListText',
   },
   templateUrl: 'pod/list/cardlist.html',
   controller: PodCardListController,

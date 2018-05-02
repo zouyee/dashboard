@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {stateName as chromeStateName} from '../chrome/state';
+import {breadcrumbsConfig} from '../common/components/breadcrumbs/service';
 
 import {ConfigController} from './controller';
 import {stateName} from './state';
@@ -48,17 +48,19 @@ export default function stateConfig($stateProvider) {
 /**
  * @param {!angular.$resource} kdConfigResource
  * @param {!./../chrome/state.StateParams} $stateParams
- * @param {!./../common/pagination/pagination_service.PaginationService} kdPaginationService
+ * @param {!./../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveResource(kdConfigResource, $stateParams, kdPaginationService) {
-  let paginationQuery = kdPaginationService.getDefaultResourceQuery($stateParams.namespace);
+export function resolveResource(kdConfigResource, $stateParams, kdDataSelectService) {
+  let paginationQuery = kdDataSelectService.getDefaultResourceQuery($stateParams.namespace);
   return kdConfigResource.get(paginationQuery).$promise;
 }
 
 const i18n = {
-  /** @type {string} @desc Label 'Config and storage' that appears as a breadcrumbs on the action
-   * bar. */
+  /**
+   * @type {string} @desc Label 'Config and storage' that appears as a breadcrumbs on the action
+   * bar.
+   */
   MSG_BREADCRUMBS_CONFIG_AND_STORAGE_LABEL: goog.getMsg('Config and storage'),
 };

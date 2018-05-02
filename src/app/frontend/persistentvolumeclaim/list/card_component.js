@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'persistentvolumeclaim/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../persistentvolumeclaim/detail/state';
 
 /**
  * Controller for the persistent volume claim card.
  * @final
  */
-export default class PersistentVolumeClaimCardController {
+class PersistentVolumeClaimCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!../../common/namespace/service.NamespaceService} kdNamespaceService
    * @ngInject
    */
   constructor($state, $interpolate, kdNamespaceService) {
@@ -36,10 +35,7 @@ export default class PersistentVolumeClaimCardController {
     /** @private {!ui.router.$state} */
     this.state_ = $state;
 
-    /** @private */
-    this.interpolate_ = $interpolate;
-
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+    /** @private {!../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
   }
 
@@ -69,7 +65,7 @@ export default class PersistentVolumeClaimCardController {
      @export
    */
   isBound() {
-    return this.persistentVolumeClaim.Status === 'Bound';
+    return this.persistentVolumeClaim.status === 'Bound';
   }
 
   /**
@@ -78,7 +74,7 @@ export default class PersistentVolumeClaimCardController {
    * @export
    */
   isPending() {
-    return this.persistentVolumeClaim.Status === 'Pending';
+    return this.persistentVolumeClaim.status === 'Pending';
   }
 
   /**
@@ -87,21 +83,7 @@ export default class PersistentVolumeClaimCardController {
    * @export
    */
   isLost() {
-    return this.persistentVolumeClaim.Status === 'Lost';
-  }
-
-  /**
-   * @export
-   * @param  {string} creationDate - creation date of the persistent volume claim
-   * @return {string} localized tooltip with the formatted creation date
-   */
-  getCreatedAtTooltip(creationDate) {
-    let filter = this.interpolate_(`{{date | date}}`);
-    /** @type {string} @desc Tooltip 'Created at [some date]' showing the exact creation time of
-     * persistent volume claim. */
-    let MSG_PERSISTENT_VOLUME_CLAIM_LIST_CREATED_AT_TOOLTIP =
-        goog.getMsg('Created at {$creationDate}', {'creationDate': filter({'date': creationDate})});
-    return MSG_PERSISTENT_VOLUME_CLAIM_LIST_CREATED_AT_TOOLTIP;
+    return this.persistentVolumeClaim.status === 'Lost';
   }
 }
 

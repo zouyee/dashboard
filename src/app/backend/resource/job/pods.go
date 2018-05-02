@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,41 +17,48 @@ package job
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 // GetJobPods return list of pods targeting job.
-func GetJobPods(client k8sClient.Interface, heapsterClient client.HeapsterClient,
+func GetJobPods(client k8sClient.Interface, metricClient metricapi.MetricClient,
 	dsQuery *dataselect.DataSelectQuery, namespace string, jobName string) (*pod.PodList, error) {
 	log.Printf("Getting replication controller %s pods in namespace %s", jobName, namespace)
 
 	pods, err := getRawJobPods(client, jobName, namespace)
 	if err != nil {
-		return nil, err
+		return pod.EmptyPodList, err
 	}
 
-	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	events, err := event.GetPodsEvents(client, namespace, pods)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return pod.EmptyPodList, criticalError
+	}
+
+	podList := pod.ToPodList(pods, events, nonCriticalErrors, dsQuery, metricClient)
 	return &podList, nil
 }
 
 // Returns array of api pods targeting job with given name.
-func getRawJobPods(client k8sClient.Interface, petSetName, namespace string) ([]api.Pod, error) {
-
-	replicaSet, err := client.Batch().Jobs(namespace).Get(petSetName, metaV1.GetOptions{})
+func getRawJobPods(client k8sClient.Interface, petSetName, namespace string) ([]v1.Pod, error) {
+	job, err := client.Batch().Jobs(namespace).Get(petSetName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	labelSelector := labels.SelectorFromSet(replicaSet.Spec.Selector.MatchLabels)
+	labelSelector := labels.SelectorFromSet(job.Spec.Selector.MatchLabels)
 	channels := &common.ResourceChannels{
 		PodList: common.GetPodListChannelWithOptions(client, common.NewSameNamespaceQuery(namespace),
 			metaV1.ListOptions{
@@ -85,6 +92,11 @@ func getJobPodInfo(client k8sClient.Interface, job *batch.Job) (*common.PodInfo,
 		return nil, err
 	}
 
-	podInfo := common.GetPodInfo(job.Status.Active, *job.Spec.Completions, pods.Items)
+	podInfo := common.GetPodInfo(job.Status.Active, job.Spec.Completions, pods.Items)
+
+	// This pod info for jobs should be get from job status, similar to kubectl describe logic.
+	podInfo.Running = job.Status.Active
+	podInfo.Succeeded = job.Status.Succeeded
+	podInfo.Failed = job.Status.Failed
 	return &podInfo, nil
 }

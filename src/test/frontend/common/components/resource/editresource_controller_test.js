@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,10 +13,10 @@
 // limitations under the License.
 
 import {EditResourceController} from 'common/resource/editresource_controller';
-import resourceModule from 'common/resource/resource_module';
+import resourceModule from 'common/resource/module';
 
 describe('Edit resource controller', () => {
-  /** @type !{!common/resource/editresource_controller.EditResourceController} */
+  /** @type {!common/resource/editresource_controller.EditResourceController} */
   let ctrl;
   /** @type {!md.$dialog} */
   let mdDialog;
@@ -24,16 +24,23 @@ describe('Edit resource controller', () => {
   let httpBackend;
   let testResourceUrl = 'api/v1/testurl';
 
-  beforeEach(() => angular.mock.module(resourceModule.name));
+  beforeEach(() => {
+    angular.mock.module(resourceModule.name, ($provide) => {
 
-  beforeEach(angular.mock.inject(($controller, $mdDialog, $httpBackend) => {
-    ctrl = $controller(EditResourceController, {
-      resourceKindName: 'My Resource',
-      resourceUrl: testResourceUrl,
+      let localizerService = {localize: function() {}};
+
+      $provide.value('localizerService', localizerService);
     });
-    mdDialog = $mdDialog;
-    httpBackend = $httpBackend;
-  }));
+
+    angular.mock.inject(($controller, $mdDialog, $httpBackend) => {
+      ctrl = $controller(EditResourceController, {
+        resourceKindName: 'My Resource',
+        resourceUrl: testResourceUrl,
+      });
+      mdDialog = $mdDialog;
+      httpBackend = $httpBackend;
+    });
+  });
 
   it('should edit resource', () => {
     spyOn(mdDialog, 'hide');

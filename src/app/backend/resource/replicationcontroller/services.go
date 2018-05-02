@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package replicationcontroller
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/service"
@@ -27,22 +28,23 @@ import (
 func GetReplicationControllerServices(client client.Interface, dsQuery *dataselect.DataSelectQuery,
 	namespace, rcName string) (*service.ServiceList, error) {
 
-	replicationController, err := client.Core().ReplicationControllers(namespace).Get(rcName, metaV1.GetOptions{})
+	replicationController, err := client.CoreV1().ReplicationControllers(namespace).Get(rcName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	channels := &common.ResourceChannels{
-		ServiceList: common.GetServiceListChannel(client, common.NewSameNamespaceQuery(namespace),
-			1),
+		ServiceList: common.GetServiceListChannel(client, common.NewSameNamespaceQuery(namespace), 1),
 	}
 
 	services := <-channels.ServiceList.List
-	if err := <-channels.ServiceList.Error; err != nil {
-		return nil, err
+	err = <-channels.ServiceList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	matchingServices := common.FilterNamespacedServicesBySelector(services.Items, namespace,
 		replicationController.Spec.Selector)
-	return service.CreateServiceList(matchingServices, dsQuery), nil
+	return service.CreateServiceList(matchingServices, nonCriticalErrors, dsQuery), nil
 }

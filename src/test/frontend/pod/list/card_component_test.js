@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -147,38 +147,33 @@ describe('Pod card controller', () => {
   });
 
   it('should check pod status correctly (success is successful)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {status: 'success'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {status: 'Succeeded'}, warnings: []};
     expect(ctrl.isSuccess()).toBeTruthy();
   });
 
   it('should check pod status correctly (failed isn\'t successful)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {status: 'failed'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {status: 'Failed'}, warnings: []};
     expect(ctrl.isSuccess()).toBeFalsy();
   });
 
   it('should check pod status correctly (pending is pending)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {status: 'pending'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {status: 'Pending'}, warnings: []};
     expect(ctrl.isPending()).toBeTruthy();
   });
 
   it('should check pod status correctly (failed isn\'t pending)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {status: 'failed'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {status: 'Failed'}, warnings: []};
     expect(ctrl.isPending()).toBeFalsy();
   });
 
   it('should check pod status correctly (failed is failed)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {status: 'failed'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {status: 'Failed'}, warnings: []};
     expect(ctrl.isFailed()).toBeTruthy();
   });
 
   it('should check pod status correctly (success isn\'t failed)', () => {
-    ctrl.pod = {name: 'test-pod', podStatus: {podPhase: 'success'}, warnings: []};
+    ctrl.pod = {name: 'test-pod', podStatus: {podPhase: 'Succeeded'}, warnings: []};
     expect(ctrl.isFailed()).toBeFalsy();
-  });
-
-  it('should format the "pod start date" tooltip correctly', () => {
-    expect(ctrl.getStartedAtTooltip('2016-06-06T09:13:12Z'))
-        .toBe('Started at 2016-06-06T09:13 UTC');
   });
 
   it('should show and hide cpu metrics', () => {

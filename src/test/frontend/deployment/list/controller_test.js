@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,9 @@
 import {DeploymentListController} from 'deployment/list/controller';
 import deploymentListModule from 'deployment/module';
 
-describe('Replica Set list controller', () => {
-  /** @type {!DeploymentListController} */
-  let ctrl;
-
+describe('Deployment list controller', () => {
   beforeEach(() => {
     angular.mock.module(deploymentListModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(DeploymentListController, {deploymentList: {deployments: []}});
-    });
   });
 
   it('should initialize replication controllers', angular.mock.inject(($controller) => {
@@ -34,16 +27,4 @@ describe('Replica Set list controller', () => {
 
     expect(ctrl.deploymentList.deployments).toBe(ctrls);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.deploymentList = {deployments: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,32 +18,33 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 func TestGetNamespaceDetail(t *testing.T) {
 	cases := []struct {
-		namespace api.Namespace
+		namespace v1.Namespace
 		expected  *NamespaceDetail
 	}{
 		{
-			api.Namespace{
+			v1.Namespace{
 				ObjectMeta: metaV1.ObjectMeta{Name: "foo"},
-				Status: api.NamespaceStatus{
-					Phase: api.NamespaceActive,
+				Status: v1.NamespaceStatus{
+					Phase: v1.NamespaceActive,
 				},
 			},
 			&NamespaceDetail{
-				TypeMeta:   common.TypeMeta{Kind: "namespace"},
-				ObjectMeta: common.ObjectMeta{Name: "foo"},
-				Phase:      api.NamespaceActive,
+				TypeMeta:   api.TypeMeta{Kind: "namespace"},
+				ObjectMeta: api.ObjectMeta{Name: "foo"},
+				Phase:      v1.NamespaceActive,
 			},
 		},
 	}
 	for _, c := range cases {
-		actual := toNamespaceDetail(c.namespace, common.EventList{}, nil, nil)
+		actual := toNamespaceDetail(c.namespace, common.EventList{}, nil, nil, nil)
 		if !reflect.DeepEqual(&actual, c.expected) {
 			t.Errorf("toNamespaceDetail(%#v) == \n%#v\nexpected \n%#v\n",
 				c.namespace, actual, c.expected)

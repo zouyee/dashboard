@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 import persistentVolumeClaimModule from 'persistentvolumeclaim/module';
 
 describe('Persistent Volume Claim card list', () => {
-  /** @type
+  /**
+   * @type
    * {!persistentvolumeclaimlist/persistentvolumeclaimcard_component.PersistentVolumeClaimCardListController}
    */
   let ctrl;
@@ -46,5 +47,29 @@ describe('Persistent Volume Claim card list', () => {
 
   it('should init i18n', () => {
     expect(ctrl.areMultipleNamespacesSelected()).not.toBeUndefined();
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'persistentvolumeclaims';
+    ctrl.persistentVolumeClaimList = {};
+    ctrl.persistentVolumeClaimListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
   });
 });

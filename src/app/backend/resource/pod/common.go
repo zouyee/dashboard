@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,14 +15,16 @@
 package pod
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	api "k8s.io/client-go/pkg/api/v1"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	"k8s.io/api/core/v1"
 )
 
 // Gets restart count of given pod (total number of its containers restarts).
-func getRestartCount(pod api.Pod) int32 {
+func getRestartCount(pod v1.Pod) int32 {
 	var restartCount int32 = 0
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		restartCount += containerStatus.RestartCount
@@ -31,85 +33,80 @@ func getRestartCount(pod api.Pod) int32 {
 }
 
 // getPodStatus returns a PodStatus object containing a summary of the pod's status.
-func getPodStatus(pod api.Pod, warnings []common.Event) PodStatus {
-	var states []api.ContainerState
+func getPodStatus(pod v1.Pod, warnings []common.Event) PodStatus {
+	var states []v1.ContainerState
 	for _, containerStatus := range pod.Status.ContainerStatuses {
 		states = append(states, containerStatus.State)
 	}
 
 	return PodStatus{
-		Status:          getPodStatusStatus(pod, warnings),
+		Status:          string(getPodStatusPhase(pod, warnings)),
 		PodPhase:        pod.Status.Phase,
 		ContainerStates: states,
 	}
 }
 
+// getPodStatusInfo returns correct info about pod statuses. Should be used when correct pod statuses are required.
+func getPodStatusInfo(pods []v1.Pod, events []v1.Event) common.PodInfo {
+	podInfo := common.PodInfo{}
+
+	for _, pod := range pods {
+		warnings := event.GetPodsEventWarnings(events, []v1.Pod{pod})
+		switch getPodStatusPhase(pod, warnings) {
+		case v1.PodFailed:
+			podInfo.Failed++
+		case v1.PodSucceeded:
+			podInfo.Succeeded++
+		case v1.PodRunning:
+			podInfo.Running++
+		case v1.PodPending:
+			podInfo.Pending++
+		}
+	}
+
+	return podInfo
+}
+
 // getPodStatus returns one of three pod statuses (pending, success, failed)
-func getPodStatusStatus(pod api.Pod, warnings []common.Event) string {
+func getPodStatusPhase(pod v1.Pod, warnings []common.Event) v1.PodPhase {
 	// For terminated pods that failed
-	if pod.Status.Phase == api.PodFailed {
-		return "failed"
+	if pod.Status.Phase == v1.PodFailed {
+		return v1.PodFailed
 	}
 
 	// For successfully terminated pods
-	if pod.Status.Phase == api.PodSucceeded {
-		return "success"
+	if pod.Status.Phase == v1.PodSucceeded {
+		return v1.PodSucceeded
 	}
 
 	ready := false
 	initialized := false
 	for _, c := range pod.Status.Conditions {
-		if c.Type == api.PodReady {
-			ready = c.Status == api.ConditionTrue
+		if c.Type == v1.PodReady {
+			ready = c.Status == v1.ConditionTrue
 		}
-		if c.Type == api.PodInitialized {
-			initialized = c.Status == api.ConditionTrue
+		if c.Type == v1.PodInitialized {
+			initialized = c.Status == v1.ConditionTrue
 		}
 	}
 
-	if initialized && ready {
-		return "success"
+	if initialized && ready && pod.Status.Phase == v1.PodRunning {
+		return v1.PodRunning
 	}
 
 	// If the pod would otherwise be pending but has warning then label it as
 	// failed and show and error to the user.
 	if len(warnings) > 0 {
-		return "failed"
+		return v1.PodFailed
 	}
 
 	// Unknown?
-	return "pending"
-}
-
-// ToPod transforms Kubernetes pod object into object returned by API.
-func ToPod(pod *api.Pod, metrics *common.MetricsByPod, warnings []common.Event) Pod {
-	podDetail := Pod{
-		ObjectMeta:   common.NewObjectMeta(pod.ObjectMeta),
-		TypeMeta:     common.NewTypeMeta(common.ResourceKindPod),
-		PodStatus:    getPodStatus(*pod, warnings),
-		RestartCount: getRestartCount(*pod),
-	}
-
-	if metrics != nil && metrics.MetricsMap[pod.Namespace] != nil {
-		metric := metrics.MetricsMap[pod.Namespace][pod.Name]
-		podDetail.Metrics = &metric
-	}
-
-	return podDetail
-}
-
-// GetContainerImages returns container image strings from the given pod spec.
-func GetContainerImages(podTemplate *api.PodSpec) []string {
-	var containerImages []string
-	for _, container := range podTemplate.Containers {
-		containerImages = append(containerImages, container.Image)
-	}
-	return containerImages
+	return v1.PodPending
 }
 
 // The code below allows to perform complex data section on []api.Pod
 
-type PodCell api.Pod
+type PodCell v1.Pod
 
 func (self PodCell) GetProperty(name dataselect.PropertyName) dataselect.ComparableValue {
 	switch name {
@@ -127,15 +124,16 @@ func (self PodCell) GetProperty(name dataselect.PropertyName) dataselect.Compara
 	}
 }
 
-func (self PodCell) GetResourceSelector() *metric.ResourceSelector {
-	return &metric.ResourceSelector{
+func (self PodCell) GetResourceSelector() *metricapi.ResourceSelector {
+	return &metricapi.ResourceSelector{
 		Namespace:    self.ObjectMeta.Namespace,
-		ResourceType: common.ResourceKindPod,
+		ResourceType: api.ResourceKindPod,
 		ResourceName: self.ObjectMeta.Name,
+		UID:          self.ObjectMeta.UID,
 	}
 }
 
-func toCells(std []api.Pod) []dataselect.DataCell {
+func toCells(std []v1.Pod) []dataselect.DataCell {
 	cells := make([]dataselect.DataCell, len(std))
 	for i := range std {
 		cells[i] = PodCell(std[i])
@@ -143,15 +141,15 @@ func toCells(std []api.Pod) []dataselect.DataCell {
 	return cells
 }
 
-func fromCells(cells []dataselect.DataCell) []api.Pod {
-	std := make([]api.Pod, len(cells))
+func fromCells(cells []dataselect.DataCell) []v1.Pod {
+	std := make([]v1.Pod, len(cells))
 	for i := range std {
-		std[i] = api.Pod(cells[i].(PodCell))
+		std[i] = v1.Pod(cells[i].(PodCell))
 	}
 	return std
 }
 
-func getPodConditions(pod api.Pod) []common.Condition {
+func getPodConditions(pod v1.Pod) []common.Condition {
 	var conditions []common.Condition
 	for _, condition := range pod.Status.Conditions {
 		conditions = append(conditions, common.Condition{
@@ -164,4 +162,27 @@ func getPodConditions(pod api.Pod) []common.Condition {
 		})
 	}
 	return conditions
+}
+
+func getStatus(list *v1.PodList, events []v1.Event) common.ResourceStatus {
+	info := common.ResourceStatus{}
+	if list == nil {
+		return info
+	}
+
+	for _, pod := range list.Items {
+		warnings := event.GetPodsEventWarnings(events, []v1.Pod{pod})
+		switch getPodStatusPhase(pod, warnings) {
+		case v1.PodFailed:
+			info.Failed++
+		case v1.PodSucceeded:
+			info.Succeeded++
+		case v1.PodRunning:
+			info.Running++
+		case v1.PodPending:
+			info.Pending++
+		}
+	}
+
+	return info
 }

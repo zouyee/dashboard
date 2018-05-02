@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,24 @@ package deployment
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"strings"
 
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	apps "k8s.io/api/apps/v1beta2"
+	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/rand"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/client-go/discovery"
+	dynamicclient "k8s.io/client-go/dynamic"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	cmdutil "k8s.io/kubernetes/pkg/kubectl/cmd/util"
-	kubectlResource "k8s.io/kubernetes/pkg/kubectl/resource"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -88,6 +95,9 @@ type AppDeploymentSpec struct {
 type AppDeploymentFromFileSpec struct {
 	// Name of the file
 	Name string `json:"name"`
+
+	// Namespace that object should be deployed in
+	Namespace string `json:"namespace"`
 
 	// File content
 	Content string `json:"content"`
@@ -198,14 +208,21 @@ func DeployApp(spec *AppDeploymentSpec, client client.Interface) error {
 		Spec:       podSpec,
 	}
 
-	deployment := &extensions.Deployment{
+	deployment := &apps.Deployment{
 		ObjectMeta: objectMeta,
-		Spec: extensions.DeploymentSpec{
+		Spec: apps.DeploymentSpec{
 			Replicas: &spec.Replicas,
 			Template: podTemplate,
+			Selector: &metaV1.LabelSelector{
+				// Quoting from https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#selector:
+				// In API version apps/v1beta2, .spec.selector and .metadata.labels no longer default to
+				// .spec.template.metadata.labels if not set. So they must be set explicitly.
+				// Also note that .spec.selector is immutable after creation of the Deployment in apps/v1beta2.
+				MatchLabels: labels,
+			},
 		},
 	}
-	_, err := client.Extensions().Deployments(spec.Namespace).Create(deployment)
+	_, err := client.AppsV1beta2().Deployments(spec.Namespace).Create(deployment)
 
 	if err != nil {
 		// TODO(bryk): Roll back created resources in case of error.
@@ -240,7 +257,7 @@ func DeployApp(spec *AppDeploymentSpec, client client.Interface) error {
 			service.Spec.Ports = append(service.Spec.Ports, servicePort)
 		}
 
-		_, err = client.Core().Services(spec.Namespace).Create(service)
+		_, err = client.CoreV1().Services(spec.Namespace).Create(service)
 
 		// TODO(bryk): Roll back created resources in case of error.
 		return err
@@ -263,10 +280,18 @@ func convertEnvVarsSpec(variables []EnvironmentVariable) []api.EnvVar {
 }
 
 func generatePortMappingName(portMapping PortMapping) string {
-	base := fmt.Sprintf("%s-%d-%d-", strings.ToLower(string(portMapping.Protocol)),
-		portMapping.Port, portMapping.TargetPort)
+	return generateName(fmt.Sprintf("%s-%d-%d-", strings.ToLower(string(portMapping.Protocol)),
+		portMapping.Port, portMapping.TargetPort))
+}
 
-	return api.SimpleNameGenerator.GenerateName(base)
+func generateName(base string) string {
+	maxNameLength := 63
+	randomLength := 5
+	maxGeneratedNameLength := maxNameLength - randomLength
+	if len(base) > maxGeneratedNameLength {
+		base = base[:maxGeneratedNameLength]
+	}
+	return fmt.Sprintf("%s%s", base, rand.String(randomLength))
 }
 
 // Converts array of labels to map[string]string
@@ -280,46 +305,68 @@ func getLabelsMap(labels []Label) map[string]string {
 	return result
 }
 
-type createObjectFromInfo func(info *kubectlResource.Info) (bool, error)
-
-// CreateObjectFromInfoFn is an implementation of createObjectFromInfo
-func CreateObjectFromInfoFn(info *kubectlResource.Info) (bool, error) {
-	createdResource, err := kubectlResource.NewHelper(info.Client, info.Mapping).Create(info.Namespace, true, info.Object)
-	return createdResource != nil, err
-}
-
 // DeployAppFromFile deploys an app based on the given yaml or json file.
-func DeployAppFromFile(spec *AppDeploymentFromFileSpec,
-	createObjectFromInfoFn createObjectFromInfo) (bool, error) {
-	const emptyCacheDir = ""
-	validate := spec.Validate
-
-	factory := cmdutil.NewFactory(nil)
-	schema, err := factory.Validator(validate, emptyCacheDir)
-	if err != nil {
-		return false, err
-	}
-
-	mapper, typer := factory.Object()
+func DeployAppFromFile(cfg *rest.Config, spec *AppDeploymentFromFileSpec) (bool, error) {
 	reader := strings.NewReader(spec.Content)
-
-	r := kubectlResource.NewBuilder(mapper, typer, kubectlResource.ClientMapperFunc(factory.ClientForMapping), factory.Decoder(true)).
-		Schema(schema).
-		NamespaceParam(api.NamespaceDefault).DefaultNamespace().
-		Stream(reader, spec.Name).
-		Flatten().
-		Do()
-
-	deployedResourcesCount := 0
-
-	err = r.Visit(func(info *kubectlResource.Info, err error) error {
-		isDeployed, err := createObjectFromInfoFn(info)
-		if isDeployed {
-			deployedResourcesCount++
-			log.Printf("%s is deployed", info.Name)
+	log.Printf("Namespace for deploy from file: %s\n", spec.Namespace)
+	d := yaml.NewYAMLOrJSONDecoder(reader, 4096)
+	for {
+		data := unstructured.Unstructured{}
+		if err := d.Decode(&data); err != nil {
+			if err == io.EOF {
+				return true, nil
+			}
+			return false, err
 		}
-		return err
-	})
 
-	return deployedResourcesCount > 0, err
+		version := data.GetAPIVersion()
+		kind := data.GetKind()
+
+		gv, err := schema.ParseGroupVersion(version)
+		if err != nil {
+			gv = schema.GroupVersion{Version: version}
+		}
+
+		groupVersionKind := schema.GroupVersionKind{Group: gv.Group, Version: gv.Version, Kind: kind}
+
+		discoveryClient, err := discovery.NewDiscoveryClientForConfig(cfg)
+		if err != nil {
+			return false, err
+		}
+
+		apiResourceList, err := discoveryClient.ServerResourcesForGroupVersion(version)
+		if err != nil {
+			return false, err
+		}
+		apiResources := apiResourceList.APIResources
+		var resource *metaV1.APIResource
+		for _, apiResource := range apiResources {
+			if apiResource.Kind == kind && !strings.Contains(apiResource.Name, "/") {
+				resource = &apiResource
+				break
+			}
+		}
+		if resource == nil {
+			return false, fmt.Errorf("Unknown resource kind: %s", kind)
+		}
+
+		dynamicClientPool := dynamicclient.NewDynamicClientPool(cfg)
+
+		dynamicClient, err := dynamicClientPool.ClientForGroupVersionKind(groupVersionKind)
+
+		if err != nil {
+			return false, err
+		}
+
+		if strings.Compare(spec.Namespace, "_all") == 0 {
+			_, err = dynamicClient.Resource(resource, data.GetNamespace()).Create(&data)
+		} else {
+			_, err = dynamicClient.Resource(resource, spec.Namespace).Create(&data)
+		}
+
+		if err != nil {
+			return false, errors.LocalizeError(err)
+		}
+	}
+	return true, nil
 }

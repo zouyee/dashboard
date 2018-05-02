@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'service/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../service/detail/state';
 
 /**
  * @final
@@ -21,11 +21,11 @@ import {stateName} from 'service/detail/state';
 export class ServiceCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!../../common/namespace/service.NamespaceService} kdNamespaceService
    * @ngInject
    */
-  constructor($state, kdNamespaceService) {
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+  constructor($state, $interpolate, kdNamespaceService) {
+    /** @private {!../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
 
     /** @export {!backendApi.Service} */

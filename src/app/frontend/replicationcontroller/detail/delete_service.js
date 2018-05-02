@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import showUpdateReplicasDialog from './updatereplicas_dialog';
-
 /**
  * Opens replication controller delete dialog.
  *
@@ -21,14 +19,10 @@ import showUpdateReplicasDialog from './updatereplicas_dialog';
  */
 export class ReplicationControllerService {
   /**
-   * @param {!md.$dialog} $mdDialog
    * @param {!./../../common/resource/verber_service.VerberService} kdResourceVerberService
    * @ngInject
    */
-  constructor($mdDialog, kdResourceVerberService) {
-    /** @private {!md.$dialog} */
-    this.mdDialog_ = $mdDialog;
-
+  constructor(kdResourceVerberService) {
     /** @private {!./../../common/resource/verber_service.VerberService}*/
     this.kdResourceVerberService_ = kdResourceVerberService;
   }
@@ -39,23 +33,8 @@ export class ReplicationControllerService {
    * @return {!angular.$q.Promise}
    */
   showDeleteDialog(typeMeta, objectMeta) {
+    // TODO: localize this name
     return this.kdResourceVerberService_.showDeleteDialog(
         'Replication Controller', typeMeta, objectMeta);
-  }
-
-  /**
-   * Opens an update replication controller dialog. Returns a promise that is resolved/rejected when
-   * user wants
-   * to update the replicas. Nothing happens when user clicks cancel on the dialog.
-   *
-   * @param {string} namespace
-   * @param {string} replicationController
-   * @param {number} currentPods
-   * @param {number} desiredPods
-   * @returns {!angular.$q.Promise}
-   */
-  showUpdateReplicasDialog(namespace, replicationController, currentPods, desiredPods) {
-    return showUpdateReplicasDialog(
-        this.mdDialog_, namespace, replicationController, currentPods, desiredPods);
   }
 }

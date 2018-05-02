@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,16 +55,14 @@ describe('Deploy not existing image story', () => {
   });
 
   it('should deploy app', (doneFn) => {
-    // For empty cluster this should actually redirect to zerostate page
-    browser.get('#!/deploy/app');
-    // given
+    browser.get('#!/deploy');
+    deployPage.deployFromSettingsTab.click();
+
     deployPage.appNameField.sendKeys(appName);
     deployPage.containerImageField.sendKeys(containerImage);
 
-    // when
     deployPage.deployButton.click().then(() => {
-      // then
-      expect(browser.getCurrentUrl()).toContain('workload');
+      expect(browser.getCurrentUrl()).toContain('overview');
       doneFn();
     });
 

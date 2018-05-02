@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@ import namespaceModule from 'namespace/module';
 
 describe('Namespace card', () => {
   /**
-   * @type {!NamespaceCardController} */
+   * @type {!NamespaceCardController}
+   */
   let ctrl;
 
   beforeEach(() => {
@@ -37,10 +38,5 @@ describe('Namespace card', () => {
 
     // then
     expect(ctrl.getNamespaceDetailHref()).toEqual('#!/namespace/foo-name');
-  });
-
-  it('should format the "created at" tooltip correctly', () => {
-    expect(ctrl.getCreatedAtTooltip('2016-06-06T09:13:12Z'))
-        .toMatch('Created at 2016-06-06T09:13.*');
   });
 });

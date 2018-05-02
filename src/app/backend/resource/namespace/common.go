@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ import (
 	"log"
 
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	api "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // NamespaceSpec is a specification of namespace to create.
@@ -30,7 +30,7 @@ type NamespaceSpec struct {
 }
 
 // CreateNamespace creates namespace based on given specification.
-func CreateNamespace(spec *NamespaceSpec, client *client.Clientset) error {
+func CreateNamespace(spec *NamespaceSpec, client kubernetes.Interface) error {
 	log.Printf("Creating namespace %s", spec.Name)
 
 	namespace := &api.Namespace{
@@ -39,7 +39,7 @@ func CreateNamespace(spec *NamespaceSpec, client *client.Clientset) error {
 		},
 	}
 
-	_, err := client.Namespaces().Create(namespace)
+	_, err := client.CoreV1().Namespaces().Create(namespace)
 	return err
 }
 

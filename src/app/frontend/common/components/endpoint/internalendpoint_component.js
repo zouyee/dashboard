@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 /**
  * Returns directive definition object for the component that displays the service
  * endpoint (type {backendApi.Endpoint}) which is accessible only from the inside of the cluster
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const internalEndpointComponent = {
   templateUrl: 'common/components/endpoint/internalendpoint.html',

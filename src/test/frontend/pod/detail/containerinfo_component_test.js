@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ describe('Container info component', () => {
   });
 
   it('should compute config map href', () => {
-    let cmkr = {Name: 'foo', key: 'bar'};
+    let cmkr = {name: 'foo', key: 'bar'};
     expect(ctrl.getEnvConfigMapHref(cmkr)).toBe('#!/configmap/foo-namespace/foo');
   });
 });

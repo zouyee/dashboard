@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,23 +18,23 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 func TestGetConfigMapDetail(t *testing.T) {
 	cases := []struct {
-		configMaps *api.ConfigMap
+		configMaps *v1.ConfigMap
 		expected   *ConfigMapDetail
 	}{
 		{
-			&api.ConfigMap{
+			&v1.ConfigMap{
 				Data: map[string]string{"app": "my-name"}, ObjectMeta: metaV1.ObjectMeta{Name: "foo"},
 			},
 			&ConfigMapDetail{
-				TypeMeta:   common.TypeMeta{Kind: "configmap"},
-				ObjectMeta: common.ObjectMeta{Name: "foo"},
+				TypeMeta:   api.TypeMeta{Kind: "configmap"},
+				ObjectMeta: api.ObjectMeta{Name: "foo"},
 				Data:       map[string]string{"app": "my-name"},
 			},
 		},

@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,8 +25,9 @@ limitations under the License.
       <div ng-hide="::$ctrl.persistentVolume.status">-</div>
     </kd-info-card-entry>
     <kd-info-card-entry title="[[Claim|Persistent volume info details section claim entry.]]">
-      <kd-middle-ellipsis display-string="{{::$ctrl.persistentVolume.claim}}">
-      </kd-middle-ellipsis>
+      <div ng-show="::$ctrl.persistentVolume.claim">
+        <a ng-href="{{$ctrl.getPersistentVolumeClaimDetailsHref()}}">{{::$ctrl.persistentVolume.claim}}</a>
+      </div>
       <div ng-hide="::$ctrl.persistentVolume.claim">-</div>
     </kd-info-card-entry>
     <kd-info-card-entry title="[[Reclaim policy|Persistent volume info details section reclaim policy entry.]]">
@@ -40,11 +41,16 @@ limitations under the License.
       </kd-middle-ellipsis>
       <div ng-hide="::$ctrl.persistentVolume.accessModes">-</div>
     </kd-info-card-entry>
-    <kd-info-card-entry title="[[Capacity|Persistent volume info details section capacity entry.]]">
-      <kd-middle-ellipsis ng-repeat="(key, value) in ::$ctrl.persistentVolume.capacity"
-                          display-string="{{::value}}">
+    <kd-info-card-entry title="[[Storage class|Persistent volume info details section storage class entry.]]">
+      <div ng-show="::$ctrl.persistentVolume.storageClass">
+        <a ng-href="{{$ctrl.getStorageClassDetailsHref()}}">{{::$ctrl.persistentVolume.storageClass}}</a>
+      </div>
+      <div ng-hide="::$ctrl.persistentVolume.storageClass">-</div>
+    </kd-info-card-entry>
+    <kd-info-card-entry title="[[Reason|Persistent volume info details section reason entry.]]">
+      <kd-middle-ellipsis display-string="{{::$ctrl.persistentVolume.reason}}">
       </kd-middle-ellipsis>
-      <div ng-hide="::$ctrl.persistentVolume.capacity">-</div>
+      <div ng-hide="::$ctrl.persistentVolume.reason">-</div>
     </kd-info-card-entry>
     <kd-info-card-entry title="[[Message|Persistent volume info details section message entry.]]">
       <kd-middle-ellipsis display-string="{{::$ctrl.persistentVolume.message}}">

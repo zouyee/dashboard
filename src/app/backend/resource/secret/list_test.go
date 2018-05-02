@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,68 +18,67 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
-var k8SecretList = &api.SecretList{
-	Items: []api.Secret{
-		{
-			ObjectMeta: metaV1.ObjectMeta{
-				Name:              "user1",
-				Namespace:         "foo",
-				CreationTimestamp: metaV1.Unix(111, 222),
-			},
-		},
-		{
-			ObjectMeta: metaV1.ObjectMeta{
-				Name:              "user2",
-				Namespace:         "foo",
-				CreationTimestamp: metaV1.Unix(111, 222),
-			},
-		},
-	},
-}
-
-func TestNewSecretListCreation(t *testing.T) {
+func TestToSecretList(t *testing.T) {
 	cases := []struct {
-		k8sRs     *api.SecretList
+		secrets   []v1.Secret
 		expected  *SecretList
 		namespace *common.NamespaceQuery
 	}{
 		{
-			k8SecretList,
+			[]v1.Secret{
+				{
+					ObjectMeta: metaV1.ObjectMeta{
+						Name:              "user1",
+						Namespace:         "foo",
+						CreationTimestamp: metaV1.Unix(111, 222),
+					},
+				},
+				{
+					ObjectMeta: metaV1.ObjectMeta{
+						Name:              "user2",
+						Namespace:         "foo",
+						CreationTimestamp: metaV1.Unix(111, 222),
+					},
+				},
+			},
 			&SecretList{
 				Secrets: []Secret{
 					{
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:              "user1",
 							Namespace:         "foo",
 							CreationTimestamp: metaV1.Unix(111, 222),
 						},
-						TypeMeta: common.NewTypeMeta(common.ResourceKindSecret),
+						TypeMeta: api.NewTypeMeta(api.ResourceKindSecret),
 					},
 					{
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:              "user2",
 							Namespace:         "foo",
 							CreationTimestamp: metaV1.Unix(111, 222),
 						},
-						TypeMeta: common.NewTypeMeta(common.ResourceKindSecret),
+						TypeMeta: api.NewTypeMeta(api.ResourceKindSecret),
 					},
 				},
-				ListMeta: common.ListMeta{2},
+				ListMeta: api.ListMeta{
+					TotalItems: 2,
+				},
 			},
 			common.NewNamespaceQuery([]string{"foo"}),
 		},
 	}
 
 	for _, c := range cases {
-		actual := NewSecretList(c.k8sRs.Items, dataselect.NoDataSelect)
+		actual := toSecretList(c.secrets, nil, dataselect.NoDataSelect)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("NewSecretList() ==\n          %#v\nExpected: %#v", actual, c.expected)
+			t.Errorf("toSecretList() ==\n%#v\nExpected: %#v", actual, c.expected)
 		}
 	}
 }

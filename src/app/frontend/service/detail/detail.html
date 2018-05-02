@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,17 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<kd-warnings warnings="::ctrl.serviceDetail.errors"></kd-warnings>
+
 <kd-service-info service="ctrl.serviceDetail"></kd-service-info>
+
+<kd-endpoint-card-list endpoint-list="::ctrl.serviceDetail.endpointList"
+                       endpoint-list-resource="::ctrl.endpointListResource"></kd-endpoint-card-list>
+</kd-content-card>
 
 <kd-content-card>
   <kd-content>
     <kd-pod-card-list pod-list="ctrl.serviceDetail.podList"
                       with-statuses="true"
                       pod-list-resource="ctrl.servicePodsResource">
-      <kd-zerostate>
-        <div class="kd-zerostate-title">[[There is nothing to display here|Title for pods card zerostate in stateful set details page.]]</div>
-        <div class="kd-zerostate-text">[[There are currently no Pods selected by this Service.|Text for pods card zerostate in stateful set details page.]]</div>
-      </kd-zerostate>
+      <kd-empty-list-text>
+        [[There are currently no Pods selected by this Service.|Text for pods card zerostate in stateful set details page.]]
+      </kd-empty-list-text>
     </kd-pod-card-list>
   </kd-content>
 </kd-content-card>
+
+<kd-event-card-list event-list="::ctrl.serviceDetail.eventList"
+                    event-list-resource="::ctrl.eventListResource"></kd-event-card-list>

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {actionbarViewName, stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {appendDetailParamsToUrl} from 'common/resource/resourcedetail';
-import {stateName as jobList} from 'job/list/state';
+import {actionbarViewName, stateName as chromeStateName} from '../../chrome/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+import {appendDetailParamsToUrl} from '../../common/resource/resourcedetail';
+import {stateName as jobList} from '../../job/list/state';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ActionBarController} from './actionbar_controller';
 import {JobDetailController} from './controller';
 
@@ -28,7 +28,7 @@ import {JobDetailController} from './controller';
  */
 export const config = {
   url: appendDetailParamsToUrl(stateUrl),
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'jobDetailResource': getJobDetailResource,
     'jobDetail': getJobDetail,
@@ -45,7 +45,7 @@ export const config = {
       controllerAs: 'ctrl',
       templateUrl: 'job/detail/detail.html',
     },
-    [actionbarViewName]: {
+    [`${actionbarViewName}@${chromeStateName}`]: {
       templateUrl: 'job/detail/actionbar.html',
       controller: ActionBarController,
       controllerAs: '$ctrl',
@@ -74,7 +74,7 @@ export function jobPodsResource($resource) {
 /**
  * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
  * @param {!angular.$resource} $resource
- * @return {!angular.Resource<!backendApi.JobDetail>}
+ * @return {!angular.Resource}
  * @ngInject
  */
 export function getJobDetailResource($resource, $stateParams) {
@@ -82,7 +82,7 @@ export function getJobDetailResource($resource, $stateParams) {
 }
 
 /**
- * @param {!angular.Resource<!backendApi.JobDetail>} jobDetailResource
+ * @param {!angular.Resource} jobDetailResource
  * @return {!angular.$q.Promise}
  * @ngInject
  */

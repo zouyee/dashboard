@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
+<kd-warnings warnings="::$ctrl.workloads.errors"></kd-warnings>
+
 <div layout="row">
   <kd-graph-card graph-title="[[CPU usage|Title for graph card displaying CPU metric of one all resources.]]"
                  metrics="::$ctrl.workloads.podList.cumulativeMetrics"
@@ -26,6 +28,14 @@ limitations under the License.
                  selected-metric-names="'memory/usage'">
   </kd-graph-card>
 </div>
+
+<kd-content-card ng-if="$ctrl.workloads.cronJobList.items.length">
+  <kd-content>
+    <kd-cron-job-card-list cron-job-list="$ctrl.workloads.cronJobList"
+                           cron-job-list-resource="$ctrl.cronJobListResource">
+    </kd-cron-job-card-list>
+  </kd-content>
+</kd-content-card>
 
 <div ng-if="!$ctrl.shouldShowZeroState()">
   <kd-content-card ng-if="$ctrl.workloads.daemonSetList.daemonSets.length">
@@ -86,4 +96,9 @@ limitations under the License.
     </kd-content>
   </kd-content-card>
 </div>
-<kd-zero-state ng-if="$ctrl.shouldShowZeroState()"></kd-zero-state>
+
+<kd-content-card ng-if="$ctrl.shouldShowZeroState()">
+  <kd-content>
+    <kd-zero-state></kd-zero-state>
+  </kd-content>
+</kd-content-card>

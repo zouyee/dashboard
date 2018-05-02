@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,6 +35,9 @@ gulp.task('backend', ['package-backend'], function(doneFn) {
         'build',
         // Install dependencies to speed up subsequent compilations.
         '-i',
+        // record version info into src/version/version.go
+        '-ldflags',
+        conf.recordVersionExpression,
         '-o',
         path.join(conf.paths.serve, conf.backend.binaryName),
         conf.backend.mainPackageName,
@@ -116,6 +119,11 @@ function backendProd(outputBinaryPathsAndArchs) {
             '-a',
             '-installsuffix',
             'cgo',
+            // record version info into src/version/version.go
+            // remove symbol tables and debug info to reduce binary size, see:
+            // https://golang.org/cmd/link/
+            '-ldflags',
+            `${conf.recordVersionExpression} -w -s`,
             '-o',
             path,
             conf.backend.mainPackageName,

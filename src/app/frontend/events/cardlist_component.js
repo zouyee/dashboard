@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -31,6 +31,23 @@ export class EventCardListController {
 
     /** @export */
     this.i18n = i18n;
+  }
+
+  /**
+   * Returns select id string or undefined if list or list resource are not defined.
+   * It is needed to enable/disable data select support (pagination, sorting) for particular list.
+   *
+   * @return {string}
+   * @export
+   */
+  getSelectId() {
+    const selectId = 'events';
+
+    if (this.eventList !== undefined && this.eventListResource !== undefined) {
+      return selectId;
+    }
+
+    return '';
   }
 
   /**

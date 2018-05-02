@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName as logsStateName, StateParams as LogsStateParams} from 'logs/state';
-import {stateName} from 'pod/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../pod/detail/state';
 
 /**
  * @final
@@ -23,18 +22,14 @@ export class PodCardController {
   /**
    * @ngInject,
    * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!../../common/namespace/service.NamespaceService} kdNamespaceService
    */
-  constructor($state, $interpolate, kdNamespaceService) {
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+  constructor($state, kdNamespaceService) {
+    /** @private {!../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
 
     /** @private {!ui.router.$state} */
     this.state_ = $state;
-
-    /** @private {!angular.$interpolate} */
-    this.interpolate_ = $interpolate;
 
     /**
      * Initialized from the scope.
@@ -66,7 +61,7 @@ export class PodCardController {
    */
   isPending() {
     // podPhase should be Pending if init containers are running but we are being extra thorough.
-    return this.pod.podStatus.status === 'pending';
+    return this.pod.podStatus.status === 'Pending';
   }
 
   /**
@@ -74,7 +69,7 @@ export class PodCardController {
    * @export
    */
   isSuccess() {
-    return this.pod.podStatus.status === 'success';
+    return this.pod.podStatus.status === 'Succeeded' || this.pod.podStatus.status === 'Running';
   }
 
   /**
@@ -83,17 +78,7 @@ export class PodCardController {
    * @export
    */
   isFailed() {
-    return this.pod.podStatus.status === 'failed';
-  }
-
-  /**
-   * @return {string}
-   * @export
-   */
-  getPodLogsHref() {
-    return this.state_.href(
-        logsStateName,
-        new LogsStateParams(this.pod.objectMeta.namespace, this.pod.objectMeta.name));
+    return this.pod.podStatus.status === 'Failed';
   }
 
   /**
@@ -158,20 +143,6 @@ export class PodCardController {
       return MSG_POD_LIST_POD_TERMINATED_STATUS;
     }
     return this.pod.podStatus.podPhase;
-  }
-
-  /**
-   * @export
-   * @param  {string} startDate - start date of the pod
-   * @return {string} localized tooltip with the formated start date
-   */
-  getStartedAtTooltip(startDate) {
-    let filter = this.interpolate_(`{{date | date}}`);
-    /** @type {string} @desc Tooltip 'Started at [some date]' showing the exact start time of
-     * the pod.*/
-    let MSG_POD_LIST_STARTED_AT_TOOLTIP =
-        goog.getMsg('Started at {$startDate} UTC', {'startDate': filter({'date': startDate})});
-    return MSG_POD_LIST_STARTED_AT_TOOLTIP;
   }
 
   /**

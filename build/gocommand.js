@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ const env = lodash.merge(process.env, {GOPATH: sourceGopath, PATH: devPath});
 /**
  * Minimum required Go Version
  */
-const minGoVersion = '1.7.1';
+const minGoVersion = '1.8.3';
 
 /**
  * Spawns a Go process after making sure all Go prerequisites are
@@ -55,15 +55,15 @@ export default function goCommand(args, doneFn, envOverride) {
 }
 
 /**
- * Spawns a Gofmt process after making sure all Go prerequisites are present.
+ * Spawns a goimports process after making sure all Go prerequisites are present.
  *
  * @param {!Array<string>} args - Arguments of the go command.
  * @param {function(?Error=)} doneFn - Callback.
  * @param {!Object<string, string>=} [envOverride] optional environment variables overrides map.
  */
-export function gofmtCommand(args, doneFn, envOverride) {
+export function goimportsCommand(args, doneFn, envOverride) {
   checkPrerequisites()
-      .then(() => spawnGofmtProcess(args, envOverride))
+      .then(() => spawnGoimportsProcess(args, envOverride))
       .then(doneFn)
       .fail((error) => doneFn(error));
 }
@@ -118,7 +118,7 @@ function checkGoVersion() {
           deferred.resolve();
           return;
         }
-        match = /[\d\.]+/.exec(stdout.toString());  // matches version number
+        match = /[\d.]+/.exec(stdout.toString());  // matches version number
         if (match && match.length < 1) {
           deferred.reject(new Error('Go version not found.'));
           return;
@@ -205,13 +205,13 @@ function spawnGoProcess(args, envOverride) {
 }
 
 /**
- * Spawns gofmt process.
+ * Spawns goimports process.
  * Promises an error if the go command process fails.
  *
  * @param {!Array<string>} args - Arguments of the go command.
  * @param {!Object<string, string>=} [envOverride] optional environment variables overrides map.
  * @return {Q.Promise} A promise object.
  */
-function spawnGofmtProcess(args, envOverride) {
-  return spawnProcess('gofmt', args, envOverride);
+function spawnGoimportsProcess(args, envOverride) {
+  return spawnProcess('goimports', args, envOverride);
 }

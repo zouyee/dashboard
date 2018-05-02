@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,12 @@ import (
 	"regexp"
 	"testing"
 
+	apps "k8s.io/api/apps/v1beta2"
+	api "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	core "k8s.io/client-go/testing"
-	kubectlResource "k8s.io/kubernetes/pkg/kubectl/resource"
 )
 
 func TestDeployApp(t *testing.T) {
@@ -37,13 +36,16 @@ func TestDeployApp(t *testing.T) {
 		RunAsPrivileged: true,
 	}
 
-	expected := &extensions.Deployment{
+	expected := &apps.Deployment{
 		ObjectMeta: metaV1.ObjectMeta{
 			Name:        "foo-name",
 			Labels:      map[string]string{},
 			Annotations: map[string]string{},
 		},
-		Spec: extensions.DeploymentSpec{
+		Spec: apps.DeploymentSpec{
+			Selector: &metaV1.LabelSelector{
+				MatchLabels: map[string]string{},
+			},
 			Replicas: &replicas,
 			Template: api.PodTemplateSpec{
 				ObjectMeta: metaV1.ObjectMeta{
@@ -79,7 +81,7 @@ func TestDeployApp(t *testing.T) {
 		t.Errorf("Expected namespace to be %#v but go %#v", namespace, createAction.GetNamespace())
 	}
 
-	deployment := createAction.GetObject().(*extensions.Deployment)
+	deployment := createAction.GetObject().(*apps.Deployment)
 	if !reflect.DeepEqual(deployment, expected) {
 		t.Errorf("Expected replication controller \n%#v\n to be created but got \n%#v\n",
 			expected, deployment)
@@ -100,7 +102,7 @@ func TestDeployAppContainerCommands(t *testing.T) {
 	DeployApp(spec, testClient)
 	createAction := testClient.Actions()[0].(core.CreateActionImpl)
 
-	rc := createAction.GetObject().(*extensions.Deployment)
+	rc := createAction.GetObject().(*apps.Deployment)
 	container := rc.Spec.Template.Spec.Containers[0]
 	if container.Command[0] != command {
 		t.Errorf("Expected command to be %#v but got %#v",
@@ -125,7 +127,7 @@ func TestDeployShouldPopulateEnvVars(t *testing.T) {
 
 	createAction := testClient.Actions()[0].(core.CreateActionImpl)
 
-	rc := createAction.GetObject().(*extensions.Deployment)
+	rc := createAction.GetObject().(*apps.Deployment)
 	container := rc.Spec.Template.Spec.Containers[0]
 	if !reflect.DeepEqual(container.Env, []api.EnvVar{{Name: "foo", Value: "bar"}}) {
 		t.Errorf("Expected environment variables to be %#v but got %#v",
@@ -167,7 +169,7 @@ func TestDeployWithResourceRequirements(t *testing.T) {
 
 	createAction := testClient.Actions()[0].(core.CreateActionImpl)
 
-	rc := createAction.GetObject().(*extensions.Deployment)
+	rc := createAction.GetObject().(*apps.Deployment)
 	container := rc.Spec.Template.Spec.Containers[0]
 	if !reflect.DeepEqual(container.Resources, expectedResources) {
 		t.Errorf("Expected resource requirements to be %#v but got %#v",
@@ -182,47 +184,5 @@ func TestGetAvailableProtocols(t *testing.T) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("Expected protocols to be %#v but got %#v",
 			expected, actual)
-	}
-}
-
-func TestDeployAppFromFileWithValidContent(t *testing.T) {
-	// TODO: rewrite test
-	t.Skip("Should not require working cluster to run.")
-	validContent := "{\"kind\": \"Namespace\"," +
-		"\"apiVersion\": \"v1\"," +
-		"\"metadata\": {" +
-		"\"name\": \"test-deployfile-namespace\"," +
-		"\"labels\": {\"name\": \"development\"}}}"
-	spec := &AppDeploymentFromFileSpec{
-		Name:    "foo-name",
-		Content: validContent,
-	}
-	fakeCreateObjectFromInfo := func(info *kubectlResource.Info) (bool, error) { return true, nil }
-
-	isDeployed, err := DeployAppFromFile(spec, fakeCreateObjectFromInfo)
-	if err != nil {
-		t.Errorf("Expected err to be %#v but got %#v", nil, err)
-	}
-	if !isDeployed {
-		t.Errorf("Expected return value to have %#v but got %#v", true, isDeployed)
-	}
-}
-
-func TestDeployAppFromFileWithInvalidContent(t *testing.T) {
-	// TODO: rewrite test
-	t.Skip("Should not require working cluster to run.")
-	spec := &AppDeploymentFromFileSpec{
-		Name:    "foo-name",
-		Content: "foo-content-invalid",
-	}
-	// return is set to true to check if the validation prior to this function really works
-	fakeCreateObjectFromInfo := func(info *kubectlResource.Info) (bool, error) { return true, nil }
-
-	isDeployed, err := DeployAppFromFile(spec, fakeCreateObjectFromInfo)
-	if err == nil {
-		t.Errorf("Expected return value to have an error but got %#v", nil)
-	}
-	if isDeployed {
-		t.Errorf("Expected return value to have %#v but got %#v", false, isDeployed)
 	}
 }

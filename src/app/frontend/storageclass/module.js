@@ -1,24 +1,26 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
-// Licensed under the Apache License, Version 2.0 (the 'License');
+// Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an 'AS IS' BASIS,
+// distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chromeModule from 'chrome/module';
-import componentsModule from 'common/components/components_module';
-import filtersModule from 'common/filters/filters_module';
-import namespaceModule from 'common/namespace/namespace_module';
-import eventsModule from 'events/module';
+import chromeModule from '../chrome/module';
+import componentsModule from '../common/components/module';
+import filtersModule from '../common/filters/module';
+import namespaceModule from '../common/namespace/module';
+import eventsModule from '../events/module';
+import persistentvolumeModule from '../persistentvolume/module';
 
 import {storageClassInfoComponent} from './detail/info_component';
+import {storageClassPersistentVolumesResource} from './detail/stateconfig';
 import {storageClassCardComponent} from './list/card_component';
 import {storageClassCardListComponent} from './list/cardlist_component';
 import {storageClassListResource} from './list/stateconfig';
@@ -39,9 +41,11 @@ export default angular
           eventsModule.name,
           filtersModule.name,
           namespaceModule.name,
+          persistentvolumeModule.name,
         ])
     .config(stateConfig)
     .component('kdStorageClassCard', storageClassCardComponent)
     .component('kdStorageClassCardList', storageClassCardListComponent)
     .component('kdStorageClassInfo', storageClassInfoComponent)
-    .factory('kdStorageClassListResource', storageClassListResource);
+    .factory('kdStorageClassListResource', storageClassListResource)
+    .factory('kdStorageClassPersistentVolumesResource', storageClassPersistentVolumesResource);

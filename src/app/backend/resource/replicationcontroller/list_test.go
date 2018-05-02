@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,16 +18,18 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestGetReplicationControllerList(t *testing.T) {
+func TestToReplicationControllerList(t *testing.T) {
 	replicas := int32(0)
-	events := []api.Event{}
+	events := []v1.Event{}
 	controller := true
 	firstAppOwnerRef := []metaV1.OwnerReference{{
 		Kind:       "ReplicationController",
@@ -37,31 +39,31 @@ func TestGetReplicationControllerList(t *testing.T) {
 	}}
 
 	cases := []struct {
-		replicationControllers []api.ReplicationController
-		services               []api.Service
-		pods                   []api.Pod
-		nodes                  []api.Node
+		replicationControllers []v1.ReplicationController
+		services               []v1.Service
+		pods                   []v1.Pod
+		nodes                  []v1.Node
 		expected               *ReplicationControllerList
 	}{
 		{nil, nil, nil, nil,
 			&ReplicationControllerList{
 				ReplicationControllers: []ReplicationController{},
-				CumulativeMetrics:      make([]metric.Metric, 0),
+				CumulativeMetrics:      make([]metricapi.Metric, 0),
 			},
 		},
 		{
-			[]api.ReplicationController{
+			[]v1.ReplicationController{
 				{
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-1",
 						Namespace: "namespace-1",
 						UID:       "uid-1",
 					},
-					Spec: api.ReplicationControllerSpec{
+					Spec: v1.ReplicationControllerSpec{
 						Replicas: &replicas,
 						Selector: map[string]string{"app": "my-name-1"},
-						Template: &api.PodTemplateSpec{
-							Spec: api.PodSpec{Containers: []api.Container{{Image: "my-container-image-1"}}},
+						Template: &v1.PodTemplateSpec{
+							Spec: v1.PodSpec{Containers: []v1.Container{{Image: "my-container-image-1"}}},
 						},
 					},
 				},
@@ -71,18 +73,18 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace: "namespace-2",
 						UID:       "uid-2",
 					},
-					Spec: api.ReplicationControllerSpec{
+					Spec: v1.ReplicationControllerSpec{
 						Replicas: &replicas,
 						Selector: map[string]string{"app": "my-name-2", "ver": "2"},
-						Template: &api.PodTemplateSpec{
-							Spec: api.PodSpec{Containers: []api.Container{{Image: "my-container-image-2"}}},
+						Template: &v1.PodTemplateSpec{
+							Spec: v1.PodSpec{Containers: []v1.Container{{Image: "my-container-image-2"}}},
 						},
 					},
 				},
 			},
-			[]api.Service{
+			[]v1.Service{
 				{
-					Spec: api.ServiceSpec{Selector: map[string]string{"app": "my-name-1"}},
+					Spec: v1.ServiceSpec{Selector: map[string]string{"app": "my-name-1"}},
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-1",
 						Namespace: "namespace-1",
@@ -90,7 +92,7 @@ func TestGetReplicationControllerList(t *testing.T) {
 					},
 				},
 				{
-					Spec: api.ServiceSpec{Selector: map[string]string{"app": "my-name-2", "ver": "2"}},
+					Spec: v1.ServiceSpec{Selector: map[string]string{"app": "my-name-2", "ver": "2"}},
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-2",
 						Namespace: "namespace-2",
@@ -98,14 +100,14 @@ func TestGetReplicationControllerList(t *testing.T) {
 					},
 				},
 			},
-			[]api.Pod{
+			[]v1.Pod{
 				{
 					ObjectMeta: metaV1.ObjectMeta{
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodFailed,
+					Status: v1.PodStatus{
+						Phase: v1.PodFailed,
 					},
 				},
 				{
@@ -113,8 +115,8 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodFailed,
+					Status: v1.PodStatus{
+						Phase: v1.PodFailed,
 					},
 				},
 				{
@@ -122,17 +124,8 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodPending,
-					},
-				},
-				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace:       "namespace-2",
-						OwnerReferences: firstAppOwnerRef,
-					},
-					Status: api.PodStatus{
-						Phase: api.PodPending,
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
 					},
 				},
 				{
@@ -140,8 +133,8 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodRunning,
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
 					},
 				},
 				{
@@ -149,8 +142,8 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodSucceeded,
+					Status: v1.PodStatus{
+						Phase: v1.PodSucceeded,
 					},
 				},
 				{
@@ -158,16 +151,16 @@ func TestGetReplicationControllerList(t *testing.T) {
 						Namespace:       "namespace-1",
 						OwnerReferences: firstAppOwnerRef,
 					},
-					Status: api.PodStatus{
-						Phase: api.PodUnknown,
+					Status: v1.PodStatus{
+						Phase: v1.PodUnknown,
 					},
 				},
 			},
-			[]api.Node{{
-				Status: api.NodeStatus{
-					Addresses: []api.NodeAddress{
+			[]v1.Node{{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    api.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "192.168.1.108",
 						},
 					},
@@ -175,17 +168,18 @@ func TestGetReplicationControllerList(t *testing.T) {
 			},
 			},
 			&ReplicationControllerList{
-				ListMeta:          common.ListMeta{TotalItems: 2},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 2},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
 				ReplicationControllers: []ReplicationController{
 					{
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:      "my-app-1",
 							Namespace: "namespace-1",
 						},
-						TypeMeta:        common.TypeMeta{Kind: common.ResourceKindReplicationController},
+						TypeMeta:        api.TypeMeta{Kind: api.ResourceKindReplicationController},
 						ContainerImages: []string{"my-container-image-1"},
 						Pods: common.PodInfo{
+							Desired:   &replicas,
 							Failed:    2,
 							Pending:   1,
 							Running:   1,
@@ -193,13 +187,14 @@ func TestGetReplicationControllerList(t *testing.T) {
 							Warnings:  []common.Event{},
 						},
 					}, {
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:      "my-app-2",
 							Namespace: "namespace-2",
 						},
-						TypeMeta:        common.TypeMeta{Kind: common.ResourceKindReplicationController},
+						TypeMeta:        api.TypeMeta{Kind: api.ResourceKindReplicationController},
 						ContainerImages: []string{"my-container-image-2"},
 						Pods: common.PodInfo{
+							Desired:  &replicas,
 							Warnings: []common.Event{},
 						},
 					},
@@ -208,11 +203,78 @@ func TestGetReplicationControllerList(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		actual := CreateReplicationControllerList(c.replicationControllers, dataselect.NoDataSelect,
-			c.pods, events, nil)
+		actual := toReplicationControllerList(c.replicationControllers, dataselect.NoDataSelect,
+			c.pods, events, nil, nil)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("getReplicationControllerList(%#v, %#v) == \n%#v\nexpected \n%#v\n",
+			t.Errorf("toReplicationControllerList(%#v, %#v) == \n%#v\nexpected \n%#v\n",
 				c.replicationControllers, c.services, actual, c.expected)
+		}
+	}
+}
+
+func TestGetReplicationControllerList(t *testing.T) {
+	replicas := int32(1)
+	cases := []struct {
+		rcList          *v1.ReplicationControllerList
+		expectedActions []string
+		expected        *ReplicationControllerList
+	}{
+		{
+			rcList: &v1.ReplicationControllerList{
+				Items: []v1.ReplicationController{
+					{
+						ObjectMeta: metaV1.ObjectMeta{
+							Name:   "rc-1",
+							Labels: map[string]string{},
+						},
+						Spec: v1.ReplicationControllerSpec{
+							Replicas: &replicas,
+							Template: &v1.PodTemplateSpec{},
+						},
+					},
+				}},
+			expectedActions: []string{"list", "list", "list"},
+			expected: &ReplicationControllerList{
+				ListMeta: api.ListMeta{TotalItems: 1},
+				Status:   common.ResourceStatus{Running: 1},
+				ReplicationControllers: []ReplicationController{
+					{
+						ObjectMeta: api.ObjectMeta{
+							Name:   "rc-1",
+							Labels: map[string]string{},
+						},
+						TypeMeta: api.TypeMeta{Kind: api.ResourceKindReplicationController},
+						Pods: common.PodInfo{
+							Desired:  &replicas,
+							Warnings: make([]common.Event, 0),
+						},
+					},
+				},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Errors:            []error{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		fakeClient := fake.NewSimpleClientset(c.rcList)
+		actual, _ := GetReplicationControllerList(fakeClient, &common.NamespaceQuery{}, dataselect.NoDataSelect, nil)
+		actions := fakeClient.Actions()
+
+		if len(actions) != len(c.expectedActions) {
+			t.Errorf("Unexpected actions: %v, expected %d actions got %d", actions,
+				len(c.expectedActions), len(actions))
+			continue
+		}
+
+		for i, verb := range c.expectedActions {
+			if actions[i].GetVerb() != verb {
+				t.Errorf("Unexpected action: %+v, expected %s", actions[i], verb)
+			}
+		}
+
+		if !reflect.DeepEqual(actual, c.expected) {
+			t.Errorf("GetReplicationControllerList(client) == got\n%#v, expected\n %#v", actual, c.expected)
 		}
 	}
 }

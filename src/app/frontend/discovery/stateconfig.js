@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {stateName as chromeStateName} from '../chrome/state';
+import {breadcrumbsConfig} from '../common/components/breadcrumbs/service';
 import {DiscoveryController} from './controller';
 import {stateName} from './state';
 import {stateUrl} from './state';
@@ -47,17 +47,19 @@ export default function stateConfig($stateProvider) {
 /**
  * @param {!angular.$resource} kdDiscoveryResource
  * @param {!./../chrome/state.StateParams} $stateParams
- * @param {!./../common/pagination/pagination_service.PaginationService} kdPaginationService
+ * @param {!./../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveResource(kdDiscoveryResource, $stateParams, kdPaginationService) {
-  let paginationQuery = kdPaginationService.getDefaultResourceQuery($stateParams.namespace);
-  return kdDiscoveryResource.get(paginationQuery).$promise;
+export function resolveResource(kdDiscoveryResource, $stateParams, kdDataSelectService) {
+  let dataSelectQuery = kdDataSelectService.getDefaultResourceQuery($stateParams.namespace);
+  return kdDiscoveryResource.get(dataSelectQuery).$promise;
 }
 
 const i18n = {
-  /** @type {string} @desc Label 'Discovery and load balancing' that appears as a breadcrumbs on the
-     action bar. */
+  /**
+     @type {string} @desc Label 'Discovery and load balancing' that appears as a breadcrumbs on the
+     action bar.
+   */
   MSG_BREADCRUMBS_DISCOVERY_AND_LOAD_BALANCING_LABEL: goog.getMsg('Discovery and load balancing'),
 };

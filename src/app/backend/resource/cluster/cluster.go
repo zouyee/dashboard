@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,13 @@ package cluster
 import (
 	"log"
 
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/namespace"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/node"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
+	pv "github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/rbacroles"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/storageclass"
 	"k8s.io/client-go/kubernetes"
@@ -29,15 +31,20 @@ import (
 
 // Cluster structure contains all resource lists grouped into the cluster category.
 type Cluster struct {
-	NamespaceList        namespace.NamespaceList               `json:"namespaceList"`
-	NodeList             node.NodeList                         `json:"nodeList"`
-	PersistentVolumeList persistentvolume.PersistentVolumeList `json:"persistentVolumeList"`
-	RoleList             rbacroles.RbacRoleList                `json:"roleList"`
-	StorageClassList     storageclass.StorageClassList         `json:"storageClassList"`
+	NamespaceList        namespace.NamespaceList       `json:"namespaceList"`
+	NodeList             node.NodeList                 `json:"nodeList"`
+	PersistentVolumeList pv.PersistentVolumeList       `json:"persistentVolumeList"`
+	RoleList             rbacroles.RbacRoleList        `json:"roleList"`
+	StorageClassList     storageclass.StorageClassList `json:"storageClassList"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetCluster returns a list of all cluster resources in the cluster.
-func GetCluster(client *kubernetes.Clientset) (*Cluster, error) {
+func GetCluster(client kubernetes.Interface, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) (*Cluster, error) {
+
 	log.Print("Getting cluster category")
 	channels := &common.ResourceChannels{
 		NamespaceList:        common.GetNamespaceListChannel(client, 1),
@@ -48,51 +55,49 @@ func GetCluster(client *kubernetes.Clientset) (*Cluster, error) {
 		StorageClassList:     common.GetStorageClassListChannel(client, 1),
 	}
 
-	return GetClusterFromChannels(channels)
+	return GetClusterFromChannels(client, channels, dsQuery, metricClient)
 }
 
-// GetClusterFromChannels returns a list of all cluster in the cluster, from the
-// channel sources.
-func GetClusterFromChannels(channels *common.ResourceChannels) (*Cluster, error) {
+// GetClusterFromChannels returns a list of all cluster in the cluster, from the channel sources.
+func GetClusterFromChannels(client kubernetes.Interface, channels *common.ResourceChannels,
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*Cluster, error) {
 
+	numErrs := 5
+	errChan := make(chan error, numErrs)
 	nsChan := make(chan *namespace.NamespaceList)
 	nodeChan := make(chan *node.NodeList)
-	pvChan := make(chan *persistentvolume.PersistentVolumeList)
+	pvChan := make(chan *pv.PersistentVolumeList)
 	roleChan := make(chan *rbacroles.RbacRoleList)
 	storageChan := make(chan *storageclass.StorageClassList)
-	numErrs := 4
-	errChan := make(chan error, numErrs)
 
 	go func() {
-		items, err := namespace.GetNamespaceListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := namespace.GetNamespaceListFromChannels(channels, dsQuery)
 		errChan <- err
 		nsChan <- items
 	}()
 
 	go func() {
-		items, err := node.GetNodeListFromChannels(channels, dataselect.DefaultDataSelect, nil)
+		items, err := node.GetNodeListFromChannels(client, channels,
+			dataselect.NewDataSelectQuery(dsQuery.PaginationQuery, dsQuery.SortQuery,
+				dsQuery.FilterQuery, dataselect.StandardMetrics), metricClient)
 		errChan <- err
 		nodeChan <- items
 	}()
 
 	go func() {
-		items, err := persistentvolume.GetPersistentVolumeListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := pv.GetPersistentVolumeListFromChannels(channels, dsQuery)
 		errChan <- err
 		pvChan <- items
 	}()
 
 	go func() {
-		items, err := rbacroles.GetRbacRoleListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := rbacroles.GetRbacRoleListFromChannels(channels, dsQuery)
 		errChan <- err
 		roleChan <- items
 	}()
 
 	go func() {
-		items, err := storageclass.GetStorageClassListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := storageclass.GetStorageClassListFromChannels(channels, dsQuery)
 		errChan <- err
 		storageChan <- items
 	}()
@@ -111,6 +116,9 @@ func GetClusterFromChannels(channels *common.ResourceChannels) (*Cluster, error)
 		RoleList:             *(<-roleChan),
 		StorageClassList:     *(<-storageChan),
 	}
+
+	cluster.Errors = errors.MergeErrors(cluster.NamespaceList.Errors, cluster.NodeList.Errors,
+		cluster.PersistentVolumeList.Errors, cluster.RoleList.Errors, cluster.StorageClassList.Errors)
 
 	return cluster, nil
 }

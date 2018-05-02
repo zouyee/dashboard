@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
 
 /**
  * @final
  */
 export class NavService {
   /**
-   * @param {!./../../common/state/futurestate_service.FutureStateService} kdFutureStateService
+   * @param {!./../../common/state/service.FutureStateService} kdFutureStateService
    * @param {!ui.router.$state} $state
    * @ngInject
    */
@@ -27,21 +27,14 @@ export class NavService {
     /** @private {!Array<string>} */
     this.states_ = [];
 
-    /** @private {./nav_component.NavController} */
-    this.navComponent_ = null;
-
     /** @private {!ui.router.$state} */
     this.state_ = $state;
 
-    /** @private {!./../../common/state/futurestate_service.FutureStateService} */
+    /** @private {!./../../common/state/service.FutureStateService} */
     this.kdFutureStateService_ = kdFutureStateService;
-  }
 
-  /**
-   * @param {!./nav_component.NavController} navComponent
-   */
-  registerNav(navComponent) {
-    this.navComponent_ = navComponent;
+    /** @export {boolean} */
+    this.isVisible_ = true;
   }
 
   /**
@@ -78,19 +71,21 @@ export class NavService {
    * Toggles visibility of the navigation component.
    */
   toggle() {
-    if (this.navComponent_) {
-      this.navComponent_.toggle();
-    } else {
-      throw new Error('Navigation menu is not registered. This is likely a programming error.');
-    }
+    this.isVisible_ = !this.isVisible_;
   }
 
   /**
    * Sets visibility of the navigation component.
+   * @param {boolean} isVisible
    */
   setVisibility(isVisible) {
-    if (this.navComponent_) {
-      this.navComponent_.setVisibility(isVisible);
-    }
+    this.isVisible_ = isVisible;
+  }
+
+  /**
+   * @return {boolean}
+   */
+  isVisible() {
+    return this.isVisible_;
   }
 }

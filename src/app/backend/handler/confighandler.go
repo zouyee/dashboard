@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,24 +47,23 @@ func (fn AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func getAppConfigJSON() string {
-	log.Printf("Getting application global configuration")
+	log.Println("Getting application global configuration")
 
 	config := &AppConfig{
 		// TODO(maciaszczykm): Get time from API server instead directly from backend.
 		ServerTime: time.Now().UTC().UnixNano() / 1e6,
 	}
 
-	json, _ := json.Marshal(config)
-	log.Printf("Application configuration %s", json)
-	return string(json)
+	jsonConfig, _ := json.Marshal(config)
+	log.Printf("Application configuration %s", jsonConfig)
+	return string(jsonConfig)
 }
 
 func ConfigHandler(w http.ResponseWriter, r *http.Request) (int, error) {
-	template, err := template.New(ConfigTemplateName).Parse(ConfigTemplate)
+	configTemplate, err := template.New(ConfigTemplateName).Parse(ConfigTemplate)
 	w.Header().Set("Content-Type", "application/javascript")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return http.StatusInternalServerError, err
 	}
-	return http.StatusOK, template.Execute(w, getAppConfigJSON())
+	return http.StatusOK, configTemplate.Execute(w, getAppConfigJSON())
 }

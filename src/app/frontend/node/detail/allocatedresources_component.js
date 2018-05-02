@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ export class NodeAllocatedResourcesController {
 /**
  * Definition object for the component that displays node allocated resources.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const nodeAllocatedResourcesComponent = {
   controller: NodeAllocatedResourcesController,

@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<md-sidenav md-is-locked-open="$ctrl.isVisible"
+<md-sidenav md-is-locked-open="$ctrl.isVisible()"
             class="kd-nav"
             layout="column">
-  <!-- TODO(bryk): Add overview. -->
   <div class="kd-nav-group">
     <kd-nav-item class="kd-nav-group-item"
                  state="{{::$ctrl.states.cluster}}">[[Cluster|Cluster group menu entry.]]</kd-nav-item>
@@ -27,8 +26,8 @@ limitations under the License.
                  state="{{::$ctrl.states.node}}">[[Nodes|Nodes menu entry.]]</kd-nav-item>
     <kd-nav-item class="kd-nav-item"
                  state="{{::$ctrl.states.persistentVolume}}">[[Persistent Volumes|Persistent Volumes menu entry.]]</kd-nav-item>
-    <kd-nav-item class="kd-nav-item"
-                 state="{{::$ctrl.states.role}}">[[Roles|Roles menu entry.]]</kd-nav-item>
+    <!-- Enabled dynamically if there rbacs are enabled in the cluster. -->
+    <kd-role-nav states="$ctrl.states"></kd-role-nav>
     <kd-nav-item class="kd-nav-item"
                  state="{{::$ctrl.states.storageClass}}">[[Storage Classes|Storage Classes menu entry.]]</kd-nav-item>
   </div>
@@ -36,7 +35,13 @@ limitations under the License.
   <kd-namespace-select></kd-namespace-select>
   <div class="kd-nav-group">
     <kd-nav-item class="kd-nav-group-item"
+                 state="{{::$ctrl.states.overview}}">[[Overview|All objects group menu entry.]]</kd-nav-item>
+  </div>
+  <div class="kd-nav-group">
+    <kd-nav-item class="kd-nav-group-item"
                  state="{{::$ctrl.states.workload}}">[[Workloads|Workloads group menu entry.]]</kd-nav-item>
+    <kd-nav-item class="kd-nav-item"
+                 state="{{::$ctrl.states.cronJob}}">[[Cron Jobs|Cron Jobs menu entry.]]</kd-nav-item>
     <kd-nav-item class="kd-nav-item"
                  state="{{::$ctrl.states.daemonSet}}">[[Daemon Sets|Daemon Sets menu entry.]]</kd-nav-item>
     <kd-nav-item class="kd-nav-item"
@@ -62,7 +67,7 @@ limitations under the License.
   </div>
   <div class="kd-nav-group">
     <kd-nav-item class="kd-nav-group-item"
-                 state="{{::$ctrl.states.config}}">[[Config and Storage|Config and Storage group menu entryv.]]</kd-nav-item>
+                 state="{{::$ctrl.states.config}}">[[Config and Storage|Config and Storage group menu entry.]]</kd-nav-item>
     <kd-nav-item class="kd-nav-item"
                  state="{{::$ctrl.states.configMap}}">[[Config Maps|Config Maps menu entry.]]</kd-nav-item>
     <kd-nav-item class="kd-nav-item"
@@ -70,10 +75,13 @@ limitations under the License.
     <kd-nav-item class="kd-nav-item"
                  state="{{::$ctrl.states.secret}}">[[Secrets|Secrets menu entry.]]</kd-nav-item>
   </div>
-  <!-- Enabled dynamically if there are third party resources registered in the system. -->
-  <kd-third-party-resource-nav states="$ctrl.states"></kd-third-party-resource-nav>
+
+  <div class="kd-nav-group-divider"></div>
+
   <div class="kd-nav-group">
-    <kd-nav-item class="kd-nav-group-item kd-about"
+    <kd-nav-item class="kd-nav-group-item"
+                 state="{{::$ctrl.states.settings}}">[[Settings|Settings page menu entry.]]</kd-nav-item>
+    <kd-nav-item class="kd-nav-group-item"
                  state="{{::$ctrl.states.about}}">[[About|About page menu entry.]]</kd-nav-item>
   </div>
 </md-sidenav>

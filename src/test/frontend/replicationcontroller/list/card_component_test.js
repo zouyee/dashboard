@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,12 +17,23 @@ import replicationControllerModule from 'replicationcontroller/module';
 describe('Replication controller card', () => {
   /** @type {!ReplicationControllerCardController} */
   let ctrl;
+  /**
+   * @type {!ScaleService}
+   */
+  let scaleData;
 
   beforeEach(() => {
     angular.mock.module(replicationControllerModule.name);
 
-    angular.mock.inject(($componentController, $rootScope) => {
-      ctrl = $componentController('kdReplicationControllerCard', {$scope: $rootScope});
+    angular.mock.inject(($componentController, $rootScope, kdScaleService) => {
+      /**
+       * @type {!ScaleService}
+       */
+      scaleData = kdScaleService;
+      ctrl = $componentController('kdReplicationControllerCard', {
+        $scope: $rootScope,
+        kdScaleService_: scaleData,
+      });
     });
   });
 
@@ -116,10 +127,5 @@ describe('Replication controller card', () => {
     // then
     expect(ctrl.isPending()).toBe(false);
     expect(ctrl.isSuccess()).toBe(true);
-  });
-
-  it('should format the "created at" tooltip correctly', () => {
-    expect(ctrl.getCreatedAtTooltip('2016-06-06T09:13:12Z'))
-        .toMatch('Created at 2016-06-06T09:13.*');
   });
 });

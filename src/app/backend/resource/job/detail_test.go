@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,26 +18,17 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	batch "k8s.io/api/batch/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	batch "k8s.io/client-go/pkg/apis/batch/v1"
-	restclient "k8s.io/client-go/rest"
 )
 
-type FakeHeapsterClient struct {
-}
-
-func (c FakeHeapsterClient) Get(path string) client.RequestInterface {
-	return &restclient.Request{}
-}
-
-func createJob(name, namespace string, labelSelector map[string]string) *batch.Job {
-	var jobCompletions int32
+func createJob(name, namespace string, jobCompletions int32, labelSelector map[string]string) *batch.Job {
 	var parallelism int32
 
 	return &batch.Job{
@@ -64,30 +55,34 @@ func TestGetJobDetail(t *testing.T) {
 	}{
 		{
 			"ns-1", "job-1",
-			[]string{"get", "get", "list", "list", "list", "get", "list", "list"},
-			createJob("job-1", "ns-1", map[string]string{"app": "test"}),
+			[]string{"get", "get", "list", "list", "list", "list"},
+			createJob("job-1", "ns-1", jobCompletions, map[string]string{"app": "test"}),
 			&JobDetail{
-				ObjectMeta: common.ObjectMeta{Name: "job-1", Namespace: "ns-1",
+				ObjectMeta: api.ObjectMeta{Name: "job-1", Namespace: "ns-1",
 					Labels: map[string]string{"app": "test"}},
-				TypeMeta: common.TypeMeta{Kind: common.ResourceKindJob},
-				PodInfo:  common.PodInfo{Warnings: []common.Event{}},
+				TypeMeta: api.TypeMeta{Kind: api.ResourceKindJob},
+				PodInfo: common.PodInfo{
+					Warnings: []common.Event{},
+					Desired:  &jobCompletions,
+				},
 				PodList: pod.PodList{
 					Pods:              []pod.Pod{},
-					CumulativeMetrics: make([]metric.Metric, 0),
+					CumulativeMetrics: make([]metricapi.Metric, 0),
+					Errors:            []error{},
 				},
 				EventList:   common.EventList{Events: []common.Event{}},
 				Parallelism: &jobCompletions,
 				Completions: &parallelism,
+				Errors:      []error{},
 			},
 		},
 	}
 
 	for _, c := range cases {
 		fakeClient := fake.NewSimpleClientset(c.job)
-		fakeHeapsterClient := FakeHeapsterClient{}
 
 		dataselect.DefaultDataSelectWithMetrics.MetricQuery = dataselect.NoMetrics
-		actual, _ := GetJobDetail(fakeClient, fakeHeapsterClient, c.namespace, c.name)
+		actual, _ := GetJobDetail(fakeClient, nil, c.namespace, c.name)
 
 		actions := fakeClient.Actions()
 		if len(actions) != len(c.expectedActions) {

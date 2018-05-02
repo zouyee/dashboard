@@ -1,4 +1,4 @@
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2017 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 # Scratch can be used as the base image because the backend is compiled to include all
 # its dependencies.
 FROM scratch
-MAINTAINER Piotr Bryk <bryk@google.com>
+LABEL maintainer "Piotr Bryk <bryk@google.com>"
 
 # Add all files from current working directory to the root of the image, i.e., copy dist directory
 # layout to the root directory.
@@ -26,5 +26,5 @@ ADD . /
 
 # The port that the application listens on.
 # TODO(bryk): Parametrize this argument so that other build tools are aware of the exposed port.
-EXPOSE 9090
-ENTRYPOINT ["/dashboard", "--port=9090"]
+EXPOSE 9090 8443
+ENTRYPOINT ["/dashboard", "--insecure-bind-address=0.0.0.0", "--bind-address=0.0.0.0"]

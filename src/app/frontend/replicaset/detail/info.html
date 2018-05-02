@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,9 @@ limitations under the License.
     </kd-info-card-entry>
     <kd-info-card-entry title="[[Images|Label 'Images' for the list of images used in a replica set, on its details page.]]">
       <div ng-repeat="image in $ctrl.replicaSet.containerImages track by $index">
+        <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
+      </div>
+      <div ng-repeat="image in $ctrl.replicaSet.initContainerImages track by $index">
         <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
       </div>
     </kd-info-card-entry>

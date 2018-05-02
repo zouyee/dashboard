@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	apps "k8s.io/api/apps/v1beta2"
+	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func getReplicasPointer(replicas int32) *int32 {
@@ -34,115 +35,92 @@ func getReplicasPointer(replicas int32) *int32 {
 
 func TestGetDeploymentListFromChannels(t *testing.T) {
 	cases := []struct {
-		k8sDeployment      extensions.DeploymentList
+		k8sDeployment      apps.DeploymentList
 		k8sDeploymentError error
-		pods               *api.PodList
+		pods               *v1.PodList
 		expected           *DeploymentList
 		expectedError      error
 	}{
 		{
-			extensions.DeploymentList{},
+			apps.DeploymentList{},
 			nil,
-			&api.PodList{},
+			&v1.PodList{},
 			&DeploymentList{
-				ListMeta:          common.ListMeta{},
+				ListMeta:          api.ListMeta{},
 				Deployments:       []Deployment{},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Errors:            []error{},
 			},
 			nil,
 		},
 		{
-			extensions.DeploymentList{},
+			apps.DeploymentList{},
 			errors.New("MyCustomError"),
-			&api.PodList{},
+			&v1.PodList{},
 			nil,
 			errors.New("MyCustomError"),
 		},
 		{
-			extensions.DeploymentList{},
+			apps.DeploymentList{},
 			&k8serrors.StatusError{},
-			&api.PodList{},
+			&v1.PodList{},
 			nil,
 			&k8serrors.StatusError{},
 		},
 		{
-			extensions.DeploymentList{},
+			apps.DeploymentList{},
 			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-			&api.PodList{},
+			&v1.PodList{},
 			nil,
 			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
 		},
 		{
-			extensions.DeploymentList{},
+			apps.DeploymentList{},
 			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-			&api.PodList{},
+			&v1.PodList{},
 			nil,
 			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
 		},
 		{
-			extensions.DeploymentList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "NotFound"}},
-			&api.PodList{},
-			&DeploymentList{
-				Deployments: make([]Deployment, 0),
-			},
-			nil,
-		},
-		{
-			extensions.DeploymentList{
-				Items: []extensions.Deployment{{
+			apps.DeploymentList{
+				Items: []apps.Deployment{{
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					Spec: extensions.DeploymentSpec{
+					Spec: apps.DeploymentSpec{
 						Selector: &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
 						Replicas: getReplicasPointer(21),
 					},
-					Status: extensions.DeploymentStatus{
+					Status: apps.DeploymentStatus{
 						Replicas: 7,
 					},
 				}},
 			},
 			nil,
-			&api.PodList{
-				Items: []api.Pod{
-					{
-						ObjectMeta: metaV1.ObjectMeta{
-							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "bar"},
-						},
-						Status: api.PodStatus{Phase: api.PodFailed},
-					},
-					{
-						ObjectMeta: metaV1.ObjectMeta{
-							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "baz"},
-						},
-						Status: api.PodStatus{Phase: api.PodFailed},
-					},
-				},
-			},
+			&v1.PodList{},
 			&DeploymentList{
-				ListMeta:          common.ListMeta{TotalItems: 1},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 1},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Status:            common.ResourceStatus{Running: 1},
 				Deployments: []Deployment{{
-					ObjectMeta: common.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindDeployment},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindDeployment},
 					Pods: common.PodInfo{
 						Current:  7,
-						Desired:  21,
-						Failed:   1,
+						Desired:  getReplicasPointer(21),
+						Failed:   0,
 						Warnings: []common.Event{},
 					},
 				}},
+				Errors: []error{},
 			},
 			nil,
 		},
@@ -151,23 +129,27 @@ func TestGetDeploymentListFromChannels(t *testing.T) {
 	for _, c := range cases {
 		channels := &common.ResourceChannels{
 			DeploymentList: common.DeploymentListChannel{
-				List:  make(chan *extensions.DeploymentList, 1),
+				List:  make(chan *apps.DeploymentList, 1),
 				Error: make(chan error, 1),
 			},
 			NodeList: common.NodeListChannel{
-				List:  make(chan *api.NodeList, 1),
+				List:  make(chan *v1.NodeList, 1),
 				Error: make(chan error, 1),
 			},
 			ServiceList: common.ServiceListChannel{
-				List:  make(chan *api.ServiceList, 1),
+				List:  make(chan *v1.ServiceList, 1),
 				Error: make(chan error, 1),
 			},
 			PodList: common.PodListChannel{
-				List:  make(chan *api.PodList, 1),
+				List:  make(chan *v1.PodList, 1),
 				Error: make(chan error, 1),
 			},
 			EventList: common.EventListChannel{
-				List:  make(chan *api.EventList, 1),
+				List:  make(chan *v1.EventList, 1),
+				Error: make(chan error, 1),
+			},
+			ReplicaSetList: common.ReplicaSetListChannel{
+				List:  make(chan *apps.ReplicaSetList, 1),
 				Error: make(chan error, 1),
 			},
 		}
@@ -175,17 +157,20 @@ func TestGetDeploymentListFromChannels(t *testing.T) {
 		channels.DeploymentList.Error <- c.k8sDeploymentError
 		channels.DeploymentList.List <- &c.k8sDeployment
 
-		channels.NodeList.List <- &api.NodeList{}
+		channels.NodeList.List <- &v1.NodeList{}
 		channels.NodeList.Error <- nil
 
-		channels.ServiceList.List <- &api.ServiceList{}
+		channels.ServiceList.List <- &v1.ServiceList{}
 		channels.ServiceList.Error <- nil
 
 		channels.PodList.List <- c.pods
 		channels.PodList.Error <- nil
 
-		channels.EventList.List <- &api.EventList{}
+		channels.EventList.List <- &v1.EventList{}
 		channels.EventList.Error <- nil
+
+		channels.ReplicaSetList.List <- &apps.ReplicaSetList{}
+		channels.ReplicaSetList.Error <- nil
 
 		actual, err := GetDeploymentListFromChannels(channels, dataselect.NoDataSelect, nil)
 		if !reflect.DeepEqual(actual, c.expected) {

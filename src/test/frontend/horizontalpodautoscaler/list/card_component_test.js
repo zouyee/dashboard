@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 import horizontalPodAutoscalerModule from 'horizontalpodautoscaler/module';
 
 describe('Horizontal Pod Autoscaler card', () => {
@@ -34,9 +35,5 @@ describe('Horizontal Pod Autoscaler card', () => {
 
   it('should get details href', () => {
     expect(ctrl.getHorizontalPodAutoscalerDetailHref()).toBe('#!/horizontalpodautoscaler/test/bar');
-  });
-
-  it('should format the "created at" tooltip correctly', () => {
-    expect(ctrl.getCreatedAtTooltip()).toMatch('Created at 2016-06-06T09:13.*');
   });
 });

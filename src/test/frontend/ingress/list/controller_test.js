@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {IngressListController} from 'ingress/list/controller';
 import ingressModule from 'ingress/module';
 
 describe('Ingress list controller', () => {
-  /** @type {!IngressListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(ingressModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(IngressListController, {ingressList: {ingresss: []}});
-    });
   });
 
   it('should initialize ingress list', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Ingress list controller', () => {
 
     expect(ctrl.ingressList).toBe(data);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.ingressList = {items: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

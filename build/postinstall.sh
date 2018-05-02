@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copyright 2015 Google Inc. All Rights Reserved.
+# Copyright 2017 The Kubernetes Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,10 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is a script that runs on npm install postinstall phase.
-# It contains all prerequisites required to use the build system.
+DIR=$(pwd)
 
-./node_modules/.bin/bower install --allow-root
+# Patch wiredep so we can use it to manage NPM dependencies instead of bower
+cd ./node_modules/wiredep
+patch -N < ../../build/patch/wiredep/wiredep.patch
+cd lib
+patch -N < ../../../build/patch/wiredep/detect-dependencies.patch
+cd ..
+rm lib/*.orig lib/*.rej *.orig *.rej 2> /dev/null
+
+cd ${DIR}
 
 # Govendor is required by the project. Install it in the .tools directory.
 GOPATH=`pwd`/.tools/go go get github.com/kardianos/govendor

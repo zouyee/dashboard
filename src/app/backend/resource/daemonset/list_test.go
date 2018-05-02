@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,41 +18,217 @@ import (
 	"reflect"
 	"testing"
 
+	"errors"
+
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
-func TestGetDaemonSetList(t *testing.T) {
-	events := []api.Event{}
+func TestGetDaemonSetListFromChannels(t *testing.T) {
+	cases := []struct {
+		k8sDaemonSet      apps.DaemonSetList
+		k8sDaemonSetError error
+		pods              *v1.PodList
+		expected          *DaemonSetList
+		expectedError     error
+	}{
+		{
+			apps.DaemonSetList{},
+			nil,
+			&v1.PodList{},
+			&DaemonSetList{
+				ListMeta:          api.ListMeta{},
+				DaemonSets:        []DaemonSet{},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Errors:            []error{},
+			},
+			nil,
+		},
+		{
+			apps.DaemonSetList{},
+			errors.New("MyCustomError"),
+			&v1.PodList{},
+			nil,
+			errors.New("MyCustomError"),
+		},
+		{
+			apps.DaemonSetList{},
+			&k8serrors.StatusError{},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{},
+		},
+		{
+			apps.DaemonSetList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+		},
+		{
+			apps.DaemonSetList{Items: []apps.DaemonSet{}},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+		},
+		{
+			apps.DaemonSetList{
+				Items: []apps.DaemonSet{{
+					ObjectMeta: metaV1.ObjectMeta{
+						Name:              "ds-name",
+						Namespace:         "ds-namespace",
+						Labels:            map[string]string{"key": "value"},
+						CreationTimestamp: metaV1.Unix(111, 222),
+					},
+					Spec: apps.DaemonSetSpec{
+						Selector: &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+					},
+					Status: apps.DaemonSetStatus{DesiredNumberScheduled: 7},
+				}},
+			},
+			nil,
+			&v1.PodList{},
+			&DaemonSetList{
+				ListMeta:          api.ListMeta{TotalItems: 1},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Status:            common.ResourceStatus{Running: 1},
+				DaemonSets: []DaemonSet{{
+					ObjectMeta: api.ObjectMeta{
+						Name:              "ds-name",
+						Namespace:         "ds-namespace",
+						Labels:            map[string]string{"key": "value"},
+						CreationTimestamp: metaV1.Unix(111, 222),
+					},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindDaemonSet},
+					Pods: common.PodInfo{
+						Current:  0,
+						Failed:   0,
+						Warnings: []common.Event{},
+					},
+				}},
+				Errors: []error{},
+			},
+			nil,
+		},
+	}
+
+	for _, c := range cases {
+		channels := &common.ResourceChannels{
+			DaemonSetList: common.DaemonSetListChannel{
+				List:  make(chan *apps.DaemonSetList, 1),
+				Error: make(chan error, 1),
+			},
+			ServiceList: common.ServiceListChannel{
+				List:  make(chan *v1.ServiceList, 1),
+				Error: make(chan error, 1),
+			},
+			PodList: common.PodListChannel{
+				List:  make(chan *v1.PodList, 1),
+				Error: make(chan error, 1),
+			},
+			EventList: common.EventListChannel{
+				List:  make(chan *v1.EventList, 1),
+				Error: make(chan error, 1),
+			},
+		}
+
+		channels.DaemonSetList.Error <- c.k8sDaemonSetError
+		channels.DaemonSetList.List <- &c.k8sDaemonSet
+
+		channels.ServiceList.List <- &v1.ServiceList{}
+		channels.ServiceList.Error <- nil
+
+		channels.PodList.List <- c.pods
+		channels.PodList.Error <- nil
+
+		channels.EventList.List <- &v1.EventList{}
+		channels.EventList.Error <- nil
+
+		actual, err := GetDaemonSetListFromChannels(channels, dataselect.NoDataSelect, nil)
+
+		// Rewrite address of desired number of pods.
+		if actual != nil {
+			for i := range actual.DaemonSets {
+				c.expected.DaemonSets[i].Pods.Desired = actual.DaemonSets[i].Pods.Desired
+			}
+		}
+
+		if !reflect.DeepEqual(actual, c.expected) {
+			t.Errorf("GetDaemonSetListFromChannels() ==\n          %#v\nExpected: %#v", actual, c.expected)
+		}
+		if !reflect.DeepEqual(err, c.expectedError) {
+			t.Errorf("GetDaemonSetListFromChannels() ==\n          %#v\nExpected: %#v", err, c.expectedError)
+		}
+	}
+}
+
+func TestToDaemonSetList(t *testing.T) {
+	events := []v1.Event{}
+	controller := true
+	var desired int32 = 1
+	validPodMeta := metaV1.ObjectMeta{
+		Namespace: "namespace-1",
+		OwnerReferences: []metaV1.OwnerReference{
+			{
+				Kind:       "DaemonSet",
+				Name:       "my-name-1",
+				UID:        "uid-1",
+				Controller: &controller,
+			},
+		},
+	}
+	diffPodMeta := metaV1.ObjectMeta{
+		Namespace: "namespace-2",
+		OwnerReferences: []metaV1.OwnerReference{
+			{
+				Kind:       "DaemonSet",
+				Name:       "my-name-2",
+				UID:        "uid-2",
+				Controller: &controller,
+			},
+		},
+	}
 
 	cases := []struct {
-		daemonSets []extensions.DaemonSet
-		services   []api.Service
-		pods       []api.Pod
-		nodes      []api.Node
+		daemonSets []apps.DaemonSet
+		services   []v1.Service
+		pods       []v1.Pod
+		nodes      []v1.Node
 		expected   *DaemonSetList
 	}{
-		{nil, nil, nil, nil, &DaemonSetList{
-			DaemonSets:        []DaemonSet{},
-			CumulativeMetrics: make([]metric.Metric, 0)},
+		{nil,
+			nil,
+			nil,
+			nil,
+			&DaemonSetList{
+				DaemonSets:        []DaemonSet{},
+				CumulativeMetrics: make([]metricapi.Metric, 0)},
 		}, {
-			[]extensions.DaemonSet{
+			[]apps.DaemonSet{
 				{
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-1",
 						Namespace: "namespace-1",
+						UID:       "uid-1",
 					},
-					Spec: extensions.DaemonSetSpec{
+					Spec: apps.DaemonSetSpec{
 						Selector: &metaV1.LabelSelector{
 							MatchLabels: map[string]string{"app": "my-name-1"},
 						},
-						Template: api.PodTemplateSpec{
-							Spec: api.PodSpec{Containers: []api.Container{{Image: "my-container-image-1"}}},
+						Template: v1.PodTemplateSpec{
+							Spec: v1.PodSpec{Containers: []v1.Container{{Image: "my-container-image-1"}},
+								InitContainers: []v1.Container{{Image: "my-init-container-image-1"}}},
 						},
+					},
+					Status: apps.DaemonSetStatus{
+						DesiredNumberScheduled: desired,
 					},
 				},
 				{
@@ -60,102 +236,85 @@ func TestGetDaemonSetList(t *testing.T) {
 						Name:      "my-app-2",
 						Namespace: "namespace-2",
 					},
-					Spec: extensions.DaemonSetSpec{
+					Spec: apps.DaemonSetSpec{
 						Selector: &metaV1.LabelSelector{
 							MatchLabels: map[string]string{"app": "my-name-2", "ver": "2"},
 						},
-						Template: api.PodTemplateSpec{
-							Spec: api.PodSpec{Containers: []api.Container{{Image: "my-container-image-2"}}},
+						Template: v1.PodTemplateSpec{
+							Spec: v1.PodSpec{Containers: []v1.Container{{Image: "my-container-image-2"}},
+								InitContainers: []v1.Container{{Image: "my-init-container-image-2"}}},
 						},
+					},
+					Status: apps.DaemonSetStatus{
+						DesiredNumberScheduled: desired,
 					},
 				},
 			},
-			[]api.Service{
+			[]v1.Service{
 				{
-					Spec: api.ServiceSpec{Selector: map[string]string{"app": "my-name-1"}},
+					Spec: v1.ServiceSpec{Selector: map[string]string{"app": "my-name-1"}},
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-1",
 						Namespace: "namespace-1",
 					},
 				},
 				{
-					Spec: api.ServiceSpec{Selector: map[string]string{"app": "my-name-2", "ver": "2"}},
+					Spec: v1.ServiceSpec{Selector: map[string]string{"app": "my-name-2", "ver": "2"}},
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:      "my-app-2",
 						Namespace: "namespace-2",
 					},
 				},
 			},
-			[]api.Pod{
+			[]v1.Pod{
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodFailed,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodFailed,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodFailed,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodFailed,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodPending,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-2",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodPending,
+					ObjectMeta: diffPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodPending,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodRunning,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodRunning,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodSucceeded,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodSucceeded,
 					},
 				},
 				{
-					ObjectMeta: metaV1.ObjectMeta{
-						Namespace: "namespace-1",
-						Labels:    map[string]string{"app": "my-name-1"},
-					},
-					Status: api.PodStatus{
-						Phase: api.PodUnknown,
+					ObjectMeta: validPodMeta,
+					Status: v1.PodStatus{
+						Phase: v1.PodUnknown,
 					},
 				},
 			},
-			[]api.Node{{
-				Status: api.NodeStatus{
-					Addresses: []api.NodeAddress{
+			[]v1.Node{{
+				Status: v1.NodeStatus{
+					Addresses: []v1.NodeAddress{
 						{
-							Type:    api.NodeExternalIP,
+							Type:    v1.NodeExternalIP,
 							Address: "192.168.1.108",
 						},
 					},
@@ -163,17 +322,19 @@ func TestGetDaemonSetList(t *testing.T) {
 			},
 			},
 			&DaemonSetList{
-				ListMeta:          common.ListMeta{TotalItems: 2},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 2},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
 				DaemonSets: []DaemonSet{
 					{
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:      "my-app-1",
 							Namespace: "namespace-1",
 						},
-						TypeMeta:        common.TypeMeta{Kind: common.ResourceKindDaemonSet},
-						ContainerImages: []string{"my-container-image-1"},
+						TypeMeta:            api.TypeMeta{Kind: api.ResourceKindDaemonSet},
+						ContainerImages:     []string{"my-container-image-1"},
+						InitContainerImages: []string{"my-init-container-image-1"},
 						Pods: common.PodInfo{
+							Desired:   &desired,
 							Failed:    2,
 							Pending:   1,
 							Running:   1,
@@ -181,13 +342,15 @@ func TestGetDaemonSetList(t *testing.T) {
 							Warnings:  []common.Event{},
 						},
 					}, {
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:      "my-app-2",
 							Namespace: "namespace-2",
 						},
-						TypeMeta:        common.TypeMeta{Kind: common.ResourceKindDaemonSet},
-						ContainerImages: []string{"my-container-image-2"},
+						TypeMeta:            api.TypeMeta{Kind: api.ResourceKindDaemonSet},
+						ContainerImages:     []string{"my-container-image-2"},
+						InitContainerImages: []string{"my-init-container-image-2"},
 						Pods: common.PodInfo{
+							Desired:  &desired,
 							Warnings: []common.Event{},
 						},
 					},
@@ -196,9 +359,9 @@ func TestGetDaemonSetList(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		actual := CreateDaemonSetList(c.daemonSets, c.pods, events, dataselect.NoDataSelect, nil)
+		actual := toDaemonSetList(c.daemonSets, c.pods, events, nil, dataselect.NoDataSelect, nil)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("CreateDaemonSetList(%#v, %#v, %#v) == \n%#v\nexpected \n%#v\n",
+			t.Errorf("toDaemonSetList(%#v, %#v, %#v) == \n%#v\nexpected \n%#v\n",
 				c.daemonSets, c.services, events, actual, c.expected)
 		}
 	}

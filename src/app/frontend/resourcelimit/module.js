@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chromeModule from 'chrome/module';
-import componentsModule from 'common/components/components_module';
-import filtersModule from 'common/filters/filters_module';
-import eventsModule from 'events/module';
-import {resourceLimitsComponent} from './resourcelimits_component';
+import chromeModule from '../chrome/module';
+import componentsModule from '../common/components/module';
+import filtersModule from '../common/filters/module';
+import eventsModule from '../events/module';
+import {resourceLimitsComponent} from './detail/detail_component';
 
 /**
  * Angular module for the Limit Range details view.
@@ -25,7 +25,7 @@ import {resourceLimitsComponent} from './resourcelimits_component';
  */
 export default angular
     .module(
-        'kubernetesDashboard.limitRangeDetail',
+        'kubernetesDashboard.resourceLimit',
         [
           'ngMaterial',
           'ngResource',

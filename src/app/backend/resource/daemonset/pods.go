@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,35 +17,41 @@ package daemonset
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	apps "k8s.io/api/apps/v1beta2"
+	api "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // GetDaemonSetPods return list of pods targeting daemon set.
-func GetDaemonSetPods(client k8sClient.Interface, heapsterClient client.HeapsterClient,
+func GetDaemonSetPods(client k8sClient.Interface, metricClient metricapi.MetricClient,
 	dsQuery *dataselect.DataSelectQuery, daemonSetName, namespace string) (*pod.PodList, error) {
 	log.Printf("Getting replication controller %s pods in namespace %s", daemonSetName, namespace)
 
 	pods, err := getRawDaemonSetPods(client, daemonSetName, namespace)
 	if err != nil {
-		return nil, err
+		return pod.EmptyPodList, err
 	}
 
-	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	events, err := event.GetPodsEvents(client, namespace, pods)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	podList := pod.ToPodList(pods, events, nonCriticalErrors, dsQuery, metricClient)
 	return &podList, nil
 }
 
 // Returns array of api pods targeting daemon set with given name.
-func getRawDaemonSetPods(client k8sClient.Interface, daemonSetName, namespace string) (
-	[]api.Pod, error) {
-
-	daemonSet, err := client.Extensions().DaemonSets(namespace).Get(daemonSetName, metaV1.GetOptions{})
+func getRawDaemonSetPods(client k8sClient.Interface, daemonSetName, namespace string) ([]api.Pod, error) {
+	daemonSet, err := client.AppsV1beta2().DaemonSets(namespace).Get(daemonSetName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -59,13 +65,12 @@ func getRawDaemonSetPods(client k8sClient.Interface, daemonSetName, namespace st
 		return nil, err
 	}
 
-	matchingPods := common.FilterNamespacedPodsByLabelSelector(podList.Items,
-		daemonSet.ObjectMeta.Namespace, daemonSet.Spec.Selector)
+	matchingPods := common.FilterPodsByControllerRef(daemonSet, podList.Items)
 	return matchingPods, nil
 }
 
 // Returns simple info about pods(running, desired, failing, etc.) related to given daemon set.
-func getDaemonSetPodInfo(client k8sClient.Interface, daemonSet *extensions.DaemonSet) (
+func getDaemonSetPodInfo(client k8sClient.Interface, daemonSet *apps.DaemonSet) (
 	*common.PodInfo, error) {
 
 	pods, err := getRawDaemonSetPods(client, daemonSet.Name, daemonSet.Namespace)
@@ -74,6 +79,6 @@ func getDaemonSetPodInfo(client k8sClient.Interface, daemonSet *extensions.Daemo
 	}
 
 	podInfo := common.GetPodInfo(daemonSet.Status.CurrentNumberScheduled,
-		daemonSet.Status.DesiredNumberScheduled, pods)
+		&daemonSet.Status.DesiredNumberScheduled, pods)
 	return &podInfo, nil
 }

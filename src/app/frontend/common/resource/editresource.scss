@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,37 +14,53 @@
 
 @import '../../variables';
 
+.kd-edit-dialog {
+  @media (max-width: $layout-breakpoint-xs) {
+    min-height: $layout-breakpoint-xs * .5;
+    min-width: $layout-breakpoint-xs * .5;
+  }
+
+  @media (min-width: $layout-breakpoint-xs) {
+    min-height: $layout-breakpoint-xs * .8;
+    min-width: $layout-breakpoint-xs * .8;
+  }
+
+  @media (min-width: $layout-breakpoint-lg) {
+    min-height: $layout-breakpoint-sm * .72;
+    min-width: $layout-breakpoint-sm * .72;
+  }
+}
+
 .kd-json-edit-dialog-content {
   display: flex;
   flex-direction: column;
-  min-height: $layout-breakpoint-xs / 2;
-  min-width: $layout-breakpoint-xs / 2;
-}
-
-.kd-json-edit-editor {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.jsoneditor {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  height: initial;
-  overflow: hidden;
-
-  div {
-    &.outer {
-      display: flex;
-      flex: 1;
-      margin: 0;
-      overflow: auto;
-      padding: 0;
-    }
+  @media (max-width: $layout-breakpoint-xs) {
+    min-height: $layout-breakpoint-xs * .5;
+    min-width: $layout-breakpoint-xs * .5;
   }
 
-  .menu {
-    flex-shrink: 0;
+  @media (min-width: $layout-breakpoint-xs) {
+    min-height: $layout-breakpoint-xs * .8;
+    min-width: $layout-breakpoint-xs * .8;
+  }
+
+  @media (min-width: $layout-breakpoint-lg) {
+    min-height: $layout-breakpoint-sm * .7;
+    min-width: $layout-breakpoint-sm * .7;
+  }
+}
+
+.kd-edit-dialog-text-input {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+
+  .kd-text-input {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    height: initial;
+    margin: 0;
+    overflow: hidden;
   }
 }

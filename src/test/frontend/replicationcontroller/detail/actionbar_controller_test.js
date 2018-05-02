@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,43 +18,23 @@ import replicationControllerModule from 'replicationcontroller/module';
 describe('Replication Controller Detail Action Bar controller', () => {
   /**
    * Replication Controller Detail Action Bar controller.
-   * @type {!ReplicationControllerDetailActionBarController}
+   * @type {!ActionBarController}
    */
   let ctrl;
-  /** @type {!ReplicationControllerService} */
-  let kdReplicationControllerService;
+  /** @type {!backendApi.ReplicationControllerDetail} */
+  let details = {};
 
   beforeEach(() => {
     angular.mock.module(replicationControllerModule.name);
 
-    angular.mock.inject(($controller, $resource, _kdReplicationControllerService_) => {
-      kdReplicationControllerService = _kdReplicationControllerService_;
-
+    angular.mock.inject(($controller) => {
       ctrl = $controller(ActionBarController, {
-        replicationControllerDetail: {},
-        kdReplicationControllerService: _kdReplicationControllerService_,
+        replicationControllerDetail: details,
       });
     });
   });
 
-  it('should show edit replicas dialog', () => {
-    // given
-    ctrl.details = {
-      objectMeta: {
-        namespace: 'foo-namespace',
-        name: 'foo-name',
-      },
-      podInfo: {
-        current: 3,
-        desired: 3,
-      },
-    };
-    spyOn(kdReplicationControllerService, 'showUpdateReplicasDialog');
-
-    // when
-    ctrl.handleUpdateReplicasDialog();
-
-    // then
-    expect(kdReplicationControllerService.showUpdateReplicasDialog).toHaveBeenCalled();
+  it('should initialize details', () => {
+    expect(ctrl.details).toBe(details);
   });
 });

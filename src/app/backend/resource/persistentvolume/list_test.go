@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,55 +18,73 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
-func TestGetPersistentVolumeList(t *testing.T) {
+func TestToPersistentVolumeList(t *testing.T) {
 	cases := []struct {
-		persistentVolumes []api.PersistentVolume
+		persistentVolumes []v1.PersistentVolume
 		expected          *PersistentVolumeList
 	}{
-		{nil, &PersistentVolumeList{Items: []PersistentVolume{}}},
 		{
-			[]api.PersistentVolume{
+			nil,
+			&PersistentVolumeList{
+				Items: []PersistentVolume{},
+			},
+		},
+		{
+			[]v1.PersistentVolume{
 				{
-					ObjectMeta: metaV1.ObjectMeta{Name: "foo"},
-					Spec: api.PersistentVolumeSpec{
-						PersistentVolumeReclaimPolicy: api.PersistentVolumeReclaimRecycle,
-						AccessModes:                   []api.PersistentVolumeAccessMode{api.ReadWriteOnce},
-						ClaimRef: &api.ObjectReference{
+					ObjectMeta: metaV1.ObjectMeta{
+						Name: "foo",
+					},
+					Spec: v1.PersistentVolumeSpec{
+						PersistentVolumeReclaimPolicy: "delete",
+						AccessModes: []v1.PersistentVolumeAccessMode{
+							v1.ReadWriteOnce,
+						},
+						ClaimRef: &v1.ObjectReference{
 							Name:      "myclaim-name",
 							Namespace: "default",
 						},
-						Capacity: nil,
+						Capacity:         nil,
+						StorageClassName: "default-storageclass",
 					},
-					Status: api.PersistentVolumeStatus{
-						Phase:  api.VolumePending,
+					Status: v1.PersistentVolumeStatus{
+						Phase:  v1.VolumePending,
 						Reason: "my-reason",
 					},
 				},
 			},
 			&PersistentVolumeList{
-				ListMeta: common.ListMeta{TotalItems: 1},
+				ListMeta: api.ListMeta{
+					TotalItems: 1,
+				},
 				Items: []PersistentVolume{{
-					TypeMeta:    common.TypeMeta{Kind: "persistentvolume"},
-					ObjectMeta:  common.ObjectMeta{Name: "foo"},
-					Capacity:    nil,
-					AccessModes: []api.PersistentVolumeAccessMode{api.ReadWriteOnce},
-					Status:      api.VolumePending,
-					Claim:       "default/myclaim-name",
-					Reason:      "my-reason",
+					TypeMeta: api.TypeMeta{
+						Kind: "persistentvolume",
+					},
+					ObjectMeta: api.ObjectMeta{
+						Name: "foo",
+					},
+					Capacity:      nil,
+					AccessModes:   []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+					Status:        v1.VolumePending,
+					Claim:         "default/myclaim-name",
+					Reason:        "my-reason",
+					ReclaimPolicy: "delete",
+					StorageClass:  "default-storageclass",
 				}},
 			},
 		},
 	}
 	for _, c := range cases {
-		actual := getPersistentVolumeList(c.persistentVolumes, dataselect.NoDataSelect)
+		actual := toPersistentVolumeList(c.persistentVolumes, nil, dataselect.NoDataSelect)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("getPersistentVolumeList(%#v) == \n%#v\nexpected \n%#v\n",
+			t.Errorf("toPersistentVolumeList(%#v) == \n%#v\nexpected \n%#v\n",
 				c.persistentVolumes, actual, c.expected)
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,5 +29,29 @@ describe('Persistent Volume card list', () => {
 
   it('should instantiate the controller properly', () => {
     expect(ctrl).not.toBeUndefined();
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'persistentvolumes';
+    ctrl.persistentVolumeList = {};
+    ctrl.persistentVolumeListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
   });
 });

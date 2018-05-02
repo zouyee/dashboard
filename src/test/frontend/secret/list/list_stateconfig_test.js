@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import settingsServiceModule from 'common/settings/module';
 import {resolveSecretList} from 'secret/list/stateconfig';
 import secretModule from 'secret/module';
 
 describe('StateConfig for secret list', () => {
-  /** @type {!PaginationService} */
-  let kdPaginationService;
+  /** @type {!DataSelectService} */
+  let kdDataSelectService;
 
   beforeEach(() => {
     angular.mock.module(secretModule.name);
-    angular.mock.inject((_kdPaginationService_) => {
-      kdPaginationService = _kdPaginationService_;
+    angular.mock.module(settingsServiceModule.name);
+    angular.mock.inject((_kdDataSelectService_) => {
+      kdDataSelectService = _kdDataSelectService_;
     });
   });
 
@@ -34,9 +36,9 @@ describe('StateConfig for secret list', () => {
       return {$promise: promise};
     });
 
-    let actual = resolveSecretList(resource, {namespace: 'foo'}, kdPaginationService);
+    let actual = resolveSecretList(resource, {namespace: 'foo'}, kdDataSelectService);
 
-    expect(resource.get).toHaveBeenCalledWith(kdPaginationService.getDefaultResourceQuery('foo'));
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery('foo'));
     expect(actual).toBe(promise);
   }));
 
@@ -48,9 +50,9 @@ describe('StateConfig for secret list', () => {
       return {$promise: promise};
     });
 
-    let actual = resolveSecretList(resource, {}, kdPaginationService);
+    let actual = resolveSecretList(resource, {}, kdDataSelectService);
 
-    expect(resource.get).toHaveBeenCalledWith(kdPaginationService.getDefaultResourceQuery(''));
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery(''));
     expect(actual).toBe(promise);
   }));
 });

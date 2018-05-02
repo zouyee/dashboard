@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,44 +14,16 @@
 
 export default class DeployFromFilePageObject {
   constructor() {
-    this.deployFromFileRadioButtonQuery = by.xpath('//md-radio-button[@value="deployFile"]');
-    this.deployFromFileRadioButton = element(this.deployFromFileRadioButtonQuery);
+    this.deployFromFileTabQuery = by.xpath('//md-tab-item[contains(text(),"Create from file")]');
+    this.deployFromFileTab = element(this.deployFromFileTabQuery);
 
-    this.deployButtonQuery = by.css('.kd-deploy-submit-button');
+    this.deployButtonQuery = by.css('.kd-deploy-from-file-button');
     this.deployButton = element(this.deployButtonQuery);
 
-    this.cancelButtonQuery = by.css('.kd-deploy-cancel-button');
-    this.cancelButton = element(this.cancelButtonQuery);
-
-    this.inputContainerQuery = by.css('.kd-upload-file-container');
-    this.inputContainer = element(this.inputContainerQuery);
-
-    this.filePickerQuery = by.css('.kd-upload-file-picker');
-    this.filePicker_ = element(this.filePickerQuery);
+    this.filePickerQuery = by.xpath('//input[@id="fileInput"]');
+    this.filePicker = element(this.filePickerQuery);
 
     this.mdDialogQuery = by.tagName('md-dialog');
     this.mdDialog = element(this.mdDialogQuery);
-  }
-
-  /**
-   * Make filePicker input field visible
-   * Firefox does not allow sendKeys to invisible input[type=file] element
-   */
-  makeInputVisible() {
-    browser.driver.executeScript(function() {
-      /* global document */
-      let filePickerDomElement = document.getElementsByClassName('kd-upload-file-picker')[0];
-      filePickerDomElement.style.visibility = 'visible';
-      filePickerDomElement.style.height = '1px';
-      filePickerDomElement.style.width = '1px';
-    });
-  }
-
-  /**
-   * Sets filepath on the filePicker input field
-   * @param {string} filePath
-   */
-  setFile(filePath) {
-    this.filePicker_.sendKeys(filePath);
   }
 }

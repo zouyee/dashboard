@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,15 +17,7 @@ limitations under the License.
 <kd-info-card>
   <kd-info-card-header>[[Details|Header in a detail view]]</kd-info-card-header>
   <kd-info-card-section>
-    <kd-info-card-entry title="[[Name|Config map info details section name entry.]]">
-      <kd-middle-ellipsis display-string="{{::$ctrl.configMap.objectMeta.name}}">
-      </kd-middle-ellipsis>
-    </kd-info-card-entry>
-    <kd-info-card-entry title="[[Namespace|Config map info details section namespace entry.]]">
-      {{::$ctrl.configMap.objectMeta.namespace}}
-    </kd-info-card-entry>
-    <kd-info-card-entry title="[[Labels|Config map info details section labels entry.]]">
-      <kd-labels labels="::$ctrl.configMap.objectMeta.labels"></kd-labels>
-    </kd-info-card-entry>
+    <kd-object-meta-info-card object-meta="::$ctrl.configMap.objectMeta">
+    </kd-object-meta-info-card>
   </kd-info-card-section>
 </kd-info-card>

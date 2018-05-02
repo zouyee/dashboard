@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'replicationcontroller/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../replicationcontroller/detail/state';
 
 /**
  * Controller for the replication controller card.
  *
  * @final
  */
-export default class ReplicationControllerCardController {
+class ReplicationControllerCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
-   * @param {!./../../common/namespace/namespace_service.NamespaceService} kdNamespaceService
+   * @param {!../../common/namespace/service.NamespaceService} kdNamespaceService
    * @ngInject
    */
-  constructor($state, $interpolate, kdNamespaceService) {
+  constructor($state, kdNamespaceService) {
     /**
      * Initialized from the scope.
      * @export {!backendApi.ReplicationController}
@@ -37,10 +36,7 @@ export default class ReplicationControllerCardController {
     /** @private {!ui.router.$state} */
     this.state_ = $state;
 
-    /** @private {!angular.$interpolate} */
-    this.interpolate_ = $interpolate;
-
-    /** @private {!./../../common/namespace/namespace_service.NamespaceService} */
+    /** @private {!../../common/namespace/service.NamespaceService} */
     this.kdNamespaceService_ = kdNamespaceService;
   }
 
@@ -90,20 +86,6 @@ export default class ReplicationControllerCardController {
    */
   isSuccess() {
     return !this.isPending() && !this.hasWarnings();
-  }
-
-  /**
-   * @export
-   * @param  {string} creationDate - creation date of the pod
-   * @return {string} localized tooltip with the formated creation date
-   */
-  getCreatedAtTooltip(creationDate) {
-    let filter = this.interpolate_(`{{date | date}}`);
-    /** @type {string} @desc Tooltip 'Created at [some date]' showing the exact creation time of
-     * replication controller. */
-    let MSG_RC_LIST_CREATED_AT_TOOLTIP =
-        goog.getMsg('Created at {$creationDate}', {'creationDate': filter({'date': creationDate})});
-    return MSG_RC_LIST_CREATED_AT_TOOLTIP;
   }
 }
 

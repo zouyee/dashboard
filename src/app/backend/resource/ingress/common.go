@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ package ingress
 
 import (
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 // The code below allows to perform complex data section on []extensions.Ingress

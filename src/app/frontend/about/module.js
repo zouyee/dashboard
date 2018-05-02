@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,12 +14,6 @@
 
 import stateConfig from './stateconfig';
 
-/**
- * Angular module for the about view.
- *
- * The view shows details about the installation enviornment. The information
- * can be used when creating issues.
- */
 export default angular
     .module(
         'kubernetesDashboard.about',

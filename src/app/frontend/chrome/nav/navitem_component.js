@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,8 +44,8 @@ export class NavItemController {
   }
 
   /**
-   * Returns reference link for menu entries. By default default href for state will be returned, it can be overwritten
-   * by passing 'href' to the component.
+   * Returns reference link for menu entries. By default default href for state will be returned, it
+   * can be overwritten by passing 'href' to the component.
    *
    * @return {string}
    * @export
@@ -55,8 +55,8 @@ export class NavItemController {
   }
 
   /**
-   * Returns true if current state is active and menu entry should be highlighted. By default uses navigation service,
-   * but can be overwritten by passing 'active' to the component.
+   * Returns true if current state is active and menu entry should be highlighted. By default uses
+   * navigation service, but can be overwritten by passing 'active' to the component.
    *
    * @return {boolean}
    * @export

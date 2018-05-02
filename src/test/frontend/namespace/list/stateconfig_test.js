@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import settingsServiceModule from 'common/settings/module';
 import {resolveNamespaceList} from 'namespace/list/stateconfig';
 import namespaceModule from 'namespace/module';
 
 describe('StateConfig for namespace list', () => {
+  /** @type {!DataSelectService} */
+  let kdDataSelectService;
+
   beforeEach(() => {
     angular.mock.module(namespaceModule.name);
+    angular.mock.module(settingsServiceModule.name);
+    angular.mock.inject((_kdDataSelectService_) => {
+      kdDataSelectService = _kdDataSelectService_;
+    });
   });
 
   it('should resolve namespaces', angular.mock.inject(($q) => {
     let promise = $q.defer().promise;
 
-    let resource = jasmine.createSpy('$resource');
-    resource.and.returnValue({
-      get: function() {
-        return {$promise: promise};
-      },
+    let resource = jasmine.createSpyObj('$resource', ['get']);
+    resource.get.and.callFake(function() {
+      return {$promise: promise};
     });
 
-    let actual = resolveNamespaceList(resource);
+    let actual = resolveNamespaceList(resource, kdDataSelectService);
 
-    expect(resource).toHaveBeenCalledWith('api/v1/namespace');
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery(''));
     expect(actual).toBe(promise);
   }));
 

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package discovery
 import (
 	"log"
 
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/ingress"
@@ -28,11 +29,14 @@ import (
 type Discovery struct {
 	ServiceList service.ServiceList `json:"serviceList"`
 	IngressList ingress.IngressList `json:"ingressList"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetDiscovery returns a list of all servicesAndDiscovery resources in the cluster.
-func GetDiscovery(client *kubernetes.Clientset, nsQuery *common.NamespaceQuery) (
-	*Discovery, error) {
+func GetDiscovery(client kubernetes.Interface, nsQuery *common.NamespaceQuery,
+	dsQuery *dataselect.DataSelectQuery) (*Discovery, error) {
 
 	log.Print("Getting discovery and load balancing category")
 	channels := &common.ResourceChannels{
@@ -40,28 +44,27 @@ func GetDiscovery(client *kubernetes.Clientset, nsQuery *common.NamespaceQuery) 
 		IngressList: common.GetIngressListChannel(client, nsQuery, 1),
 	}
 
-	return GetDiscoveryFromChannels(channels)
+	return GetDiscoveryFromChannels(channels, dsQuery)
 }
 
 // GetDiscoveryFromChannels returns a list of all servicesAndDiscovery in the cluster, from the
 // channel sources.
-func GetDiscoveryFromChannels(channels *common.ResourceChannels) (*Discovery, error) {
+func GetDiscoveryFromChannels(channels *common.ResourceChannels,
+	dsQuery *dataselect.DataSelectQuery) (*Discovery, error) {
 
-	svcChan := make(chan *service.ServiceList)
-	ingressChan := make(chan *ingress.IngressList)
 	numErrs := 2
 	errChan := make(chan error, numErrs)
+	svcChan := make(chan *service.ServiceList)
+	ingressChan := make(chan *ingress.IngressList)
 
 	go func() {
-		items, err := service.GetServiceListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := service.GetServiceListFromChannels(channels, dsQuery)
 		errChan <- err
 		svcChan <- items
 	}()
 
 	go func() {
-		items, err := ingress.GetIngressListFromChannels(channels,
-			dataselect.DefaultDataSelect)
+		items, err := ingress.GetIngressListFromChannels(channels, dsQuery)
 		errChan <- err
 		ingressChan <- items
 	}()
@@ -77,6 +80,8 @@ func GetDiscoveryFromChannels(channels *common.ResourceChannels) (*Discovery, er
 		ServiceList: *(<-svcChan),
 		IngressList: *(<-ingressChan),
 	}
+
+	discovery.Errors = errors.MergeErrors(discovery.ServiceList.Errors, discovery.IngressList.Errors)
 
 	return discovery, nil
 }

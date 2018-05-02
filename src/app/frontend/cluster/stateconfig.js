@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {stateName as chromeStateName} from '../chrome/state';
+import {breadcrumbsConfig} from '../common/components/breadcrumbs/service';
 
 import {ClusterController} from './controller';
 import {stateName} from './state';
@@ -47,12 +47,12 @@ export default function stateConfig($stateProvider) {
 
 /**
  * @param {!angular.$resource} kdClusterResource
- * @param {!./../common/pagination/pagination_service.PaginationService} kdPaginationService
+ * @param {!./../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveResource(kdClusterResource, kdPaginationService) {
-  let paginationQuery = kdPaginationService.getDefaultResourceQuery();
+export function resolveResource(kdClusterResource, kdDataSelectService) {
+  let paginationQuery = kdDataSelectService.getDefaultResourceQuery();
   return kdClusterResource.get(paginationQuery).$promise;
 }
 

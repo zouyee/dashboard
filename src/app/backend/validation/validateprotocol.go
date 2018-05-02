@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package validation
 import (
 	"log"
 
-	api "k8s.io/client-go/pkg/api/v1"
+	api "k8s.io/api/core/v1"
 )
 
 // ProtocolValiditySpec is a specification of protocol validation request.
@@ -35,14 +35,11 @@ type ProtocolValidity struct {
 	Valid bool `json:"valid"`
 }
 
-// ValidateProtocol validates protocol based on whether created service is set to NodePort or
-// NodeBalancer type.
+// ValidateProtocol validates protocol based on whether created service is set to NodePort or NodeBalancer type.
 func ValidateProtocol(spec *ProtocolValiditySpec) *ProtocolValidity {
-	log.Printf("Validating %s protocol for service with external set to %v", spec.Protocol,
-		spec.IsExternal)
+	log.Printf("Validating %s protocol for service with external set to %v", spec.Protocol, spec.IsExternal)
 
 	isValid := true
-
 	if spec.Protocol == api.ProtocolUDP && spec.IsExternal {
 		isValid = false
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,129 +19,137 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
-func getReplicasPointer(replicas int32) *int32 {
-	return &replicas
-}
-
 func TestGetReplicaSetListFromChannels(t *testing.T) {
+	replicas := int32(21)
+	controller := true
 	cases := []struct {
-		k8sRs         extensions.ReplicaSetList
+		k8sRs         apps.ReplicaSetList
 		k8sRsError    error
-		pods          *api.PodList
+		pods          *v1.PodList
 		expected      *ReplicaSetList
 		expectedError error
 	}{
 		{
-			extensions.ReplicaSetList{},
+			apps.ReplicaSetList{},
 			nil,
-			&api.PodList{},
+			&v1.PodList{},
 			&ReplicaSetList{
-				ListMeta:          common.ListMeta{},
-				CumulativeMetrics: make([]metric.Metric, 0),
-				ReplicaSets:       []ReplicaSet{}},
-			nil,
-		},
-		{
-			extensions.ReplicaSetList{},
-			errors.New("MyCustomError"),
-			&api.PodList{},
-			nil,
-			errors.New("MyCustomError"),
-		},
-		{
-			extensions.ReplicaSetList{},
-			&k8serrors.StatusError{},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{},
-		},
-		{
-			extensions.ReplicaSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-		},
-		{
-			extensions.ReplicaSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-		},
-		{
-			extensions.ReplicaSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "NotFound"}},
-			&api.PodList{},
-			&ReplicaSetList{
-				ReplicaSets: make([]ReplicaSet, 0),
+				ListMeta:          api.ListMeta{},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				ReplicaSets:       []ReplicaSet{},
+				Errors:            []error{},
 			},
 			nil,
 		},
 		{
-			extensions.ReplicaSetList{
-				Items: []extensions.ReplicaSet{{
+			apps.ReplicaSetList{},
+			errors.New("MyCustomError"),
+			&v1.PodList{},
+			nil,
+			errors.New("MyCustomError"),
+		},
+		{
+			apps.ReplicaSetList{},
+			&k8serrors.StatusError{},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{},
+		},
+		{
+			apps.ReplicaSetList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+		},
+		{
+			apps.ReplicaSetList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+		},
+		{
+			apps.ReplicaSetList{
+				Items: []apps.ReplicaSet{{
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
+						UID:               "uid",
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					Spec: extensions.ReplicaSetSpec{
+					Spec: apps.ReplicaSetSpec{
 						Selector: &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
-						Replicas: getReplicasPointer(21),
+						Replicas: &replicas,
 					},
-					Status: extensions.ReplicaSetStatus{
+					Status: apps.ReplicaSetStatus{
 						Replicas: 7,
 					},
 				}},
 			},
 			nil,
-			&api.PodList{
-				Items: []api.Pod{
+			&v1.PodList{
+				Items: []v1.Pod{
 					{
 						ObjectMeta: metaV1.ObjectMeta{
 							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "bar"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name",
+									UID:        "uid",
+									Controller: &controller,
+								},
+							},
 						},
-						Status: api.PodStatus{Phase: api.PodFailed},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
 					},
 					{
 						ObjectMeta: metaV1.ObjectMeta{
 							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "baz"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name-wrong",
+									UID:        "uid-wrong",
+									Controller: &controller,
+								},
+							},
 						},
-						Status: api.PodStatus{Phase: api.PodFailed},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
 					},
 				},
 			},
 			&ReplicaSetList{
-				ListMeta:          common.ListMeta{TotalItems: 1},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 1},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Status:            common.ResourceStatus{Running: 1},
 				ReplicaSets: []ReplicaSet{{
-					ObjectMeta: common.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindReplicaSet},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindReplicaSet},
 					Pods: common.PodInfo{
 						Current:  7,
-						Desired:  21,
+						Desired:  &replicas,
 						Failed:   1,
 						Warnings: []common.Event{},
 					},
 				}},
+				Errors: []error{},
 			},
 			nil,
 		},
@@ -150,23 +158,23 @@ func TestGetReplicaSetListFromChannels(t *testing.T) {
 	for _, c := range cases {
 		channels := &common.ResourceChannels{
 			ReplicaSetList: common.ReplicaSetListChannel{
-				List:  make(chan *extensions.ReplicaSetList, 1),
+				List:  make(chan *apps.ReplicaSetList, 1),
 				Error: make(chan error, 1),
 			},
 			NodeList: common.NodeListChannel{
-				List:  make(chan *api.NodeList, 1),
+				List:  make(chan *v1.NodeList, 1),
 				Error: make(chan error, 1),
 			},
 			ServiceList: common.ServiceListChannel{
-				List:  make(chan *api.ServiceList, 1),
+				List:  make(chan *v1.ServiceList, 1),
 				Error: make(chan error, 1),
 			},
 			PodList: common.PodListChannel{
-				List:  make(chan *api.PodList, 1),
+				List:  make(chan *v1.PodList, 1),
 				Error: make(chan error, 1),
 			},
 			EventList: common.EventListChannel{
-				List:  make(chan *api.EventList, 1),
+				List:  make(chan *v1.EventList, 1),
 				Error: make(chan error, 1),
 			},
 		}
@@ -174,16 +182,16 @@ func TestGetReplicaSetListFromChannels(t *testing.T) {
 		channels.ReplicaSetList.Error <- c.k8sRsError
 		channels.ReplicaSetList.List <- &c.k8sRs
 
-		channels.NodeList.List <- &api.NodeList{}
+		channels.NodeList.List <- &v1.NodeList{}
 		channels.NodeList.Error <- nil
 
-		channels.ServiceList.List <- &api.ServiceList{}
+		channels.ServiceList.List <- &v1.ServiceList{}
 		channels.ServiceList.Error <- nil
 
 		channels.PodList.List <- c.pods
 		channels.PodList.Error <- nil
 
-		channels.EventList.List <- &api.EventList{}
+		channels.EventList.List <- &v1.EventList{}
 		channels.EventList.Error <- nil
 
 		actual, err := GetReplicaSetListFromChannels(channels, dataselect.NoDataSelect, nil)
@@ -196,35 +204,38 @@ func TestGetReplicaSetListFromChannels(t *testing.T) {
 	}
 }
 
-func TestCreateReplicaSetList(t *testing.T) {
+func TestToReplicaSetList(t *testing.T) {
 	replicas := int32(0)
 	cases := []struct {
-		replicaSets []extensions.ReplicaSet
-		pods        []api.Pod
-		events      []api.Event
+		replicaSets []apps.ReplicaSet
+		pods        []v1.Pod
+		events      []v1.Event
 		expected    *ReplicaSetList
 	}{
 		{
-			[]extensions.ReplicaSet{
+			[]apps.ReplicaSet{
 				{
 					ObjectMeta: metaV1.ObjectMeta{Name: "replica-set", Namespace: "ns-1"},
-					Spec: extensions.ReplicaSetSpec{
+					Spec: apps.ReplicaSetSpec{
 						Replicas: &replicas,
 						Selector: &metaV1.LabelSelector{
 							MatchLabels: map[string]string{"key": "value"},
 						}},
 				},
 			},
-			[]api.Pod{},
-			[]api.Event{},
+			[]v1.Pod{},
+			[]v1.Event{},
 			&ReplicaSetList{
-				ListMeta:          common.ListMeta{TotalItems: 1},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 1},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
 				ReplicaSets: []ReplicaSet{
 					{
-						ObjectMeta: common.ObjectMeta{Name: "replica-set", Namespace: "ns-1"},
-						TypeMeta:   common.TypeMeta{Kind: common.ResourceKindReplicaSet},
-						Pods:       common.PodInfo{Warnings: []common.Event{}},
+						ObjectMeta: api.ObjectMeta{Name: "replica-set", Namespace: "ns-1"},
+						TypeMeta:   api.TypeMeta{Kind: api.ResourceKindReplicaSet},
+						Pods: common.PodInfo{
+							Warnings: []common.Event{},
+							Desired:  &replicas,
+						},
 					},
 				},
 			},
@@ -232,11 +243,77 @@ func TestCreateReplicaSetList(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		actual := CreateReplicaSetList(c.replicaSets, c.pods, c.events, dataselect.NoDataSelect, nil)
+		actual := ToReplicaSetList(c.replicaSets, c.pods, c.events, nil, dataselect.NoDataSelect, nil)
 
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("CreateReplicaSetList(%#v, %#v, %#v, ...) == \ngot %#v, \nexpected %#v",
+			t.Errorf("ToReplicaSetList(%#v, %#v, %#v, ...) == \ngot %#v, \nexpected %#v",
 				c.replicaSets, c.pods, c.events, actual, c.expected)
+		}
+	}
+}
+
+func TestGetReplicaSetList(t *testing.T) {
+	replicas := int32(21)
+	cases := []struct {
+		rsList          *apps.ReplicaSetList
+		expectedActions []string
+		expected        *ReplicaSetList
+	}{
+		{
+			rsList: &apps.ReplicaSetList{
+				Items: []apps.ReplicaSet{
+					{
+						ObjectMeta: metaV1.ObjectMeta{
+							Name:   "rs-1",
+							Labels: map[string]string{},
+						},
+						Spec: apps.ReplicaSetSpec{
+							Replicas: &replicas,
+						},
+					},
+				}},
+			expectedActions: []string{"list", "list", "list"},
+			expected: &ReplicaSetList{
+				ListMeta: api.ListMeta{TotalItems: 1},
+				Status:   common.ResourceStatus{Running: 1},
+				ReplicaSets: []ReplicaSet{
+					{
+						ObjectMeta: api.ObjectMeta{
+							Name:   "rs-1",
+							Labels: map[string]string{},
+						},
+						TypeMeta: api.TypeMeta{Kind: api.ResourceKindReplicaSet},
+						Pods: common.PodInfo{
+							Desired:  &replicas,
+							Warnings: make([]common.Event, 0),
+						},
+					},
+				},
+				Errors:            []error{},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+			},
+		},
+	}
+
+	for _, c := range cases {
+		fakeClient := fake.NewSimpleClientset(c.rsList)
+		actual, _ := GetReplicaSetList(fakeClient, &common.NamespaceQuery{}, dataselect.NoDataSelect, nil)
+		actions := fakeClient.Actions()
+
+		if len(actions) != len(c.expectedActions) {
+			t.Errorf("Unexpected actions: %v, expected %d actions got %d", actions,
+				len(c.expectedActions), len(actions))
+			continue
+		}
+
+		for i, verb := range c.expectedActions {
+			if actions[i].GetVerb() != verb {
+				t.Errorf("Unexpected action: %+v, expected %s", actions[i], verb)
+			}
+		}
+
+		if !reflect.DeepEqual(actual, c.expected) {
+			t.Errorf("GetReplicaSetList(client) == got\n%#v, expected\n %#v", actual, c.expected)
 		}
 	}
 }

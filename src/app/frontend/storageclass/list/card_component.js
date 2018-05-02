@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'storageclass/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../storageclass/detail/state';
 
 /**
  * Controller for the storage class card.
  *
  * @final
  */
-export default class StorageClassCardController {
+class StorageClassCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
    * @ngInject
    */
-  constructor($state, $interpolate) {
+  constructor($state) {
     /**
      * Initialized from the scope.
      * @export {!backendApi.StorageClass}
@@ -35,9 +34,6 @@ export default class StorageClassCardController {
 
     /** @private {!ui.router.$state} */
     this.state_ = $state;
-
-    /** @private */
-    this.interpolate_ = $interpolate;
   }
 
   /**
@@ -46,20 +42,6 @@ export default class StorageClassCardController {
    */
   getStorageClassDetailHref() {
     return this.state_.href(stateName, new StateParams('', this.storageClass.objectMeta.name));
-  }
-
-  /**
-   * @export
-   * @param  {string} creationDate - creation date of the storage class
-   * @return {string} localized tooltip with the formatted creation date
-   */
-  getCreatedAtTooltip(creationDate) {
-    let filter = this.interpolate_(`{{date | date}}`);
-    /** @type {string} @desc Tooltip 'Created at [some date]' showing the exact creation time of
-     * storage class. */
-    let MSG_STORAGE_CLASS_LIST_CREATED_AT_TOOLTIP =
-        goog.getMsg('Created at {$creationDate}', {'creationDate': filter({'date': creationDate})});
-    return MSG_STORAGE_CLASS_LIST_CREATED_AT_TOOLTIP;
   }
 }
 

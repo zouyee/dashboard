@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {ServiceListController} from 'service/list/controller';
 import serviceModule from 'service/module';
 
 describe('Service list controller', () => {
-  /** @type {!ServiceListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(serviceModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(ServiceListController, {serviceList: {services: []}});
-    });
   });
 
   it('should initialize controller', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Service list controller', () => {
 
     expect(ctrl.serviceList).toBe(data);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.serviceList = {services: ['mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

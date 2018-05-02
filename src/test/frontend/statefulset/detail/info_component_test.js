@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import logModule from 'logs/module';
 import statefulSetModule from 'statefulset/module';
 
 describe('Stateful Set Info controller', () => {
@@ -23,10 +24,15 @@ describe('Stateful Set Info controller', () => {
 
   beforeEach(() => {
     angular.mock.module(statefulSetModule.name);
+    angular.mock.module(logModule.name);
 
     angular.mock.inject(($componentController, $rootScope) => {
       ctrl = $componentController('kdStatefulSetInfo', {$scope: $rootScope}, {
         statefulSet: {
+          objectMeta: {
+            name: 'my-statefulset',
+            namespace: 'default-ns',
+          },
           podInfo: {
             running: 0,
             desired: 0,

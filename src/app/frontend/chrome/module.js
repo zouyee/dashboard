@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import componentsModule from 'common/components/components_module';
-import namespaceModule from 'common/namespace/namespace_module';
+import componentsModule from '../common/components/module';
+import namespaceModule from '../common/namespace/module';
 
-import {chromeComponent} from './chrome_component';
+import {chromeComponent} from './component';
+import {controlPanelComponent} from './controlpanel/component';
 import navModule from './nav/module';
+import {searchComponent} from './search/component';
 import stateConfig from './stateconfig';
 
 /**
@@ -33,4 +35,6 @@ export default angular
           navModule.name,
         ])
     .config(stateConfig)
-    .component('kdChrome', chromeComponent);
+    .component('kdChrome', chromeComponent)
+    .component('kdControlPanel', controlPanelComponent)
+    .component('kdSearch', searchComponent);

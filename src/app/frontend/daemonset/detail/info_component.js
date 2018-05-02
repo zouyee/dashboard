@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 export default class DaemonSetInfoController {
   /**
    * Constructs daemon set info object.
+   * @ngInject
    */
   constructor() {
     /**
@@ -39,7 +40,7 @@ export default class DaemonSetInfoController {
 /**
  * Definition object for the component that displays daemon set info.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const daemonSetInfoComponent = {
   controller: DaemonSetInfoController,

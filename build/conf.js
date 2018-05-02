@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ const arch = {
  * Configuration for container registry to push images to.
  */
 const containerRegistry = {
-  release: 'gcr.io/google_containers',
+  release: 'k8s.gcr.io',
   /** Default to an environment variable */
   head: process.env.DOCKER_HUB_PREFIX || 'kubernetes',
 };
@@ -59,7 +59,7 @@ const version = {
   /**
    * Current release version of the project.
    */
-  release: 'v1.6.0',
+  release: 'v1.8.3',
   /**
    * Version name of the head release of the project.
    */
@@ -76,9 +76,26 @@ const imageNameBase = 'kubernetes-dashboard';
  */
 export default {
   /**
+   * the expression of recording version info into src/app/backend/client/manager.go
+   */
+  recordVersionExpression:
+      `-X github.com/kubernetes/dashboard/src/app/backend/client.Version=${version.release}`,
+
+  /**
    * Configuration for container registry to push images to.
    */
   containerRegistry: containerRegistry,
+
+  /**
+   * Constants used by our build system.
+   */
+  build: {
+    /**
+     * Variables used to differentiate between production and development build.
+     */
+    production: 'production',
+    test: 'test',
+  },
 
   /**
    * Backend application constants.
@@ -93,19 +110,70 @@ export default {
      */
     mainPackageName: 'github.com/kubernetes/dashboard/src/app/backend',
     /**
-     * Port number of the backend server. Only used during development.
+     * Names of all backend packages prefixed with 'test' command.
+     */
+    testCommandArgs:
+        [
+          'test',
+          'github.com/kubernetes/dashboard/src/app/backend/...',
+        ],
+    /**
+     * Insecure port number of the backend server. Only used during development.
      */
     devServerPort: 9091,
+    /**
+     * Secure port number of the backend server. Only used during development.
+     */
+    secureDevServerPort: 8443,
     /**
      * Address for the Kubernetes API server.
      */
     apiServerHost: 'http://localhost:8080',
     /**
+     * Env variable with address for the Kubernetes API server.
+     */
+    envApiServerHost: process.env.KUBE_DASHBOARD_APISERVER_HOST,
+    /**
+     * Env variable with path to kubeconfig file.
+     */
+    envKubeconfig: process.env.KUBE_DASHBOARD_KUBECONFIG,
+    /**
      * Address for the Heapster API server. If blank, the dashboard
      * will attempt to connect to Heapster via a service proxy.
      */
-    heapsterServerHost:
-        gulpUtil.env.heapsterServerHost !== undefined ? gulpUtil.env.heapsterServerHost : '',
+    heapsterServerHost: gulpUtil.env.heapsterServerHost !== undefined ?
+        gulpUtil.env.heapsterServerHost :
+        '',
+    /**
+     * File containing the default x509 Certificate for HTTPS.
+     */
+    tlsCert: gulpUtil.env.tlsCert !== undefined ? gulpUtil.env.tlsCert : '',
+    /**
+     * File containing the default x509 private key matching --tlsCert.
+     */
+    tlsKey: gulpUtil.env.tlsKey !== undefined ? gulpUtil.env.tlsKey : '',
+    /**
+     * When set to true, Dashboard will automatically generate certificates used to serve HTTPS.
+     * Matches dashboard
+     * '--auto-generate-certificates' flag.
+     */
+    autoGenerateCerts: gulpUtil.env.autoGenerateCerts !== undefined ?
+        gulpUtil.env.autoGenerateCerts :
+        'false',
+    /**
+     * Directory path containing certificate files. Matches dashboard '--default-cert-dir' flag.
+     */
+    defaultCertDir: gulpUtil.env.defaultCertDir !== undefined ? gulpUtil.env.defaultCertDir : '',
+    /**
+     * System banner message. Matches dashboard '--system-banner' flag.
+     */
+    systemBanner: gulpUtil.env.systemBanner !== undefined ? gulpUtil.env.systemBanner : '',
+    /**
+     * System banner severity. Matches dashboard '--system-banner-severity' flag.
+     */
+    systemBannerSeverity: gulpUtil.env.systemBannerSeverity !== undefined ?
+        gulpUtil.env.systemBannerSeverity :
+        '',
   },
 
   /**
@@ -163,6 +231,10 @@ export default {
      * The name of the root Angular module, i.e., the module that bootstraps the application.
      */
     rootModuleName: 'kubernetesDashboard',
+    /**
+     * If defined `gulp serve` will serve on HTTPS.
+     */
+    serveHttps: gulpUtil.env.serveHttps !== undefined,
   },
 
   /**
@@ -191,12 +263,11 @@ export default {
     base: basePath,
     backendSrc: path.join(basePath, 'src/app/backend'),
     backendTmp: path.join(basePath, '.tmp/backend'),
-    backendTmpSrc:
-        path.join(basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/src/app/backend'),
-    backendTmpSrcVendor:
-        path.join(basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/vendor'),
+    backendTmpSrc: path.join(
+        basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/src/app/backend'),
+    backendTmpSrcVendor: path.join(
+        basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/vendor'),
     backendVendor: path.join(basePath, 'vendor'),
-    bowerComponents: path.join(basePath, 'bower_components'),
     build: path.join(basePath, 'build'),
     coverage: path.join(basePath, 'coverage'),
     coverageBackend: path.join(basePath, 'coverage/go.txt'),
@@ -213,22 +284,21 @@ export default {
     frontendTest: path.join(basePath, 'src/test/frontend'),
     goTools: path.join(basePath, '.tools/go'),
     goWorkspace: path.join(basePath, '.go_workspace'),
-    hyperkube: path.join(basePath, 'build/hyperkube.sh'),
     goTestScript: path.join(basePath, 'build/go-test.sh'),
     i18nProd: path.join(basePath, '.tmp/i18n'),
     integrationTest: path.join(basePath, 'src/test/integration'),
-    jsoneditorImages: path.join(basePath, 'bower_components/jsoneditor/src/css/img'),
+    jsoneditorImages: path.join(basePath, 'node_modules/jsoneditor/src/css/img'),
     karmaConf: path.join(basePath, 'build/karma.conf.js'),
-    materialIcons: path.join(basePath, 'bower_components/material-design-icons/iconfont'),
+    materialIcons: path.join(basePath, 'node_modules/material-design-icons/iconfont'),
     nodeModules: path.join(basePath, 'node_modules'),
     partials: path.join(basePath, '.tmp/partials'),
     messagesForExtraction: path.join(basePath, '.tmp/messages_for_extraction'),
     prodTmp: path.join(basePath, '.tmp/prod'),
     protractorConf: path.join(basePath, 'build/protractor.conf.js'),
-    robotoFonts: path.join(basePath, 'bower_components/roboto-fontface/fonts'),
-    robotoFontsBase: path.join(basePath, 'bower_components/roboto-fontface'),
-    robotoMonoFonts: path.join(basePath, 'bower_components/easyfont-roboto-mono/fonts'),
-    robotoMonoFontsBase: path.join(basePath, 'bower_components/easyfont-roboto-mono'),
+    robotoFonts: path.join(basePath, 'node_modules/roboto-fontface/fonts'),
+    robotoFontsBase: path.join(basePath, 'node_modules/roboto-fontface'),
+    robotoMonoFonts: path.join(basePath, 'node_modules/easyfont-roboto-mono/fonts'),
+    robotoMonoFontsBase: path.join(basePath, 'node_modules/easyfont-roboto-mono'),
     serve: path.join(basePath, '.tmp/serve'),
     src: path.join(basePath, 'src'),
     tmp: path.join(basePath, '.tmp'),

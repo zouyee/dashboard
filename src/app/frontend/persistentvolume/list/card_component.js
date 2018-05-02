@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {StateParams} from 'common/resource/resourcedetail';
-import {stateName} from 'persistentvolume/detail/state';
+import {StateParams} from '../../common/resource/resourcedetail';
+import {stateName} from '../../persistentvolume/detail/state';
+import {stateName as persistentVolumeClaimStateName} from '../../persistentvolumeclaim/detail/state';
 
 /**
  * Controller for the persistent volume card.
  *
  * @final
  */
-export default class PersistentVolumeCardController {
+class PersistentVolumeCardController {
   /**
    * @param {!ui.router.$state} $state
-   * @param {!angular.$interpolate} $interpolate
    * @ngInject
    */
-  constructor($state, $interpolate) {
+  constructor($state) {
     /**
      * Initialized from the scope.
      * @export {!backendApi.PersistentVolume}
@@ -35,9 +35,6 @@ export default class PersistentVolumeCardController {
 
     /** @private {!ui.router.$state} */
     this.state_ = $state;
-
-    /** @private */
-    this.interpolate_ = $interpolate;
   }
 
   /**
@@ -49,17 +46,19 @@ export default class PersistentVolumeCardController {
   }
 
   /**
+   * Returns link to persistentvolumeclaim to which this persistentvolume is associated.
+   * @return {string}
    * @export
-   * @param  {string} creationDate - creation date of the config map
-   * @return {string} localized tooltip with the formated creation date
    */
-  getCreatedAtTooltip(creationDate) {
-    let filter = this.interpolate_(`{{date | date}}`);
-    /** @type {string} @desc Tooltip 'Created at [some date]' showing the exact creation time of
-     * persistent volume. */
-    let MSG_PERSISTENT_VOLUME_LIST_CREATED_AT_TOOLTIP =
-        goog.getMsg('Created at {$creationDate}', {'creationDate': filter({'date': creationDate})});
-    return MSG_PERSISTENT_VOLUME_LIST_CREATED_AT_TOOLTIP;
+  getPersistentVolumeClaimDetailsHref() {
+    if (this.persistentVolume.claim) {
+      let claim = this.persistentVolume.claim.split('/');
+      if (claim.length >= 2) {
+        return this.state_.href(
+            persistentVolumeClaimStateName, new StateParams(claim[0], claim[1]));
+      }
+    }
+    return '';
   }
 }
 

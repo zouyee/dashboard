@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	autoscaling "k8s.io/api/autoscaling/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	autoscaling "k8s.io/client-go/pkg/apis/autoscaling/v1"
 )
 
 // func GetHorizontalPodAutoscalerDetail(client *client.Client, namespace string, name string) (*HorizontalPodAutoscalerDetail, error)
@@ -51,8 +51,8 @@ func TestGetHorizontalPodAutoscalerDetail(t *testing.T) {
 				},
 			},
 			&HorizontalPodAutoscalerDetail{
-				ObjectMeta: common.ObjectMeta{Name: "test-name", Namespace: "test-ns"},
-				TypeMeta:   common.TypeMeta{Kind: common.ResourceKindHorizontalPodAutoscaler},
+				ObjectMeta: api.ObjectMeta{Name: "test-name", Namespace: "test-ns"},
+				TypeMeta:   api.TypeMeta{Kind: api.ResourceKindHorizontalPodAutoscaler},
 				ScaleTargetRef: ScaleTargetRef{
 					Kind: "test-kind",
 					Name: "test-name2",
@@ -84,7 +84,7 @@ func TestGetHorizontalPodAutoscalerDetail(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("GetEvents(client,heapsterClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
+			t.Errorf("GetEvents(client,metricClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
 				c.namespace, c.name, actual, c.expected)
 		}
 	}

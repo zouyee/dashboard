@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,15 +17,17 @@ package storageclass
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
 // StorageClass is a representation of a kubernetes StorageClass object.
 type StorageClass struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// provisioner is the driver expected to handle this StorageClass.
 	// This is an optionally-prefixed name, like a label key.
@@ -42,16 +44,28 @@ type StorageClass struct {
 	Parameters map[string]string `json:"parameters"`
 }
 
+// StorageClassDetail provides the presentation layer view of Kubernetes StorageClass resource,
+// It is StorageClassDetail plus PersistentVolumes associated with StorageClass.
+type StorageClassDetail struct {
+	ObjectMeta           api.ObjectMeta                        `json:"objectMeta"`
+	TypeMeta             api.TypeMeta                          `json:"typeMeta"`
+	Provisioner          string                                `json:"provisioner"`
+	Parameters           map[string]string                     `json:"parameters"`
+	PersistentVolumeList persistentvolume.PersistentVolumeList `json:"persistentVolumeList"`
+}
+
 // GetStorageClass returns storage class object.
-func GetStorageClass(client kubernetes.Interface, name string) (*StorageClass, error) {
+func GetStorageClass(client kubernetes.Interface, name string) (*StorageClassDetail, error) {
 	log.Printf("Getting details of %s storage class", name)
 
-	// TODO(maciaszczykm): Use channels.
-	storage, err := client.Storage().StorageClasses().Get(name, metaV1.GetOptions{})
+	storage, err := client.StorageV1().StorageClasses().Get(name, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	storageClass := ToStorageClass(storage)
-	return &storageClass, nil
+	persistentVolumeList, err := persistentvolume.GetStorageClassPersistentVolumes(client,
+		storage.Name, dataselect.DefaultDataSelect)
+
+	storageClass := toStorageClassDetail(storage, persistentVolumeList)
+	return &storageClass, err
 }

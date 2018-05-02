@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-<kd-content-card ng-if="!$ctrl.shouldShowZeroState()">
+<kd-warnings warnings="::$ctrl.roleList.errors"></kd-warnings>
+
+<kd-content-card>
   <kd-content>
-    <md-content>
-      <kd-role-card-list role-list="$ctrl.roleList"
-                         role-list-resource="$ctrl.roleListResource"
-                         with-statuses="false">
-      </kd-role-card-list>
-    </md-content>
+    <kd-role-card-list role-list="$ctrl.roleList"
+                       role-list-resource="$ctrl.roleListResource"
+                       with-statuses="false">
+    </kd-role-card-list>
   </kd-content>
 </kd-content-card>
-<kd-zero-state ng-if="$ctrl.shouldShowZeroState()"></kd-zero-state>

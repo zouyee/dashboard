@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {HorizontalPodAutoscalerListController} from './controller';
 
 /**
  * I18n object that defines strings for translation used in this file.
  */
 const i18n = {
-  /** @type {string} @desc Label 'Horizontal Pod Autoscalers' that appears as a breadcrumbs on the
-   action bar. */
+  /**
+   @type {string} @desc Label 'Horizontal Pod Autoscalers' that appears as a breadcrumbs on the
+   action bar.
+ */
   MSG_BREADCRUMBS_HORIZONTAL_POD_AUTOSCALERS_LABEL: goog.getMsg('Horizontal Pod Autoscalers'),
 };
 
@@ -34,7 +35,7 @@ const i18n = {
  */
 export const config = {
   url: stateUrl,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'horizontalPodAutoscalerList': resolveHorizontalPodAutoscalerList,
   },
@@ -64,12 +65,12 @@ export function horizontalPodAutoscalerListResource($resource) {
 /**
  * @param {!angular.Resource} kdHorizontalPodAutoscalerListResource
  * @param {!./../../chrome/state.StateParams} $stateParams
- * @param {!./../../common/pagination/pagination_service.PaginationService} kdPaginationService
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
 export function resolveHorizontalPodAutoscalerList(
-    kdHorizontalPodAutoscalerListResource, $stateParams, kdPaginationService) {
-  let query = kdPaginationService.getDefaultResourceQuery($stateParams.namespace);
+    kdHorizontalPodAutoscalerListResource, $stateParams, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery($stateParams.namespace);
   return kdHorizontalPodAutoscalerListResource.get(query).$promise;
 }

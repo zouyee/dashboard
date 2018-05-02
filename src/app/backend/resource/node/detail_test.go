@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,37 +18,27 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	api "k8s.io/client-go/pkg/api/v1"
-	restclient "k8s.io/client-go/rest"
 )
 
-type FakeHeapsterClient struct {
-	client fake.Clientset
-}
-
-func (c FakeHeapsterClient) Get(path string) client.RequestInterface {
-	return &restclient.Request{}
-}
-
 func TestGetNodeDetail(t *testing.T) {
-	t.Skip("Disabled due to issue in client-go (#145). Will be re-enabled once it is fixed.")
 	cases := []struct {
 		namespace, name string
-		node            *api.Node
+		node            *v1.Node
 		expected        *NodeDetail
 	}{
 		{
 			"test-namespace", "test-node",
-			&api.Node{
+			&v1.Node{
 				ObjectMeta: metaV1.ObjectMeta{Name: "test-node"},
-				Spec: api.NodeSpec{
+				Spec: v1.NodeSpec{
 					ExternalID:    "127.0.0.1",
 					PodCIDR:       "127.0.0.1",
 					ProviderID:    "ID-1",
@@ -56,18 +46,18 @@ func TestGetNodeDetail(t *testing.T) {
 				},
 			},
 			&NodeDetail{
-				ObjectMeta:    common.ObjectMeta{Name: "test-node"},
-				TypeMeta:      common.TypeMeta{Kind: common.ResourceKindNode},
-				ExternalID:    "127.0.0.1",
+				ObjectMeta:    api.ObjectMeta{Name: "test-node"},
+				TypeMeta:      api.TypeMeta{Kind: api.ResourceKindNode},
 				PodCIDR:       "127.0.0.1",
 				ProviderID:    "ID-1",
 				Unschedulable: true,
 				PodList: pod.PodList{
 					Pods:              []pod.Pod{},
-					CumulativeMetrics: make([]metric.Metric, 0),
+					Errors:            []error{},
+					CumulativeMetrics: make([]metricapi.Metric, 0),
 				},
 				EventList: common.EventList{
-					Events: nil,
+					Events: make([]common.Event, 0),
 				},
 				AllocatedResources: NodeAllocatedResources{
 					CPURequests:            0,
@@ -82,21 +72,22 @@ func TestGetNodeDetail(t *testing.T) {
 					MemoryCapacity:         0,
 					AllocatedPods:          0,
 					PodCapacity:            0,
+					PodFraction:            0,
 				},
-				Metrics: make([]metric.Metric, 0),
+				Metrics: make([]metricapi.Metric, 0),
+				Errors:  []error{},
 			},
 		},
 	}
 
 	for _, c := range cases {
 		fakeClient := fake.NewSimpleClientset(c.node)
-		fakeHeapsterClient := FakeHeapsterClient{client: *fake.NewSimpleClientset()}
 
 		dataselect.StdMetricsDataSelect.MetricQuery = dataselect.NoMetrics
-		actual, _ := GetNodeDetail(fakeClient, fakeHeapsterClient, c.name)
+		actual, _ := GetNodeDetail(fakeClient, nil, c.name, dataselect.NoDataSelect)
 
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("GetNodeDetail(client,heapsterClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
+			t.Errorf("GetNodeDetail(client,metricClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
 				c.namespace, c.name, actual, c.expected)
 		}
 	}

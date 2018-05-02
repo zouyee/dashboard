@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,32 +17,35 @@ package configmap
 import (
 	"log"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubernetes "k8s.io/client-go/kubernetes"
 )
 
 // ConfigMapList contains a list of Config Maps in the cluster.
 type ConfigMapList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta api.ListMeta `json:"listMeta"`
 
 	// Unordered list of Config Maps
 	Items []ConfigMap `json:"items"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // ConfigMap API resource provides mechanisms to inject containers with configuration data while keeping
 // containers agnostic of Kubernetes
 type ConfigMap struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
-
-	// No additional info in the list object.
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 }
 
 // GetConfigMapList returns a list of all ConfigMaps in the cluster.
-func GetConfigMapList(client *client.Clientset, nsQuery *common.NamespaceQuery,
-	dsQuery *dataselect.DataSelectQuery) (*ConfigMapList, error) {
+func GetConfigMapList(client kubernetes.Interface, nsQuery *common.NamespaceQuery, dsQuery *dataselect.DataSelectQuery) (*ConfigMapList, error) {
 	log.Printf("Getting list config maps in the namespace %s", nsQuery.ToRequestParam())
 	channels := &common.ResourceChannels{
 		ConfigMapList: common.GetConfigMapListChannel(client, nsQuery, 1),
@@ -51,36 +54,40 @@ func GetConfigMapList(client *client.Clientset, nsQuery *common.NamespaceQuery,
 	return GetConfigMapListFromChannels(channels, dsQuery)
 }
 
-// GetConfigMapListFromChannels returns a list of all Config Maps in the cluster
-// reading required resource list once from the channels.
-func GetConfigMapListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (
-	*ConfigMapList, error) {
-
+// GetConfigMapListFromChannels returns a list of all Config Maps in the cluster reading required resource list once from the channels.
+func GetConfigMapListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (*ConfigMapList, error) {
 	configMaps := <-channels.ConfigMapList.List
-	if err := <-channels.ConfigMapList.Error; err != nil {
-		return nil, err
+	err := <-channels.ConfigMapList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	result := getConfigMapList(configMaps.Items, dsQuery)
+	result := toConfigMapList(configMaps.Items, nonCriticalErrors, dsQuery)
 
 	return result, nil
 }
 
-func getConfigMapList(configMaps []api.ConfigMap, dsQuery *dataselect.DataSelectQuery) *ConfigMapList {
+func toConfigMap(meta metaV1.ObjectMeta) ConfigMap {
+	return ConfigMap{
+		ObjectMeta: api.NewObjectMeta(meta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindConfigMap),
+	}
+}
 
+func toConfigMapList(configMaps []v1.ConfigMap, nonCriticalErrors []error, dsQuery *dataselect.DataSelectQuery) *ConfigMapList {
 	result := &ConfigMapList{
 		Items:    make([]ConfigMap, 0),
-		ListMeta: common.ListMeta{TotalItems: len(configMaps)},
+		ListMeta: api.ListMeta{TotalItems: len(configMaps)},
+		Errors:   nonCriticalErrors,
 	}
 
-	configMaps = fromCells(dataselect.GenericDataSelect(toCells(configMaps), dsQuery))
+	configMapCells, filteredTotal := dataselect.GenericDataSelectWithFilter(toCells(configMaps), dsQuery)
+	configMaps = fromCells(configMapCells)
+	result.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, item := range configMaps {
-		result.Items = append(result.Items,
-			ConfigMap{
-				ObjectMeta: common.NewObjectMeta(item.ObjectMeta),
-				TypeMeta:   common.NewTypeMeta(common.ResourceKindConfigMap),
-			})
+		result.Items = append(result.Items, toConfigMap(item.ObjectMeta))
 	}
 
 	return result

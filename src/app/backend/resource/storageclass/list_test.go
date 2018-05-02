@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,21 +18,21 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	storage "k8s.io/api/storage/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	storage "k8s.io/client-go/pkg/apis/storage/v1beta1"
 )
 
 func TestGetStorageClassList(t *testing.T) {
 	cases := []struct {
-		serviceList     *storage.StorageClassList
-		expectedActions []string
-		expected        *StorageClassList
+		storageClassList *storage.StorageClassList
+		expectedActions  []string
+		expected         *StorageClassList
 	}{
 		{
-			serviceList: &storage.StorageClassList{
+			storageClassList: &storage.StorageClassList{
 				Items: []storage.StorageClass{
 					{
 						ObjectMeta: metaV1.ObjectMeta{
@@ -43,22 +43,23 @@ func TestGetStorageClassList(t *testing.T) {
 				}},
 			expectedActions: []string{"list"},
 			expected: &StorageClassList{
-				ListMeta: common.ListMeta{TotalItems: 1},
+				ListMeta: api.ListMeta{TotalItems: 1},
 				StorageClasses: []StorageClass{
 					{
-						ObjectMeta: common.ObjectMeta{
+						ObjectMeta: api.ObjectMeta{
 							Name:   "storage-1",
 							Labels: map[string]string{},
 						},
-						TypeMeta: common.TypeMeta{Kind: common.ResourceKindStorageClass},
+						TypeMeta: api.TypeMeta{Kind: api.ResourceKindStorageClass},
 					},
 				},
+				Errors: []error{},
 			},
 		},
 	}
 
 	for _, c := range cases {
-		fakeClient := fake.NewSimpleClientset(c.serviceList)
+		fakeClient := fake.NewSimpleClientset(c.storageClassList)
 
 		actual, _ := GetStorageClassList(fakeClient, dataselect.NoDataSelect)
 

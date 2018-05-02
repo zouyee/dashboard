@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,9 +15,7 @@
 import resourceCardModule from 'common/components/resourcecard/resourcecard_module';
 
 describe('Edit resource menu item', () => {
-  /** @type
-   * {!common/components/resourcecard/resourcecardeditmenuitem_component.ResourceCardEditMenuItemController}
-   */
+  /** @type {!ResourceCardEditMenuItemController} */
   let ctrl;
   /** @type {!angular.$q} */
   let q;
@@ -25,13 +23,19 @@ describe('Edit resource menu item', () => {
   let scope;
   /** @type {!ui.router.$state} */
   let state;
-  /** @type {!common/resource/verber_service.VerberService} */
+  /** @type {!VerberService} */
   let kdResourceVerberService;
   /** @type {!md.$dialog}*/
   let mdDialog;
 
   beforeEach(() => {
-    angular.mock.module(resourceCardModule.name);
+    angular.mock.module(resourceCardModule.name, ($provide) => {
+
+      let localizerService = {localize: function() {}};
+
+      $provide.value('localizerService', localizerService);
+    });
+
 
     angular.mock.inject(
         ($rootScope, $componentController, _kdResourceVerberService_, $q, $state, $mdDialog) => {

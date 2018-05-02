@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,27 +17,34 @@ package replicationcontroller
 import (
 	"log"
 
-	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"k8s.io/api/core/v1"
 	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // ReplicationControllerList contains a list of Replication Controllers in the cluster.
 type ReplicationControllerList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta          api.ListMeta       `json:"listMeta"`
+	CumulativeMetrics []metricapi.Metric `json:"cumulativeMetrics"`
+
+	// Basic information about resources status on the list.
+	Status common.ResourceStatus `json:"status"`
 
 	// Unordered list of Replication Controllers.
 	ReplicationControllers []ReplicationController `json:"replicationControllers"`
-	CumulativeMetrics      []metric.Metric         `json:"cumulativeMetrics"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetReplicationControllerList returns a list of all Replication Controllers in the cluster.
-func GetReplicationControllerList(client *client.Clientset, nsQuery *common.NamespaceQuery,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*ReplicationControllerList, error) {
+func GetReplicationControllerList(client client.Interface, nsQuery *common.NamespaceQuery,
+	dsQuery *dataselect.DataSelectQuery, metricClient metricapi.MetricClient) (*ReplicationControllerList, error) {
 	log.Print("Getting list of all replication controllers in the cluster")
 
 	channels := &common.ResourceChannels{
@@ -46,51 +53,61 @@ func GetReplicationControllerList(client *client.Clientset, nsQuery *common.Name
 		EventList:                 common.GetEventListChannel(client, nsQuery, 1),
 	}
 
-	return GetReplicationControllerListFromChannels(channels, dsQuery, heapsterClient)
+	return GetReplicationControllerListFromChannels(channels, dsQuery, metricClient)
 }
 
 // GetReplicationControllerListFromChannels returns a list of all Replication Controllers in the cluster
 // reading required resource list once from the channels.
-func GetReplicationControllerListFromChannels(channels *common.ResourceChannels,
-	dsQuery *dataselect.DataSelectQuery, heapsterClient *heapster.HeapsterClient) (*ReplicationControllerList, error) {
+func GetReplicationControllerListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery,
+	metricClient metricapi.MetricClient) (*ReplicationControllerList, error) {
 
 	rcList := <-channels.ReplicationControllerList.List
-	if err := <-channels.ReplicationControllerList.Error; err != nil {
-		return nil, err
+	err := <-channels.ReplicationControllerList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	podList := <-channels.PodList.List
-	if err := <-channels.PodList.Error; err != nil {
-		return nil, err
+	err = <-channels.PodList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	eventList := <-channels.EventList.List
-	if err := <-channels.EventList.Error; err != nil {
-		return nil, err
+	err = <-channels.EventList.Error
+	nonCriticalErrors, criticalError = errors.AppendError(err, nonCriticalErrors)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	return CreateReplicationControllerList(rcList.Items, dsQuery, podList.Items, eventList.Items, heapsterClient), nil
+	rcs := toReplicationControllerList(rcList.Items, dsQuery, podList.Items, eventList.Items, nonCriticalErrors,
+		metricClient)
+	rcs.Status = getStatus(rcList, podList.Items, eventList.Items)
+	return rcs, nil
 }
 
-// CreateReplicationControllerList creates paginated list of Replication Controller model
-// objects based on Kubernetes Replication Controller objects array and related resources arrays.
-func CreateReplicationControllerList(replicationControllers []api.ReplicationController,
-	dsQuery *dataselect.DataSelectQuery, pods []api.Pod, events []api.Event, heapsterClient *heapster.HeapsterClient) *ReplicationControllerList {
+func toReplicationControllerList(replicationControllers []v1.ReplicationController, dsQuery *dataselect.DataSelectQuery,
+	pods []v1.Pod, events []v1.Event, nonCriticalErrors []error, metricClient metricapi.MetricClient) *ReplicationControllerList {
 
 	rcList := &ReplicationControllerList{
 		ReplicationControllers: make([]ReplicationController, 0),
-		ListMeta:               common.ListMeta{TotalItems: len(replicationControllers)},
+		ListMeta:               api.ListMeta{TotalItems: len(replicationControllers)},
+		Errors:                 nonCriticalErrors,
 	}
-	cachedResources := &dataselect.CachedResources{
+	cachedResources := &metricapi.CachedResources{
 		Pods: pods,
 	}
-	rcCells, metricPromises := dataselect.GenericDataSelectWithMetrics(ToCells(replicationControllers), dsQuery, cachedResources, heapsterClient)
-	replicationControllers = FromCells(rcCells)
+	rcCells, metricPromises, filteredTotal := dataselect.GenericDataSelectWithFilterAndMetrics(
+		toCells(replicationControllers), dsQuery, cachedResources, metricClient)
+	replicationControllers = fromCells(rcCells)
+	rcList.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, rc := range replicationControllers {
-		matchingPods := common.FilterPodsByControllerResource(rc.Namespace, rc.UID, pods)
+		matchingPods := common.FilterPodsByControllerRef(&rc, pods)
 
-		podInfo := common.GetPodInfo(rc.Status.Replicas, *rc.Spec.Replicas, matchingPods)
+		podInfo := common.GetPodInfo(rc.Status.Replicas, rc.Spec.Replicas, matchingPods)
 		podInfo.Warnings = event.GetPodsEventWarnings(events, matchingPods)
 
 		replicationController := ToReplicationController(&rc, &podInfo)
@@ -100,7 +117,7 @@ func CreateReplicationControllerList(replicationControllers []api.ReplicationCon
 	cumulativeMetrics, err := metricPromises.GetMetrics()
 	rcList.CumulativeMetrics = cumulativeMetrics
 	if err != nil {
-		rcList.CumulativeMetrics = make([]metric.Metric, 0)
+		rcList.CumulativeMetrics = make([]metricapi.Metric, 0)
 	}
 
 	return rcList

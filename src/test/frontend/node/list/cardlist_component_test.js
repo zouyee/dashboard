@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,16 +15,42 @@
 import nodeModule from 'node/module';
 
 describe('Node card list controller', () => {
+  /** @type {NodeCardListController} */
+  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(nodeModule.name);
+
+    angular.mock.inject(($componentController) => {
+      ctrl = $componentController('kdNodeCardList', {});
+    });
   });
 
-  it('should initialize node card list controller', angular.mock.inject(($componentController) => {
+  it('should initialize node card list controller', () => {
+    expect(ctrl).toBeDefined();
+  });
+
+  it('should return correct select id', () => {
     // given
-    let ctrl = $componentController('kdNodeCardList', {});
+    let expected = 'nodes';
+    ctrl.nodeList = {};
+    ctrl.nodeListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
 
     // then
-    expect(ctrl).toBeDefined();
-  }));
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
 });

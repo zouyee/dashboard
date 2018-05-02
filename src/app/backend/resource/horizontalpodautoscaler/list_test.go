@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,10 +18,11 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	autoscaling "k8s.io/api/autoscaling/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	autoscaling "k8s.io/client-go/pkg/apis/autoscaling/v1"
 )
 
 var (
@@ -82,32 +83,32 @@ var (
 	}
 	ourHpaList = []HorizontalPodAutoscaler{
 		{
-			ObjectMeta: common.ObjectMeta{Name: "test-hpa1", Namespace: "test-ns"},
-			TypeMeta:   common.TypeMeta{Kind: common.ResourceKindHorizontalPodAutoscaler},
+			ObjectMeta: api.ObjectMeta{Name: "test-hpa1", Namespace: "test-ns"},
+			TypeMeta:   api.TypeMeta{Kind: api.ResourceKindHorizontalPodAutoscaler},
 			ScaleTargetRef: ScaleTargetRef{
 				Kind: "test-kind1",
 				Name: "test-name1",
 			},
 			MaxReplicas: 3,
 		}, {
-			ObjectMeta: common.ObjectMeta{Name: "test-hpa2", Namespace: "test-ns"},
-			TypeMeta:   common.TypeMeta{Kind: common.ResourceKindHorizontalPodAutoscaler},
+			ObjectMeta: api.ObjectMeta{Name: "test-hpa2", Namespace: "test-ns"},
+			TypeMeta:   api.TypeMeta{Kind: api.ResourceKindHorizontalPodAutoscaler},
 			ScaleTargetRef: ScaleTargetRef{
 				Kind: "test-kind2",
 				Name: "test-name2",
 			},
 			MaxReplicas: 3,
 		}, {
-			ObjectMeta: common.ObjectMeta{Name: "test-hpa3", Namespace: "test-ns"},
-			TypeMeta:   common.TypeMeta{Kind: common.ResourceKindHorizontalPodAutoscaler},
+			ObjectMeta: api.ObjectMeta{Name: "test-hpa3", Namespace: "test-ns"},
+			TypeMeta:   api.TypeMeta{Kind: api.ResourceKindHorizontalPodAutoscaler},
 			ScaleTargetRef: ScaleTargetRef{
 				Kind: "test-kind2",
 				Name: "test-name2",
 			},
 			MaxReplicas: 3,
 		}, {
-			ObjectMeta: common.ObjectMeta{Name: "test-hpa4", Namespace: "test-ns"},
-			TypeMeta:   common.TypeMeta{Kind: common.ResourceKindHorizontalPodAutoscaler},
+			ObjectMeta: api.ObjectMeta{Name: "test-hpa4", Namespace: "test-ns"},
+			TypeMeta:   api.TypeMeta{Kind: api.ResourceKindHorizontalPodAutoscaler},
 			ScaleTargetRef: ScaleTargetRef{
 				Kind: "test-kind2",
 				Name: "test-name3",
@@ -117,7 +118,7 @@ var (
 	}
 )
 
-//func GetHorizontalPodAutoscalerList(client k8sClient.Interface, nsQuery *common.NamespaceQuery) (*HorizontalPodAutoscalerList, error) {
+//func GetHorizontalPodAutoscalerList(client k8sClient.Interface, nsQuery *api.NamespaceQuery) (*HorizontalPodAutoscalerList, error) {
 func TestGetHorizontalPodAutoscalerList(t *testing.T) {
 	cases := []struct {
 		expectedActions []string
@@ -130,8 +131,9 @@ func TestGetHorizontalPodAutoscalerList(t *testing.T) {
 				Items: apiHpaList,
 			},
 			&HorizontalPodAutoscalerList{
-				ListMeta:                 common.ListMeta{TotalItems: 4},
+				ListMeta:                 api.ListMeta{TotalItems: 4},
 				HorizontalPodAutoscalers: ourHpaList,
+				Errors: []error{},
 			},
 		},
 	}
@@ -177,8 +179,9 @@ func TestGetHorizontalPodAutoscalerListForResource(t *testing.T) {
 				Items: apiHpaList,
 			},
 			&HorizontalPodAutoscalerList{
-				ListMeta:                 common.ListMeta{TotalItems: 1},
+				ListMeta:                 api.ListMeta{TotalItems: 1},
 				HorizontalPodAutoscalers: []HorizontalPodAutoscaler{ourHpaList[0]},
+				Errors: []error{},
 			},
 		}, {
 			"test-kind2", "test-name2",
@@ -187,8 +190,9 @@ func TestGetHorizontalPodAutoscalerListForResource(t *testing.T) {
 				Items: apiHpaList,
 			},
 			&HorizontalPodAutoscalerList{
-				ListMeta:                 common.ListMeta{TotalItems: 2},
+				ListMeta:                 api.ListMeta{TotalItems: 2},
 				HorizontalPodAutoscalers: []HorizontalPodAutoscaler{ourHpaList[1], ourHpaList[2]},
+				Errors: []error{},
 			},
 		}, {
 			"test-kind2", "test-name3",
@@ -197,8 +201,9 @@ func TestGetHorizontalPodAutoscalerListForResource(t *testing.T) {
 				Items: apiHpaList,
 			},
 			&HorizontalPodAutoscalerList{
-				ListMeta:                 common.ListMeta{TotalItems: 1},
+				ListMeta:                 api.ListMeta{TotalItems: 1},
 				HorizontalPodAutoscalers: []HorizontalPodAutoscaler{ourHpaList[3]},
+				Errors: []error{},
 			},
 		}, {
 			"test-kind1", "test-name2",
@@ -207,21 +212,21 @@ func TestGetHorizontalPodAutoscalerListForResource(t *testing.T) {
 				Items: apiHpaList,
 			},
 			&HorizontalPodAutoscalerList{
-				ListMeta:                 common.ListMeta{TotalItems: 0},
+				ListMeta:                 api.ListMeta{TotalItems: 0},
 				HorizontalPodAutoscalers: []HorizontalPodAutoscaler{},
+				Errors: []error{},
 			},
 		},
 	}
 
 	for _, c := range cases {
 		fakeClient := fake.NewSimpleClientset(c.hpaList)
-
 		actual, _ := GetHorizontalPodAutoscalerListForResource(fakeClient, "", c.kind, c.name)
-
 		actions := fakeClient.Actions()
+
 		if len(actions) != len(c.expectedActions) {
-			t.Errorf("Unexpected actions: %v, expected %d actions got %d", actions,
-				len(c.expectedActions), len(actions))
+			t.Errorf("Unexpected actions: %v, expected %d actions got %d", actions, len(c.expectedActions),
+				len(actions))
 			continue
 		}
 

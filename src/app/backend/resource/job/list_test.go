@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,70 +19,66 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
-	batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 func TestGetJobListFromChannels(t *testing.T) {
-	var jobCompletions int32 = 21
+	var completions int32 = 21
+	controller := true
 	cases := []struct {
 		k8sRs         batch.JobList
 		k8sRsError    error
-		pods          *api.PodList
+		pods          *v1.PodList
 		expected      *JobList
 		expectedError error
 	}{
 		{
 			batch.JobList{},
 			nil,
-			&api.PodList{},
+			&v1.PodList{},
 			&JobList{
-				ListMeta:          common.ListMeta{},
-				CumulativeMetrics: make([]metric.Metric, 0),
-				Jobs:              []Job{}},
-			nil,
-		},
-		{
-			batch.JobList{},
-			errors.New("MyCustomError"),
-			&api.PodList{},
-			nil,
-			errors.New("MyCustomError"),
-		},
-		{
-			batch.JobList{},
-			&k8serrors.StatusError{},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{},
-		},
-		{
-			batch.JobList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-		},
-		{
-			batch.JobList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-		},
-		{
-			batch.JobList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "NotFound"}},
-			&api.PodList{},
-			&JobList{
-				Jobs: make([]Job, 0),
+				ListMeta:          api.ListMeta{},
+				Status:            common.ResourceStatus{},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Jobs:              []Job{},
+				Errors:            []error{},
 			},
 			nil,
+		},
+		{
+			batch.JobList{},
+			errors.New("MyCustomError"),
+			&v1.PodList{},
+			nil,
+			errors.New("MyCustomError"),
+		},
+		{
+			batch.JobList{},
+			&k8serrors.StatusError{},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{},
+		},
+		{
+			batch.JobList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+		},
+		{
+			batch.JobList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
 		},
 		{
 			batch.JobList{
@@ -91,11 +87,12 @@ func TestGetJobListFromChannels(t *testing.T) {
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
+						UID:               "uid",
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
 					Spec: batch.JobSpec{
 						Selector:    &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
-						Completions: &jobCompletions,
+						Completions: &completions,
 					},
 					Status: batch.JobStatus{
 						Active: 7,
@@ -106,10 +103,12 @@ func TestGetJobListFromChannels(t *testing.T) {
 							Name:              "rs-name",
 							Namespace:         "rs-namespace",
 							Labels:            map[string]string{"key": "value"},
+							UID:               "uid",
 							CreationTimestamp: metaV1.Unix(111, 222),
 						},
 						Spec: batch.JobSpec{
-							Selector: &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							Selector:    &metaV1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}},
+							Completions: &completions,
 						},
 						Status: batch.JobStatus{
 							Active: 7,
@@ -118,56 +117,70 @@ func TestGetJobListFromChannels(t *testing.T) {
 				},
 			},
 			nil,
-			&api.PodList{
-				Items: []api.Pod{
+			&v1.PodList{
+				Items: []v1.Pod{
 					{
 						ObjectMeta: metaV1.ObjectMeta{
 							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "bar"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name",
+									UID:        "uid",
+									Controller: &controller,
+								},
+							},
 						},
-						Status: api.PodStatus{Phase: api.PodFailed},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
 					},
 					{
 						ObjectMeta: metaV1.ObjectMeta{
 							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "baz"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name-wrong",
+									UID:        "uid-wrong",
+									Controller: &controller,
+								},
+							},
 						},
-						Status: api.PodStatus{Phase: api.PodFailed},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
 					},
 				},
 			},
 			&JobList{
-				ListMeta:          common.ListMeta{TotalItems: 2},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 2},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Status:            common.ResourceStatus{Succeeded: 2},
 				Jobs: []Job{{
-					ObjectMeta: common.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindJob},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindJob},
 					Pods: common.PodInfo{
 						Current:  7,
-						Desired:  21,
-						Failed:   1,
+						Desired:  &completions,
+						Failed:   2,
 						Warnings: []common.Event{},
 					},
 				}, {
-					ObjectMeta: common.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindJob},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindJob},
 					Pods: common.PodInfo{
 						Current:  7,
-						Desired:  0,
-						Failed:   1,
+						Desired:  &completions,
+						Failed:   2,
 						Warnings: []common.Event{},
 					},
 				}},
+				Errors: []error{},
 			},
 			nil,
 		},
@@ -180,19 +193,19 @@ func TestGetJobListFromChannels(t *testing.T) {
 				Error: make(chan error, 1),
 			},
 			NodeList: common.NodeListChannel{
-				List:  make(chan *api.NodeList, 1),
+				List:  make(chan *v1.NodeList, 1),
 				Error: make(chan error, 1),
 			},
 			ServiceList: common.ServiceListChannel{
-				List:  make(chan *api.ServiceList, 1),
+				List:  make(chan *v1.ServiceList, 1),
 				Error: make(chan error, 1),
 			},
 			PodList: common.PodListChannel{
-				List:  make(chan *api.PodList, 1),
+				List:  make(chan *v1.PodList, 1),
 				Error: make(chan error, 1),
 			},
 			EventList: common.EventListChannel{
-				List:  make(chan *api.EventList, 1),
+				List:  make(chan *v1.EventList, 1),
 				Error: make(chan error, 1),
 			},
 		}
@@ -200,16 +213,16 @@ func TestGetJobListFromChannels(t *testing.T) {
 		channels.JobList.Error <- c.k8sRsError
 		channels.JobList.List <- &c.k8sRs
 
-		channels.NodeList.List <- &api.NodeList{}
+		channels.NodeList.List <- &v1.NodeList{}
 		channels.NodeList.Error <- nil
 
-		channels.ServiceList.List <- &api.ServiceList{}
+		channels.ServiceList.List <- &v1.ServiceList{}
 		channels.ServiceList.Error <- nil
 
 		channels.PodList.List <- c.pods
 		channels.PodList.Error <- nil
 
-		channels.EventList.List <- &api.EventList{}
+		channels.EventList.List <- &v1.EventList{}
 		channels.EventList.Error <- nil
 
 		actual, err := GetJobListFromChannels(channels, dataselect.NoDataSelect, nil)

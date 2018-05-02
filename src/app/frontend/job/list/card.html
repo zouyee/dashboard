@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,12 +20,18 @@ limitations under the License.
     <md-icon class="material-icons md-warn"
              ng-if="::$ctrl.hasWarnings()">
       error
-      <md-tooltip>One or more pods have errors</md-tooltip>
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        One or more pods have errors
+      </md-tooltip>
     </md-icon>
     <md-icon class="material-icons"
              ng-if="::$ctrl.isPending()">
       timelapse
-      <md-tooltip>One or more pods are in pending state</md-tooltip>
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        One or more pods are in pending state
+      </md-tooltip>
     </md-icon>
 
     <md-icon class="material-icons"
@@ -59,31 +65,45 @@ limitations under the License.
     </kd-resource-card-column>
     <kd-resource-card-column>
       <span class="kd-replicase-card-pods-stat">
-        {{::$ctrl.job.pods.running}} /
-        {{::$ctrl.job.pods.desired}}
+        {{::$ctrl.job.pods.running}}
+        <span ng-if="::$ctrl.job.pods.desired">/  {{::$ctrl.job.pods.desired}}</span>
       </span>
     </kd-resource-card-column>
     <kd-resource-card-column>
       {{::$ctrl.job.objectMeta.creationTimestamp | relativeTime}}
-      <md-tooltip>
-        Created at {{::$ctrl.job.objectMeta.creationTimestamp | date}}
+      <md-tooltip md-delay="500"
+                  md-autohide>
+        [[Created at| Tooltip for the age column ]] {{::$ctrl.job.objectMeta.creationTimestamp | date}}
       </md-tooltip>
     </kd-resource-card-column>
     <kd-resource-card-column>
       <div ng-repeat="image in ::$ctrl.job.containerImages track by $index">
         <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
       </div>
+      <div ng-repeat="image in ::$ctrl.job.initContainerImages track by $index">
+        <kd-middle-ellipsis display-string="{{::image}}"></kd-middle-ellipsis>
+      </div>
     </kd-resource-card-column>
     <kd-resource-card-column class="kd-row-layout-column kd-icon-column">
+      <kd-logs-button object-meta="::$ctrl.job.objectMeta"
+                      resource-kind-name="::$ctrl.job.typeMeta.kind">
+      </kd-logs-button>
       <kd-resource-card-menu>
-        <kd-resource-card-delete-menu-item resource-kind-name="Job">
+        <kd-scale-button resource-kind-display-name="[[Job|Label 'Job' which will appear in the job scale dialog opened from a job card on the list page.]]"
+                         resource-kind-name="$ctrl.job.typeMeta.kind"
+                         object-meta="$ctrl.job.objectMeta"
+                         current-pods="$ctrl.job.parallelism"
+                         desired-pods="$ctrl.job.parallelism"
+                         menu-item="true">
+        </kd-scale-button>
+        <kd-resource-card-delete-menu-item resource-kind-name="[[Job|Label 'Job' which will appear in the job delete dialog opened from a job card on the list page.]]">
         </kd-resource-card-delete-menu-item>
+        <kd-resource-card-edit-menu-item resource-kind-name="[[Job|Label 'Job' which will appear in the job edit dialog opened from a job card on the list page.]]">
+        </kd-resource-card-edit-menu-item>
       </kd-resource-card-menu>
     </kd-resource-card-column>
   </kd-resource-card-columns>
   <kd-resource-card-footer ng-if="::$ctrl.hasWarnings()">
-    <div ng-repeat="warning in ::$ctrl.job.pods.warnings">
-      <span class="kd-error">{{::warning.message}}</span>
-    </div>
+    <kd-pod-warnings warnings="::$ctrl.job.pods.warnings"></kd-pod-warnings>
   </kd-resource-card-footer>
 </kd-resource-card>

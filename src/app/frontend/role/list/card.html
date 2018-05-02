@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -37,6 +37,16 @@ limitations under the License.
                           display-string="All Namespaces">
       </kd-middle-ellipsis>
       <div ng-switch-default>{{::$ctrl.role.objectMeta.namespace}}</div>
+    </kd-resource-card-column>
+    <kd-resource-card-column>
+      <div ng-if="::$ctrl.role.objectMeta.creationTimestamp">
+        {{::$ctrl.role.objectMeta.creationTimestamp | relativeTime}}
+        <md-tooltip md-delay="500"
+                    md-autohide>
+          [[Created at| Tooltip for the age column ]] {{::$ctrl.role.objectMeta.creationTimestamp | date}}
+        </md-tooltip>
+      </div>
+      <div ng-if="::!$ctrl.role.objectMeta.creationTimestamp">-</div>
     </kd-resource-card-column>
   </kd-resource-card-columns>
 </kd-resource-card>

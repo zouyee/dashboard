@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {actionbarViewName, stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {appendDetailParamsToUrl} from 'common/resource/resourcedetail';
-import {stateName as daemonSetList} from 'daemonset/list/state';
+import {actionbarViewName, stateName as chromeStateName} from '../../chrome/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+import {appendDetailParamsToUrl} from '../../common/resource/resourcedetail';
+import {stateName as daemonSetList} from '../../daemonset/list/state';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ActionBarController} from './actionbar_controller';
 import {DaemonSetDetailController} from './controller';
 
@@ -28,7 +28,7 @@ import {DaemonSetDetailController} from './controller';
  */
 export const config = {
   url: appendDetailParamsToUrl(stateUrl),
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'daemonSetDetailResource': getDaemonSetDetailResource,
     'daemonSetDetail': getDaemonSetDetail,
@@ -45,7 +45,7 @@ export const config = {
       controllerAs: 'ctrl',
       templateUrl: 'daemonset/detail/detail.html',
     },
-    [actionbarViewName]: {
+    [`${actionbarViewName}@${chromeStateName}`]: {
       controller: ActionBarController,
       controllerAs: '$ctrl',
       templateUrl: 'daemonset/detail/actionbar.html',
@@ -83,7 +83,7 @@ export function daemonSetEventsResource($resource) {
 /**
  * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
  * @param {!angular.$resource} $resource
- * @return {!angular.Resource<!backendApi.DaemonSetDetail>}
+ * @return {!angular.Resource}
  * @ngInject
  */
 export function getDaemonSetDetailResource($resource, $stateParams) {
@@ -91,10 +91,14 @@ export function getDaemonSetDetailResource($resource, $stateParams) {
 }
 
 /**
- * @param {!angular.Resource<!backendApi.DaemonSetDetail>} daemonSetDetailResource
+ * @param {!angular.Resource} daemonSetDetailResource
+ * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function getDaemonSetDetail(daemonSetDetailResource) {
-  return daemonSetDetailResource.get().$promise;
+export function getDaemonSetDetail(daemonSetDetailResource, $stateParams, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery(
+      $stateParams.objectNamespace, $stateParams.objectName);
+  return daemonSetDetailResource.get(query).$promise;
 }

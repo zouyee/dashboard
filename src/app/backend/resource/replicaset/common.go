@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,39 +15,46 @@
 package replicaset
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 )
 
 // ReplicaSet is a presentation layer view of Kubernetes Replica Set resource. This means
 // it is Replica Set plus additional augmented data we can get from other sources
 // (like services that target the same pods).
 type ReplicaSet struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// Aggregate information about pods belonging to this Replica Set.
 	Pods common.PodInfo `json:"pods"`
 
 	// Container images of the Replica Set.
 	ContainerImages []string `json:"containerImages"`
+
+	// Init Container images of the Replica Set.
+	InitContainerImages []string `json:"initContainerImages"`
 }
 
 // ToReplicaSet converts replica set api object to replica set model object.
-func ToReplicaSet(replicaSet *extensions.ReplicaSet, podInfo *common.PodInfo) ReplicaSet {
+func ToReplicaSet(replicaSet *apps.ReplicaSet, podInfo *common.PodInfo) ReplicaSet {
 	return ReplicaSet{
-		ObjectMeta:      common.NewObjectMeta(replicaSet.ObjectMeta),
-		TypeMeta:        common.NewTypeMeta(common.ResourceKindReplicaSet),
-		ContainerImages: common.GetContainerImages(&replicaSet.Spec.Template.Spec),
-		Pods:            *podInfo,
+		ObjectMeta:          api.NewObjectMeta(replicaSet.ObjectMeta),
+		TypeMeta:            api.NewTypeMeta(api.ResourceKindReplicaSet),
+		ContainerImages:     common.GetContainerImages(&replicaSet.Spec.Template.Spec),
+		InitContainerImages: common.GetInitContainerImages(&replicaSet.Spec.Template.Spec),
+		Pods:                *podInfo,
 	}
 }
 
-// The code below allows to perform complex data section on []extensions.ReplicaSet
+// The code below allows to perform complex data section on Replica Set
 
-type ReplicaSetCell extensions.ReplicaSet
+type ReplicaSetCell apps.ReplicaSet
 
 func (self ReplicaSetCell) GetProperty(name dataselect.PropertyName) dataselect.ComparableValue {
 	switch name {
@@ -63,16 +70,16 @@ func (self ReplicaSetCell) GetProperty(name dataselect.PropertyName) dataselect.
 	}
 }
 
-func (self ReplicaSetCell) GetResourceSelector() *metric.ResourceSelector {
-	return &metric.ResourceSelector{
-		Namespace:     self.ObjectMeta.Namespace,
-		ResourceType:  common.ResourceKindReplicaSet,
-		ResourceName:  self.ObjectMeta.Name,
-		LabelSelector: self.Spec.Selector,
+func (self ReplicaSetCell) GetResourceSelector() *metricapi.ResourceSelector {
+	return &metricapi.ResourceSelector{
+		Namespace:    self.ObjectMeta.Namespace,
+		ResourceType: api.ResourceKindReplicaSet,
+		ResourceName: self.ObjectMeta.Name,
+		UID:          self.UID,
 	}
 }
 
-func ToCells(std []extensions.ReplicaSet) []dataselect.DataCell {
+func ToCells(std []apps.ReplicaSet) []dataselect.DataCell {
 	cells := make([]dataselect.DataCell, len(std))
 	for i := range std {
 		cells[i] = ReplicaSetCell(std[i])
@@ -80,10 +87,33 @@ func ToCells(std []extensions.ReplicaSet) []dataselect.DataCell {
 	return cells
 }
 
-func FromCells(cells []dataselect.DataCell) []extensions.ReplicaSet {
-	std := make([]extensions.ReplicaSet, len(cells))
+func FromCells(cells []dataselect.DataCell) []apps.ReplicaSet {
+	std := make([]apps.ReplicaSet, len(cells))
 	for i := range std {
-		std[i] = extensions.ReplicaSet(cells[i].(ReplicaSetCell))
+		std[i] = apps.ReplicaSet(cells[i].(ReplicaSetCell))
 	}
 	return std
+}
+
+func getStatus(list *apps.ReplicaSetList, pods []v1.Pod, events []v1.Event) common.ResourceStatus {
+	info := common.ResourceStatus{}
+	if list == nil {
+		return info
+	}
+
+	for _, rs := range list.Items {
+		matchingPods := common.FilterPodsByControllerRef(&rs, pods)
+		podInfo := common.GetPodInfo(rs.Status.Replicas, rs.Spec.Replicas, matchingPods)
+		warnings := event.GetPodsEventWarnings(events, matchingPods)
+
+		if len(warnings) > 0 {
+			info.Failed++
+		} else if podInfo.Pending > 0 {
+			info.Pending++
+		} else {
+			info.Running++
+		}
+	}
+
+	return info
 }

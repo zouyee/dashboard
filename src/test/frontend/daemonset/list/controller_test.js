@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,15 +16,9 @@ import {DaemonSetListController} from 'daemonset/list/controller';
 import daemonSetModule from 'daemonset/module';
 
 describe('Daemon Set list controller', () => {
-  /** @type {!DaemonSetListController} */
-  let ctrl;
 
   beforeEach(() => {
     angular.mock.module(daemonSetModule.name);
-
-    angular.mock.inject(($controller) => {
-      ctrl = $controller(DaemonSetListController, {daemonSetList: {daemonSets: []}});
-    });
   });
 
   it('should initialize daemon set', angular.mock.inject(($controller) => {
@@ -34,16 +28,4 @@ describe('Daemon Set list controller', () => {
 
     expect(ctrl.daemonSetList).toBe(ds);
   }));
-
-  it('should show zero state', () => {
-    expect(ctrl.shouldShowZeroState()).toBeTruthy();
-  });
-
-  it('should hide zero state', () => {
-    // given
-    ctrl.daemonSetList = {daemonSets: ['ds-mock']};
-
-    // then
-    expect(ctrl.shouldShowZeroState()).toBeFalsy();
-  });
 });

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,16 +20,13 @@
 export default class ReplicationControllerDetailController {
   /**
    * @param {!backendApi.ReplicationControllerDetail} replicationControllerDetail
-   * @param {!ui.router.$state} $state
-   * @param {!../../common/resource/resourcedetail.StateParams} $stateParams
    * @param {!angular.Resource} kdRCPodsResource
    * @param {!angular.Resource} kdRCServicesResource
    * @param {!angular.Resource} kdRCEventsResource
    * @ngInject
    */
   constructor(
-      replicationControllerDetail, $state, $stateParams, kdRCPodsResource, kdRCServicesResource,
-      kdRCEventsResource) {
+      replicationControllerDetail, kdRCPodsResource, kdRCServicesResource, kdRCEventsResource) {
     /** @export {!backendApi.ReplicationControllerDetail} */
     this.replicationControllerDetail = replicationControllerDetail;
 
@@ -41,12 +38,6 @@ export default class ReplicationControllerDetailController {
 
     /** @export {!angular.Resource} */
     this.eventListResource = kdRCEventsResource;
-
-    /** @private {!ui.router.$state} */
-    this.state_ = $state;
-
-    /** @private {!../../common/resource/resourcedetail.StateParams} */
-    this.stateParams_ = $stateParams;
   }
 
   /**

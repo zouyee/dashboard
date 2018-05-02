@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 /**
  * @final
  */
-export default class NodeInfoController {
+class NodeInfoController {
   /**
    * @ngInject
    */
@@ -31,7 +31,7 @@ export default class NodeInfoController {
 /**
  * Definition object for the component that displays node info.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const nodeInfoComponent = {
   controller: NodeInfoController,

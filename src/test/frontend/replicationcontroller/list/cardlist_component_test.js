@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,15 +23,24 @@ describe('Replication Controller Card List controller', () => {
    * @type {!NamespaceService}
    */
   let data;
+  /**
+   * @type {!ScaleService}
+   */
+  let scaleData;
 
   beforeEach(() => {
     angular.mock.module(replicationControllerModule.name);
 
-    angular.mock.inject(($componentController, kdNamespaceService) => {
+    angular.mock.inject(($componentController, kdNamespaceService, kdScaleService) => {
+      /** @type {!ScaleService} */
+      scaleData = kdScaleService;
       /** @type {!NamespaceService} */
       data = kdNamespaceService;
       /** @type {!RCCardListController} */
-      ctrl = $componentController('kdReplicationControllerCardList', {kdNamespaceService_: data});
+      ctrl = $componentController('kdReplicationControllerCardList', {
+        kdNamespaceService_: data,
+        kdScaleService_: scaleData,
+      });
     });
   });
 
@@ -41,5 +50,29 @@ describe('Replication Controller Card List controller', () => {
 
   it('should return the value from Namespace service', () => {
     expect(ctrl.areMultipleNamespacesSelected()).toBe(data.areMultipleNamespacesSelected());
+  });
+
+  it('should return correct select id', () => {
+    // given
+    let expected = 'replicationcontrollers';
+    ctrl.replicationControllerList = {};
+    ctrl.replicationControllerListResource = {};
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
+  });
+
+  it('should return empty select id', () => {
+    // given
+    let expected = '';
+
+    // when
+    let got = ctrl.getSelectId();
+
+    // then
+    expect(got).toBe(expected);
   });
 });

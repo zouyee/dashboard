@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,18 +18,23 @@ import (
 	"reflect"
 	"testing"
 
-	api "k8s.io/client-go/pkg/api/v1"
+	api "k8s.io/api/core/v1"
 )
+
+func getReplicasPointer(replicas int32) *int32 {
+	return &replicas
+}
 
 func TestGetPodInfo(t *testing.T) {
 	cases := []struct {
-		current, desired int32
-		pods             []api.Pod
-		expected         PodInfo
+		current  int32
+		desired  *int32
+		pods     []api.Pod
+		expected PodInfo
 	}{
 		{
 			5,
-			4,
+			getReplicasPointer(4),
 			[]api.Pod{
 				{
 					Status: api.PodStatus{
@@ -39,7 +44,7 @@ func TestGetPodInfo(t *testing.T) {
 			},
 			PodInfo{
 				Current:  5,
-				Desired:  4,
+				Desired:  getReplicasPointer(4),
 				Running:  1,
 				Pending:  0,
 				Failed:   0,

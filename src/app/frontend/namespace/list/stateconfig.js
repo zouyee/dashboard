@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {stateName as parentStateName} from 'cluster/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {stateName as parentStateName} from '../../cluster/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {NamespaceListController} from './controller';
 
 /**
@@ -34,7 +33,7 @@ const i18n = {
  */
 export const config = {
   url: stateUrl,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'namespaceList': resolveNamespaceList,
   },
@@ -63,12 +62,12 @@ export function namespaceListResource($resource) {
 }
 
 /**
- * @param {!angular.$resource} $resource
+ * @param {!angular.Resource} kdNamespaceListResource
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
  * @return {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveNamespaceList($resource) {
-  /** @type {!angular.Resource<!backendApi.NamespaceList>} */
-  let resource = $resource(`api/v1/namespace`);
-  return resource.get().$promise;
+export function resolveNamespaceList(kdNamespaceListResource, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery('');
+  return kdNamespaceListResource.get(query).$promise;
 }

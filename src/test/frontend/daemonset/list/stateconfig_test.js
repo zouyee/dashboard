@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,17 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import settingsServiceModule from 'common/settings/module';
 import {resolveDaemonSetList} from 'daemonset/list/stateconfig';
 import daemonSetModule from 'daemonset/module';
 
 describe('StateConfig for daemon set list', () => {
-  /** @type {!PaginationService} */
-  let kdPaginationService;
+  /** @type {!common/dataselect/dataselect_service.DataSelectService} */
+  let kdDataSelectService;
 
   beforeEach(() => {
     angular.mock.module(daemonSetModule.name);
-    angular.mock.inject((_kdPaginationService_) => {
-      kdPaginationService = _kdPaginationService_;
+    angular.mock.module(settingsServiceModule.name);
+    angular.mock.inject((_kdDataSelectService_) => {
+      kdDataSelectService = _kdDataSelectService_;
     });
   });
 
@@ -34,9 +36,9 @@ describe('StateConfig for daemon set list', () => {
       return {$promise: promise};
     });
 
-    let actual = resolveDaemonSetList(resource, {namespace: 'foo'}, kdPaginationService);
+    let actual = resolveDaemonSetList(resource, {namespace: 'foo'}, kdDataSelectService);
 
-    expect(resource.get).toHaveBeenCalledWith(kdPaginationService.getDefaultResourceQuery('foo'));
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery('foo'));
     expect(actual).toBe(promise);
   }));
 
@@ -48,9 +50,9 @@ describe('StateConfig for daemon set list', () => {
       return {$promise: promise};
     });
 
-    let actual = resolveDaemonSetList(resource, {}, kdPaginationService);
+    let actual = resolveDaemonSetList(resource, {}, kdDataSelectService);
 
-    expect(resource.get).toHaveBeenCalledWith(kdPaginationService.getDefaultResourceQuery(''));
+    expect(resource.get).toHaveBeenCalledWith(kdDataSelectService.getDefaultResourceQuery(''));
     expect(actual).toBe(promise);
   }));
 });

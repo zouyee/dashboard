@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	apps "k8s.io/api/apps/v1beta2"
+	"k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
-	apps "k8s.io/client-go/pkg/apis/apps/v1beta1"
 )
 
 func getReplicasPointer(replicas int32) *int32 {
@@ -33,59 +34,53 @@ func getReplicasPointer(replicas int32) *int32 {
 }
 
 func TestGetStatefulSetListFromChannels(t *testing.T) {
+	controller := true
 	cases := []struct {
 		k8sRs         apps.StatefulSetList
 		k8sRsError    error
-		pods          *api.PodList
+		pods          *v1.PodList
 		expected      *StatefulSetList
 		expectedError error
 	}{
 		{
 			apps.StatefulSetList{},
 			nil,
-			&api.PodList{},
+			&v1.PodList{},
 			&StatefulSetList{
-				ListMeta:          common.ListMeta{},
-				CumulativeMetrics: make([]metric.Metric, 0),
-				StatefulSets:      []StatefulSet{}},
-			nil,
-		},
-		{
-			apps.StatefulSetList{},
-			errors.New("MyCustomError"),
-			&api.PodList{},
-			nil,
-			errors.New("MyCustomError"),
-		},
-		{
-			apps.StatefulSetList{},
-			&k8serrors.StatusError{},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{},
-		},
-		{
-			apps.StatefulSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
-		},
-		{
-			apps.StatefulSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-			&api.PodList{},
-			nil,
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
-		},
-		{
-			apps.StatefulSetList{},
-			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "NotFound"}},
-			&api.PodList{},
-			&StatefulSetList{
-				StatefulSets: make([]StatefulSet, 0),
+				ListMeta:          api.ListMeta{},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				StatefulSets:      []StatefulSet{},
+				Errors:            []error{},
 			},
 			nil,
+		},
+		{
+			apps.StatefulSetList{},
+			errors.New("MyCustomError"),
+			&v1.PodList{},
+			nil,
+			errors.New("MyCustomError"),
+		},
+		{
+			apps.StatefulSetList{},
+			&k8serrors.StatusError{},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{},
+		},
+		{
+			apps.StatefulSetList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{}},
+		},
+		{
+			apps.StatefulSetList{},
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
+			&v1.PodList{},
+			nil,
+			&k8serrors.StatusError{ErrStatus: metaV1.Status{Reason: "foo-bar"}},
 		},
 		{
 			apps.StatefulSetList{
@@ -93,6 +88,7 @@ func TestGetStatefulSetListFromChannels(t *testing.T) {
 					ObjectMeta: metaV1.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
+						UID:               "uid",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
@@ -106,42 +102,58 @@ func TestGetStatefulSetListFromChannels(t *testing.T) {
 				}},
 			},
 			nil,
-			&api.PodList{
-				Items: []api.Pod{
-					{
-						ObjectMeta: metaV1.ObjectMeta{
-							Namespace: "rs-namespace",
-							Labels:    map[string]string{"foo": "bar"},
-						},
-						Status: api.PodStatus{Phase: api.PodFailed},
-					},
+			&v1.PodList{
+				Items: []v1.Pod{
 					{
 						ObjectMeta: metaV1.ObjectMeta{
 							Namespace: "rs-namespace",
 							Labels:    map[string]string{"foo": "baz"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name-wrong",
+									UID:        "uid-wrong",
+									Controller: &controller,
+								},
+							},
 						},
-						Status: api.PodStatus{Phase: api.PodFailed},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
+					},
+					{
+						ObjectMeta: metaV1.ObjectMeta{
+							Namespace: "rs-namespace",
+							Labels:    map[string]string{"foo": "bar"},
+							OwnerReferences: []metaV1.OwnerReference{
+								{
+									Name:       "rs-name",
+									UID:        "uid",
+									Controller: &controller,
+								},
+							},
+						},
+						Status: v1.PodStatus{Phase: v1.PodFailed},
 					},
 				},
 			},
 			&StatefulSetList{
-				ListMeta:          common.ListMeta{TotalItems: 1},
-				CumulativeMetrics: make([]metric.Metric, 0),
+				ListMeta:          api.ListMeta{TotalItems: 1},
+				CumulativeMetrics: make([]metricapi.Metric, 0),
+				Status:            common.ResourceStatus{Running: 1},
 				StatefulSets: []StatefulSet{{
-					ObjectMeta: common.ObjectMeta{
+					ObjectMeta: api.ObjectMeta{
 						Name:              "rs-name",
 						Namespace:         "rs-namespace",
 						Labels:            map[string]string{"key": "value"},
 						CreationTimestamp: metaV1.Unix(111, 222),
 					},
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindStatefulSet},
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindStatefulSet},
 					Pods: common.PodInfo{
 						Current:  7,
-						Desired:  21,
+						Desired:  getReplicasPointer(21),
 						Failed:   1,
 						Warnings: []common.Event{},
 					},
 				}},
+				Errors: []error{},
 			},
 			nil,
 		},
@@ -154,19 +166,19 @@ func TestGetStatefulSetListFromChannels(t *testing.T) {
 				Error: make(chan error, 1),
 			},
 			NodeList: common.NodeListChannel{
-				List:  make(chan *api.NodeList, 1),
+				List:  make(chan *v1.NodeList, 1),
 				Error: make(chan error, 1),
 			},
 			ServiceList: common.ServiceListChannel{
-				List:  make(chan *api.ServiceList, 1),
+				List:  make(chan *v1.ServiceList, 1),
 				Error: make(chan error, 1),
 			},
 			PodList: common.PodListChannel{
-				List:  make(chan *api.PodList, 1),
+				List:  make(chan *v1.PodList, 1),
 				Error: make(chan error, 1),
 			},
 			EventList: common.EventListChannel{
-				List:  make(chan *api.EventList, 1),
+				List:  make(chan *v1.EventList, 1),
 				Error: make(chan error, 1),
 			},
 		}
@@ -174,16 +186,16 @@ func TestGetStatefulSetListFromChannels(t *testing.T) {
 		channels.StatefulSetList.Error <- c.k8sRsError
 		channels.StatefulSetList.List <- &c.k8sRs
 
-		channels.NodeList.List <- &api.NodeList{}
+		channels.NodeList.List <- &v1.NodeList{}
 		channels.NodeList.Error <- nil
 
-		channels.ServiceList.List <- &api.ServiceList{}
+		channels.ServiceList.List <- &v1.ServiceList{}
 		channels.ServiceList.Error <- nil
 
 		channels.PodList.List <- c.pods
 		channels.PodList.Error <- nil
 
-		channels.EventList.List <- &api.EventList{}
+		channels.EventList.List <- &v1.EventList{}
 		channels.EventList.Error <- nil
 
 		actual, err := GetStatefulSetListFromChannels(channels, dataselect.NoDataSelect, nil)

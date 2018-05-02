@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import chromeModule from 'chrome/module';
-import componentsModule from 'common/components/components_module';
-import filtersModule from 'common/filters/filters_module';
-import daemonSetModule from 'daemonset/module';
-import deploymentModule from 'deployment/module';
-import jobModule from 'job/module';
-import replicaSetModule from 'replicaset/module';
-import replicationControllerModule from 'replicationcontroller/module';
-import statefulSetModule from 'statefulset/module';
+import chromeModule from '../chrome/module';
+import componentsModule from '../common/components/module';
+import filtersModule from '../common/filters/module';
+import cronJobModule from '../cronjob/module';
+import daemonSetModule from '../daemonset/module';
+import deploymentModule from '../deployment/module';
+import jobModule from '../job/module';
+import replicaSetModule from '../replicaset/module';
+import replicationControllerModule from '../replicationcontroller/module';
+import statefulSetModule from '../statefulset/module';
 
 import stateConfig from './stateconfig';
 
@@ -39,6 +40,7 @@ export default angular
           componentsModule.name,
           chromeModule.name,
           jobModule.name,
+          cronJobModule.name,
           replicationControllerModule.name,
           replicaSetModule.name,
           deploymentModule.name,

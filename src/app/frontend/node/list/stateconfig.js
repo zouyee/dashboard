@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
-import {stateName as parentStateName} from 'cluster/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
+import {stateName as parentStateName} from '../../cluster/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
 
-import {stateUrl} from './../state';
+import {stateName as parentState, stateUrl} from '../state';
 import {NodeListController} from './controller';
 
 /**
@@ -34,7 +33,7 @@ const i18n = {
  */
 export const config = {
   url: stateUrl,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'nodeList': resolveNodeList,
   },
@@ -64,11 +63,11 @@ export function nodeListResource($resource) {
 
 /**
  * @param {!angular.Resource} kdNodeListResource
- * @param {!./../../common/pagination/pagination_service.PaginationService} kdPaginationService
- * @return {!angular.$q.Promise}
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
+ * @returns {!angular.$q.Promise}
  * @ngInject
  */
-export function resolveNodeList(kdNodeListResource, kdPaginationService) {
-  let query = kdPaginationService.getDefaultResourceQuery('');
+export function resolveNodeList(kdNodeListResource, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery('');
   return kdNodeListResource.get(query).$promise;
 }

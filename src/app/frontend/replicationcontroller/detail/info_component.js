@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 export default class ReplicationControllerInfoController {
   /**
    * Constructs replication controller info object.
+   * @ngInject
    */
   constructor() {
     /**
@@ -40,7 +41,7 @@ export default class ReplicationControllerInfoController {
 /**
  * Definition object for the component that displays replication controller info.
  *
- * @return {!angular.Directive}
+ * @return {!angular.Component}
  */
 export const replicationControllerInfoComponent = {
   controller: ReplicationControllerInfoController,

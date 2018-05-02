@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@ package horizontalpodautoscaler
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	autoscaling "k8s.io/api/autoscaling/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	client "k8s.io/client-go/kubernetes"
-	autoscaling "k8s.io/client-go/pkg/apis/autoscaling/v1"
 )
 
 // HorizontalPodAutoscalerDetail provides the presentation layer view of Kubernetes Horizontal Pod Autoscaler resource.
 // close mapping of the autoscaling.HorizontalPodAutoscaler type with part of the *Spec and *Detail childs
 type HorizontalPodAutoscalerDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	ScaleTargetRef ScaleTargetRef `json:"scaleTargetRef"`
 
@@ -47,7 +47,7 @@ type HorizontalPodAutoscalerDetail struct {
 func GetHorizontalPodAutoscalerDetail(client client.Interface, namespace string, name string) (*HorizontalPodAutoscalerDetail, error) {
 	log.Printf("Getting details of %s horizontal pod autoscaler", name)
 
-	rawHorizontalPodAutoscaler, err := client.Autoscaling().HorizontalPodAutoscalers(namespace).Get(name, v1.GetOptions{})
+	rawHorizontalPodAutoscaler, err := client.AutoscalingV1().HorizontalPodAutoscalers(namespace).Get(name, v1.GetOptions{})
 
 	if err != nil {
 		return nil, err
@@ -59,8 +59,8 @@ func GetHorizontalPodAutoscalerDetail(client client.Interface, namespace string,
 func getHorizontalPodAutoscalerDetail(horizontalPodAutoscaler *autoscaling.HorizontalPodAutoscaler) *HorizontalPodAutoscalerDetail {
 
 	return &HorizontalPodAutoscalerDetail{
-		ObjectMeta: common.NewObjectMeta(horizontalPodAutoscaler.ObjectMeta),
-		TypeMeta:   common.NewTypeMeta(common.ResourceKindHorizontalPodAutoscaler),
+		ObjectMeta: api.NewObjectMeta(horizontalPodAutoscaler.ObjectMeta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindHorizontalPodAutoscaler),
 
 		ScaleTargetRef: ScaleTargetRef{
 			Kind: horizontalPodAutoscaler.Spec.ScaleTargetRef.Kind,

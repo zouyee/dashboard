@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,23 +18,24 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	apps "k8s.io/api/apps/v1beta2"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func TestToReplicaSet(t *testing.T) {
 	cases := []struct {
-		replicaSet *extensions.ReplicaSet
+		replicaSet *apps.ReplicaSet
 		podInfo    *common.PodInfo
 		expected   ReplicaSet
 	}{
 		{
-			&extensions.ReplicaSet{ObjectMeta: metaV1.ObjectMeta{Name: "replica-set"}},
+			&apps.ReplicaSet{ObjectMeta: metaV1.ObjectMeta{Name: "replica-set"}},
 			&common.PodInfo{Running: 1, Warnings: []common.Event{}},
 			ReplicaSet{
-				ObjectMeta: common.ObjectMeta{Name: "replica-set"},
-				TypeMeta:   common.TypeMeta{Kind: common.ResourceKindReplicaSet},
+				ObjectMeta: api.ObjectMeta{Name: "replica-set"},
+				TypeMeta:   api.TypeMeta{Kind: api.ResourceKindReplicaSet},
 				Pods:       common.PodInfo{Running: 1, Warnings: []common.Event{}},
 			},
 		},

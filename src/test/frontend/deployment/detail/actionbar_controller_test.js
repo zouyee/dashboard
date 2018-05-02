@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,13 +18,16 @@ import module from 'deployment/module';
 describe('Action Bar controller', () => {
   /** @type {!ActionBarController} */
   let ctrl;
+  /** @type {!backendApi.DeploymentDetail} */
   let details = {};
 
   beforeEach(() => {
     angular.mock.module(module.name);
 
     angular.mock.inject(($controller) => {
-      ctrl = $controller(ActionBarController, {deploymentDetail: details});
+      ctrl = $controller(ActionBarController, {
+        deploymentDetail: details,
+      });
     });
   });
 

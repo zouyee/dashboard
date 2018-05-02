@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,43 +18,45 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	batch "k8s.io/api/batch/v1"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	api "k8s.io/client-go/pkg/api/v1"
-	batch "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
 func TestGetJobEvents(t *testing.T) {
+	var jobCompletions int32
 	cases := []struct {
 		namespace, name string
-		eventList       *api.EventList
-		podList         *api.PodList
+		eventList       *v1.EventList
+		podList         *v1.PodList
 		job             *batch.Job
 		expectedActions []string
 		expected        *common.EventList
 	}{
 		{
 			"ns-1", "job-1",
-			&api.EventList{Items: []api.Event{
+			&v1.EventList{Items: []v1.Event{
 				{Message: "test-message", ObjectMeta: metaV1.ObjectMeta{
 					Name: "ev-1", Namespace: "ns-1", Labels: map[string]string{"app": "test"},
 				}},
 			}},
-			&api.PodList{Items: []api.Pod{{ObjectMeta: metaV1.ObjectMeta{
+			&v1.PodList{Items: []v1.Pod{{ObjectMeta: metaV1.ObjectMeta{
 				Name: "pod-1", Namespace: "ns-1",
 			}}}},
-			createJob("job-1", "ns-1", map[string]string{"app": "test"}),
-			[]string{"list", "get", "list", "list"},
+			createJob("job-1", "ns-1", jobCompletions, map[string]string{"app": "test"}),
+			[]string{"list"},
 			&common.EventList{
-				ListMeta: common.ListMeta{TotalItems: 1},
+				ListMeta: api.ListMeta{TotalItems: 1},
 				Events: []common.Event{{
-					TypeMeta: common.TypeMeta{Kind: common.ResourceKindEvent},
-					ObjectMeta: common.ObjectMeta{Name: "ev-1", Namespace: "ns-1",
+					TypeMeta: api.TypeMeta{Kind: api.ResourceKindEvent},
+					ObjectMeta: api.ObjectMeta{Name: "ev-1", Namespace: "ns-1",
 						Labels: map[string]string{"app": "test"}},
 					Message: "test-message",
-					Type:    api.EventTypeNormal,
+					Type:    v1.EventTypeNormal,
 				}}},
 		},
 	}
@@ -79,62 +81,7 @@ func TestGetJobEvents(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("TestGetJobEvents(client,heapsterClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
-				c.namespace, c.name, actual, c.expected)
-		}
-	}
-}
-
-func TestGetJobPodsEvents(t *testing.T) {
-	cases := []struct {
-		namespace, name string
-		eventList       *api.EventList
-		podList         *api.PodList
-		job             *batch.Job
-		expectedActions []string
-		expected        []api.Event
-	}{
-		{
-			"ns-1", "job-1",
-			&api.EventList{Items: []api.Event{
-				{Message: "test-message", ObjectMeta: metaV1.ObjectMeta{
-					Name: "ev-1", Namespace: "ns-1", Labels: map[string]string{"app": "test"},
-				}},
-			}},
-			&api.PodList{Items: []api.Pod{{ObjectMeta: metaV1.ObjectMeta{
-				Name: "pod-1", Namespace: "ns-1", Labels: map[string]string{"app": "test"},
-			}}}},
-			createJob("job-1", "ns-1", map[string]string{"app": "test"}),
-			[]string{"get", "list", "list"},
-			[]api.Event{{
-				Message: "test-message",
-				ObjectMeta: metaV1.ObjectMeta{Name: "ev-1", Namespace: "ns-1",
-					Labels: map[string]string{"app": "test"}},
-			}},
-		},
-	}
-
-	for _, c := range cases {
-		fakeClient := fake.NewSimpleClientset(c.job, c.podList, c.eventList)
-
-		actual, _ := GetJobPodsEvents(fakeClient, c.namespace, c.name)
-
-		actions := fakeClient.Actions()
-		if len(actions) != len(c.expectedActions) {
-			t.Errorf("Unexpected actions: %v, expected %d actions got %d", actions,
-				len(c.expectedActions), len(actions))
-			continue
-		}
-
-		for i, verb := range c.expectedActions {
-			if actions[i].GetVerb() != verb {
-				t.Errorf("Unexpected action: %+v, expected %s",
-					actions[i], verb)
-			}
-		}
-
-		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("TestGetJobPodsEvents(client,heapsterClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
+			t.Errorf("TestGetJobEvents(client,metricClient,%#v, %#v) == \ngot: %#v, \nexpected %#v",
 				c.namespace, c.name, actual, c.expected)
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,7 +24,9 @@ export class GraphCardController {
     /** @export {string} - Initialized from binding */
     this.graphTitle;
 
-    /** @export {string|undefined} - Comma separated list of metric names. Initialized from binding */
+    /**
+     * @export {string|undefined} - Comma separated list of metric names. Initialized from binding
+     */
     this.selectedMetricNames;
 
     /** @export {!Array<!backendApi.Metric>}  */
@@ -36,7 +38,8 @@ export class GraphCardController {
   }
 
   /**
-   * Filters metrics by selectedMetricNames. If selectedMetricNames is undefined returns all metrics.
+   * Filters metrics by selectedMetricNames. If selectedMetricNames is undefined returns all
+   * metrics.
    *
    * @private
    * @return {!Array<!backendApi.Metric>}

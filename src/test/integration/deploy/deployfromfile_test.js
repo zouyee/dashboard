@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,16 +21,11 @@ describe('Deploy from file view', () => {
   beforeEach(() => {
     page = new DeployFromFilePageObject();
 
-    browser.get('#!/deploy/file');
-    // switches to deploy from file
-    page.deployFromFileRadioButton.click();
+    browser.get('#!/deploy');
+    page.deployFromFileTab.click();
   });
 
-  it('should have error after clicking deploy without selecting file', () => {
-    // when
-    page.deployButton.click();
-
-    // then
-    expect(page.inputContainer.getAttribute('class')).toContain('md-input-invalid');
+  it('should have upload button disabled when no file is selected', () => {
+    expect(page.deployButton.getAttribute('disabled')).toContain('true');
   });
 });

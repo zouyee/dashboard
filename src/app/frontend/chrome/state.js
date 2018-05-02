@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,9 +18,6 @@
  */
 export const stateName = 'chrome';
 
-/** Name of the view. Can be used in state config to define toolbar view */
-export const toolbarViewName = 'toolbar';
-
 /**
  * Name of the action bar view. Action bar is the second toolbar in the application and can
  * be used for, e.g., breadcrumbs or view-specific action buttons.
@@ -38,6 +35,13 @@ export const namespaceParam = 'namespace';
  * Defaults to false.
  */
 export const fillContentConfig = 'fillContent';
+
+/**
+ * To be used with states that can only be accessed after user has been authenticated.
+ *
+ * Defaults to true.
+ */
+export const authRequired = 'authRequired';
 
 /**
  * All properties are @exported and in sync with URL param names.

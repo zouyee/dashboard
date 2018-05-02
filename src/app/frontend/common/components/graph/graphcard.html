@@ -1,5 +1,5 @@
 <!--
-Copyright 2015 Google Inc. All Rights Reserved.
+Copyright 2017 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,8 +17,10 @@ limitations under the License.
 <kd-content-card ng-if="$ctrl.shouldShowGraph()">
   <kd-title>{{$ctrl.graphTitle}}
     <span ng-if="::$ctrl.graphInfo">
-      <md-icon md-font-library="material-icons">info</md-icon>
-      <md-tooltip>{{::$ctrl.graphInfo}}</md-tooltip>
+      <md-icon class="kd-graph-card-icon">info_outline</md-icon>
+      <md-tooltip md-delay="500" md-autohide>
+        {{::$ctrl.graphInfo}}
+      </md-tooltip>
     </span>
   </kd-title>
   <kd-content>

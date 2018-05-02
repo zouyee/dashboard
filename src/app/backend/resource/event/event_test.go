@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@ import (
 	"testing"
 
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	api "k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 func TestGetPodsEventWarningsApi(t *testing.T) {
@@ -300,41 +300,6 @@ func TestIsReadyOrSucceeded(t *testing.T) {
 		if !reflect.DeepEqual(actual, c.expected) {
 			t.Errorf("isReadyOrSucceded(%#v) == \n%#v\nexpected \n%#v\n",
 				c.pod, actual, c.expected)
-		}
-	}
-}
-
-func TestIsTypeFilled(t *testing.T) {
-	cases := []struct {
-		events   []api.Event
-		expected bool
-	}{
-		{nil, false},
-		{
-			[]api.Event{
-				{Type: api.EventTypeWarning},
-			},
-			true,
-		},
-		{
-			[]api.Event{},
-			false,
-		},
-		{
-			[]api.Event{
-				{Type: api.EventTypeWarning},
-				{Type: api.EventTypeNormal},
-				{Type: ""},
-			},
-			false,
-		},
-	}
-
-	for _, c := range cases {
-		actual := IsTypeFilled(c.events)
-		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("IsTypeFilled(%#v) == \n%#v\nexpected \n%#v\n",
-				c.events, actual, c.expected)
 		}
 	}
 }

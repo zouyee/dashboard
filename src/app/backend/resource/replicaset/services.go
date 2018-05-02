@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package replicaset
 
 import (
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/service"
@@ -22,27 +23,27 @@ import (
 	client "k8s.io/client-go/kubernetes"
 )
 
-// GetReplicaSetServices returns list of services that are related to replica set targeted by given
-// name.
+// GetReplicaSetServices returns list of services that are related to replica set targeted by given name.
 func GetReplicaSetServices(client client.Interface, dsQuery *dataselect.DataSelectQuery,
 	namespace, name string) (*service.ServiceList, error) {
 
-	replicaSet, err := client.Extensions().ReplicaSets(namespace).Get(name, metaV1.GetOptions{})
+	replicaSet, err := client.AppsV1beta2().ReplicaSets(namespace).Get(name, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	channels := &common.ResourceChannels{
-		ServiceList: common.GetServiceListChannel(client, common.NewSameNamespaceQuery(namespace),
-			1),
+		ServiceList: common.GetServiceListChannel(client, common.NewSameNamespaceQuery(namespace), 1),
 	}
 
 	services := <-channels.ServiceList.List
-	if err := <-channels.ServiceList.Error; err != nil {
-		return nil, err
+	err = <-channels.ServiceList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
 	matchingServices := common.FilterNamespacedServicesBySelector(services.Items, namespace,
 		replicaSet.Spec.Selector.MatchLabels)
-	return service.CreateServiceList(matchingServices, dsQuery), nil
+	return service.CreateServiceList(matchingServices, nonCriticalErrors, dsQuery), nil
 }

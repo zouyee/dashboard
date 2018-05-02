@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,18 +15,29 @@
 package storageclass
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	storage "k8s.io/client-go/pkg/apis/storage/v1beta1"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
+	storage "k8s.io/api/storage/v1"
 )
 
-// ToStorageClass returns api storage class object based on kubernetes storage class object
-func ToStorageClass(storageClass *storage.StorageClass) StorageClass {
+func toStorageClass(storageClass *storage.StorageClass) StorageClass {
 	return StorageClass{
-		ObjectMeta:  common.NewObjectMeta(storageClass.ObjectMeta),
-		TypeMeta:    common.NewTypeMeta(common.ResourceKindStorageClass),
+		ObjectMeta:  api.NewObjectMeta(storageClass.ObjectMeta),
+		TypeMeta:    api.NewTypeMeta(api.ResourceKindStorageClass),
 		Provisioner: storageClass.Provisioner,
 		Parameters:  storageClass.Parameters,
+	}
+}
+
+func toStorageClassDetail(storageClass *storage.StorageClass,
+	persistentVolumeList *persistentvolume.PersistentVolumeList) StorageClassDetail {
+	return StorageClassDetail{
+		ObjectMeta:           api.NewObjectMeta(storageClass.ObjectMeta),
+		TypeMeta:             api.NewTypeMeta(api.ResourceKindStorageClass),
+		Provisioner:          storageClass.Provisioner,
+		Parameters:           storageClass.Parameters,
+		PersistentVolumeList: *persistentVolumeList,
 	}
 }
 

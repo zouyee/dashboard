@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {stateName as chromeStateName} from 'chrome/state';
+import {stateName as chromeStateName} from '../chrome/state';
 import {stateName as listState} from './list/state';
 import {config as listConfig} from './list/stateconfig';
-import {stateName, stateUrl} from './state';
-
+import {stateName} from './state';
 /**
- * Configures states for the Ingress resource.
+ * Configures states for the Role resource.
  *
  * @param {!ui.router.$stateProvider} $stateProvider
  * @ngInject
@@ -35,6 +34,5 @@ export default function stateConfig($stateProvider) {
 const config = {
   abstract: true,
   parent: chromeStateName,
-  url: stateUrl,
   template: '<ui-view/>',
 };

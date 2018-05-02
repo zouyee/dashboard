@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {actionbarViewName, stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {appendDetailParamsToUrl} from 'common/resource/resourcedetail';
-import {stateName as replicaSetList} from './../list/state';
-import {stateUrl} from './../state';
+import {actionbarViewName, stateName as chromeStateName} from '../../chrome/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
+import {appendDetailParamsToUrl} from '../../common/resource/resourcedetail';
 
+import {stateName as replicaSetList} from '../list/state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ActionBarController} from './actionbar_controller';
 import {ReplicaSetDetailController} from './controller';
 
@@ -28,7 +28,7 @@ import {ReplicaSetDetailController} from './controller';
  */
 export const config = {
   url: appendDetailParamsToUrl(stateUrl),
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'replicaSetDetail': resolveReplicaSetDetailResource,
   },
@@ -44,7 +44,7 @@ export const config = {
       controllerAs: 'ctrl',
       templateUrl: 'replicaset/detail/detail.html',
     },
-    [actionbarViewName]: {
+    [`${actionbarViewName}@${chromeStateName}`]: {
       controller: ActionBarController,
       controllerAs: '$ctrl',
       templateUrl: 'replicaset/detail/actionbar.html',
@@ -91,13 +91,13 @@ export function replicaSetEventsResource($resource) {
 /**
  * @param {!angular.Resource} kdReplicaSetDetailResource
  * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
- * @param {!./../../common/pagination/pagination_service.PaginationService} kdPaginationService
- * @return {!angular.Resource<!backendApi.ReplicaSetDetail>}
+ * @param {!./../../common/dataselect/service.DataSelectService} kdDataSelectService
+ * @return {!angular.Resource}
  * @ngInject
  */
 export function resolveReplicaSetDetailResource(
-    kdReplicaSetDetailResource, $stateParams, kdPaginationService) {
-  let query = kdPaginationService.getDefaultResourceQuery(
+    kdReplicaSetDetailResource, $stateParams, kdDataSelectService) {
+  let query = kdDataSelectService.getDefaultResourceQuery(
       $stateParams.objectNamespace, $stateParams.objectName);
   return kdReplicaSetDetailResource.get(query).$promise;
 }

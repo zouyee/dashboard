@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import {DeleteResourceController} from 'common/resource/deleteresource_controller';
-import resourceModule from 'common/resource/resource_module';
+import resourceModule from 'common/resource/module';
 
 describe('Delete resource controller', () => {
   /** @type !{!common/resource/deleteresource_controller.DeleteResourceController} */
@@ -24,17 +24,24 @@ describe('Delete resource controller', () => {
   let httpBackend;
   let testResourceUrl = 'foo';
 
-  beforeEach(() => angular.mock.module(resourceModule.name));
+  beforeEach(() => {
+    angular.mock.module(resourceModule.name, ($provide) => {
 
-  beforeEach(angular.mock.inject(($controller, $mdDialog, $httpBackend) => {
-    ctrl = $controller(DeleteResourceController, {
-      resourceKindName: 'My Resource',
-      objectMeta: {name: 'Foo', namespace: 'Bar'},
-      resourceUrl: testResourceUrl,
+      let localizerService = {localize: function() {}};
+
+      $provide.value('localizerService', localizerService);
     });
-    mdDialog = $mdDialog;
-    httpBackend = $httpBackend;
-  }));
+
+    angular.mock.inject(($controller, $mdDialog, $httpBackend) => {
+      ctrl = $controller(DeleteResourceController, {
+        resourceKindName: 'My Resource',
+        objectMeta: {name: 'Foo', namespace: 'Bar'},
+        resourceUrl: testResourceUrl,
+      });
+      mdDialog = $mdDialog;
+      httpBackend = $httpBackend;
+    });
+  });
 
   it('should delete resource', () => {
     spyOn(mdDialog, 'hide');

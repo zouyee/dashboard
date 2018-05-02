@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,39 +17,41 @@ package persistentvolumeclaim
 import (
 	"log"
 
-	"fmt"
-
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // PersistentVolumeClaimList contains a list of Persistent Volume Claims in the cluster.
 type PersistentVolumeClaimList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta api.ListMeta `json:"listMeta"`
 
 	// Unordered list of persistent volume claims
 	Items []PersistentVolumeClaim `json:"items"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // PersistentVolumeClaim provides the simplified presentation layer view of Kubernetes Persistent Volume Claim resource.
 type PersistentVolumeClaim struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
-
-	// e.g. Pending, Bound
-	Status string
-
-	// name of the volume
-	Volume string
+	ObjectMeta   api.ObjectMeta                  `json:"objectMeta"`
+	TypeMeta     api.TypeMeta                    `json:"typeMeta"`
+	Status       string                          `json:"status"`
+	Volume       string                          `json:"volume"`
+	Capacity     v1.ResourceList                 `json:"capacity"`
+	AccessModes  []v1.PersistentVolumeAccessMode `json:"accessModes"`
+	StorageClass *string                         `json:"storageClass"`
 }
 
 // GetPersistentVolumeClaimList returns a list of all Persistent Volume Claims in the cluster.
-func GetPersistentVolumeClaimList(client *client.Clientset, nsQuery *common.NamespaceQuery,
+func GetPersistentVolumeClaimList(client kubernetes.Interface, nsQuery *common.NamespaceQuery,
 	dsQuery *dataselect.DataSelectQuery) (*PersistentVolumeClaimList, error) {
 
-	log.Printf("Getting list persistent volumes claims")
+	log.Print("Getting list persistent volumes claims")
 	channels := &common.ResourceChannels{
 		PersistentVolumeClaimList: common.GetPersistentVolumeClaimListChannel(client, nsQuery, 1),
 	}
@@ -63,33 +65,42 @@ func GetPersistentVolumeClaimListFromChannels(channels *common.ResourceChannels,
 	dsQuery *dataselect.DataSelectQuery) (*PersistentVolumeClaimList, error) {
 
 	persistentVolumeClaims := <-channels.PersistentVolumeClaimList.List
-	if err := <-channels.PersistentVolumeClaimList.Error; err != nil {
-		return nil, err
+	err := <-channels.PersistentVolumeClaimList.Error
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	result := getPersistentVolumeClaimList(persistentVolumeClaims.Items, dsQuery)
-
-	return result, nil
+	return toPersistentVolumeClaimList(persistentVolumeClaims.Items, nonCriticalErrors, dsQuery), nil
 }
 
-func getPersistentVolumeClaimList(persistentVolumeClaims []api.PersistentVolumeClaim, dsQuery *dataselect.DataSelectQuery) *PersistentVolumeClaimList {
+func toPersistentVolumeClaim(pvc v1.PersistentVolumeClaim) PersistentVolumeClaim {
+	return PersistentVolumeClaim{
+		ObjectMeta:   api.NewObjectMeta(pvc.ObjectMeta),
+		TypeMeta:     api.NewTypeMeta(api.ResourceKindPersistentVolumeClaim),
+		Status:       string(pvc.Status.Phase),
+		Volume:       pvc.Spec.VolumeName,
+		Capacity:     pvc.Status.Capacity,
+		AccessModes:  pvc.Spec.AccessModes,
+		StorageClass: pvc.Spec.StorageClassName,
+	}
+}
+
+func toPersistentVolumeClaimList(persistentVolumeClaims []v1.PersistentVolumeClaim, nonCriticalErrors []error,
+	dsQuery *dataselect.DataSelectQuery) *PersistentVolumeClaimList {
 
 	result := &PersistentVolumeClaimList{
 		Items:    make([]PersistentVolumeClaim, 0),
-		ListMeta: common.ListMeta{TotalItems: len(persistentVolumeClaims)},
+		ListMeta: api.ListMeta{TotalItems: len(persistentVolumeClaims)},
+		Errors:   nonCriticalErrors,
 	}
 
-	persistentVolumeClaims = fromCells(dataselect.GenericDataSelect(toCells(persistentVolumeClaims), dsQuery))
+	pvcCells, filteredTotal := dataselect.GenericDataSelectWithFilter(toCells(persistentVolumeClaims), dsQuery)
+	persistentVolumeClaims = fromCells(pvcCells)
+	result.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, item := range persistentVolumeClaims {
-		result.Items = append(result.Items,
-			PersistentVolumeClaim{
-				ObjectMeta: common.NewObjectMeta(item.ObjectMeta),
-				TypeMeta:   common.NewTypeMeta(common.ResourceKindPersistentVolumeClaim),
-				Status:     string(item.Status.Phase),
-				Volume:     item.Spec.VolumeName,
-			})
-		fmt.Println(item.Status.Capacity)
+		result.Items = append(result.Items, toPersistentVolumeClaim(item))
 	}
 
 	return result

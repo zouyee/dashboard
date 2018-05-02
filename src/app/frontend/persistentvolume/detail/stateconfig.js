@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {actionbarViewName, stateName as chromeStateName} from 'chrome/state';
-import {breadcrumbsConfig} from 'common/components/breadcrumbs/breadcrumbs_service';
-import {stateName as persistentVolumeList} from './../list/state';
-import {stateUrl} from './../state';
+import {actionbarViewName, stateName as chromeStateName} from '../../chrome/state';
+import {breadcrumbsConfig} from '../../common/components/breadcrumbs/service';
 
+import {stateName as persistentVolumeList} from '../list/state';
+import {stateName as parentState, stateUrl} from '../state';
 import {ActionBarController} from './actionbar_controller';
 import {PersistentVolumeDetailController} from './controller';
 
@@ -27,7 +27,7 @@ import {PersistentVolumeDetailController} from './controller';
  */
 export const config = {
   url: `${stateUrl}/:objectName`,
-  parent: chromeStateName,
+  parent: parentState,
   resolve: {
     'persistentVolumeDetailResource': getPersistentVolumeDetailResource,
     'persistentVolumeDetail': getPersistentVolumeDetail,
@@ -44,7 +44,7 @@ export const config = {
       controllerAs: '$ctrl',
       templateUrl: 'persistentvolume/detail/detail.html',
     },
-    [actionbarViewName]: {
+    [`${actionbarViewName}@${chromeStateName}`]: {
       controller: ActionBarController,
       controllerAs: '$ctrl',
       templateUrl: 'persistentvolume/detail/actionbar.html',
@@ -55,7 +55,7 @@ export const config = {
 /**
  * @param {!./../../common/resource/resourcedetail.StateParams} $stateParams
  * @param {!angular.$resource} $resource
- * @return {!angular.Resource<!backendApi.PersistentVolumeDetail>}
+ * @return {!angular.Resource}
  * @ngInject
  */
 export function getPersistentVolumeDetailResource($resource, $stateParams) {
@@ -63,7 +63,7 @@ export function getPersistentVolumeDetailResource($resource, $stateParams) {
 }
 
 /**
- * @param {!angular.Resource<!backendApi.PersistentVolumeDetail>} persistentVolumeDetailResource
+ * @param {!angular.Resource} persistentVolumeDetailResource
  * @return {!angular.$q.Promise}
  * @ngInject
  */

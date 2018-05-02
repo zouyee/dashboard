@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,13 +29,5 @@ export class PersistentVolumeListController {
 
     /** @export {!angular.Resource} */
     this.persistentVolumeListResource = kdPersistentVolumeListResource;
-  }
-
-  /**
-   * @return {boolean}
-   * @export
-   */
-  shouldShowZeroState() {
-    return this.persistentVolumeList.items.length === 0;
   }
 }

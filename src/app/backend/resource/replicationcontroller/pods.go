@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,48 +17,49 @@ package replicationcontroller
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
+	metricapi "github.com/kubernetes/dashboard/src/app/backend/integration/metric/api"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	"k8s.io/api/core/v1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	k8sClient "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
 )
 
 // GetReplicationControllerPods return list of pods targeting replication controller associated
 // to given name.
-func GetReplicationControllerPods(client k8sClient.Interface, heapsterClient client.HeapsterClient,
+func GetReplicationControllerPods(client k8sClient.Interface,
+	metricClient metricapi.MetricClient,
 	dsQuery *dataselect.DataSelectQuery, rcName, namespace string) (*pod.PodList, error) {
 	log.Printf("Getting replication controller %s pods in namespace %s", rcName, namespace)
 
 	pods, err := getRawReplicationControllerPods(client, rcName, namespace)
 	if err != nil {
-		return nil, err
+		return pod.EmptyPodList, err
 	}
 
-	podList := pod.CreatePodList(pods, []api.Event{}, dsQuery, heapsterClient)
+	events, err := event.GetPodsEvents(client, namespace, pods)
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
+	}
+
+	podList := pod.ToPodList(pods, events, nonCriticalErrors, dsQuery, metricClient)
 	return &podList, nil
 }
 
-// Returns array of api pods targeting replication controller associated to given name.
-func getRawReplicationControllerPods(client k8sClient.Interface, rcName, namespace string) (
-	[]api.Pod, error) {
-
-	replicationController, err := client.Core().ReplicationControllers(namespace).Get(rcName, metaV1.GetOptions{})
+func getRawReplicationControllerPods(client k8sClient.Interface, rcName, namespace string) ([]v1.Pod, error) {
+	rc, err := client.CoreV1().ReplicationControllers(namespace).Get(rcName, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
-	labelSelector := labels.SelectorFromSet(replicationController.Spec.Selector)
 	channels := &common.ResourceChannels{
-		PodList: common.GetPodListChannelWithOptions(client, common.NewSameNamespaceQuery(namespace),
-			metaV1.ListOptions{
-				LabelSelector: labelSelector.String(),
-				FieldSelector: fields.Everything().String(),
-			}, 1),
+		PodList: common.GetPodListChannel(client, common.NewSameNamespaceQuery(namespace), 1),
 	}
 
 	podList := <-channels.PodList.List
@@ -66,12 +67,12 @@ func getRawReplicationControllerPods(client k8sClient.Interface, rcName, namespa
 		return nil, err
 	}
 
-	return podList.Items, nil
+	return common.FilterPodsByControllerRef(rc, podList.Items), nil
 }
 
-// Returns simple info about pods(running, desired, failing, etc.) related to given replication
-// controller.
-func getReplicationControllerPodInfo(client k8sClient.Interface, rc *api.ReplicationController,
+// getReplicationControllerPodInfo returns simple info about pods(running, desired, failing, etc.)
+// related to given replication controller.
+func getReplicationControllerPodInfo(client k8sClient.Interface, rc *v1.ReplicationController,
 	namespace string) (*common.PodInfo, error) {
 
 	labelSelector := labels.SelectorFromSet(rc.Spec.Selector)
@@ -88,6 +89,6 @@ func getReplicationControllerPodInfo(client k8sClient.Interface, rc *api.Replica
 		return nil, err
 	}
 
-	podInfo := common.GetPodInfo(rc.Status.Replicas, *rc.Spec.Replicas, pods.Items)
+	podInfo := common.GetPodInfo(rc.Status.Replicas, rc.Spec.Replicas, pods.Items)
 	return &podInfo, nil
 }

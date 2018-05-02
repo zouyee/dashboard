@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,15 +15,16 @@
 package rbacroles
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	api "k8s.io/apimachinery/pkg/apis/meta/v1"
-	rbac "k8s.io/client-go/pkg/apis/rbac/v1alpha1"
 	"reflect"
 	"testing"
+
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	rbac "k8s.io/api/rbac/v1"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestGetRbacRoleList(t *testing.T) {
+func TestToRbacRoleLists(t *testing.T) {
 	cases := []struct {
 		roles        []rbac.Role
 		clusterRoles []rbac.ClusterRole
@@ -33,7 +34,7 @@ func TestGetRbacRoleList(t *testing.T) {
 		{
 			[]rbac.Role{
 				{
-					ObjectMeta: api.ObjectMeta{Name: "Role", Namespace: "Testing"},
+					ObjectMeta: metaV1.ObjectMeta{Name: "Role", Namespace: "Testing"},
 					Rules: []rbac.PolicyRule{{
 						Verbs:     []string{"get", "put"},
 						Resources: []string{"pods"},
@@ -42,7 +43,7 @@ func TestGetRbacRoleList(t *testing.T) {
 			},
 			[]rbac.ClusterRole{
 				{
-					ObjectMeta: api.ObjectMeta{Name: "cluster-role"},
+					ObjectMeta: metaV1.ObjectMeta{Name: "cluster-role"},
 					Rules: []rbac.PolicyRule{{
 						Verbs:     []string{"post", "put"},
 						Resources: []string{"pods", "deployments"},
@@ -50,21 +51,21 @@ func TestGetRbacRoleList(t *testing.T) {
 				},
 			},
 			&RbacRoleList{
-				ListMeta: common.ListMeta{TotalItems: 2},
+				ListMeta: api.ListMeta{TotalItems: 2},
 				Items: []RbacRole{{
-					ObjectMeta: common.ObjectMeta{Name: "Role", Namespace: "Testing"},
-					TypeMeta:   common.TypeMeta{Kind: common.ResourceKindRbacRole},
+					ObjectMeta: api.ObjectMeta{Name: "Role", Namespace: "Testing"},
+					TypeMeta:   api.TypeMeta{Kind: api.ResourceKindRbacRole},
 				}, {
-					ObjectMeta: common.ObjectMeta{Name: "cluster-role", Namespace: ""},
-					TypeMeta:   common.TypeMeta{Kind: common.ResourceKindRbacClusterRole},
+					ObjectMeta: api.ObjectMeta{Name: "cluster-role", Namespace: ""},
+					TypeMeta:   api.TypeMeta{Kind: api.ResourceKindRbacClusterRole},
 				}},
 			},
 		},
 	}
 	for _, c := range cases {
-		actual := SimplifyRbacRoleLists(c.roles, c.clusterRoles, dataselect.NoDataSelect)
+		actual := toRbacRoleLists(c.roles, c.clusterRoles, nil, dataselect.NoDataSelect)
 		if !reflect.DeepEqual(actual, c.expected) {
-			t.Errorf("getRbacRoleList(%#v,%#v) == \n%#v\nexpected \n%#v\n",
+			t.Errorf("toRbacRoleLists(%#v,%#v) == \n%#v\nexpected \n%#v\n",
 				c.roles, c.clusterRoles, actual, c.expected)
 		}
 	}

@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,17 +17,17 @@ package ingress
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	client "k8s.io/client-go/kubernetes"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // IngressDetail API resource provides mechanisms to inject containers with configuration data while keeping
 // containers agnostic of Kubernetes
 type IngressDetail struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
+	ObjectMeta api.ObjectMeta `json:"objectMeta"`
+	TypeMeta   api.TypeMeta   `json:"typeMeta"`
 
 	// TODO(bryk): replace this with UI specific fields.
 	// Spec is the desired state of the Ingress.
@@ -35,6 +35,9 @@ type IngressDetail struct {
 
 	// Status is the current state of the Ingress.
 	Status extensions.IngressStatus `json:"status"`
+
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // GetIngressDetail returns returns detailed information about an ingress
@@ -52,8 +55,8 @@ func GetIngressDetail(client client.Interface, namespace, name string) (*Ingress
 
 func getIngressDetail(rawIngress *extensions.Ingress) *IngressDetail {
 	return &IngressDetail{
-		ObjectMeta: common.NewObjectMeta(rawIngress.ObjectMeta),
-		TypeMeta:   common.NewTypeMeta(common.ResourceKindIngress),
+		ObjectMeta: api.NewObjectMeta(rawIngress.ObjectMeta),
+		TypeMeta:   api.NewTypeMeta(api.ResourceKindIngress),
 		Spec:       rawIngress.Spec,
 		Status:     rawIngress.Status,
 	}

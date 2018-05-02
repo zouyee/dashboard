@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,35 +17,38 @@ package persistentvolume
 import (
 	"log"
 
+	"github.com/kubernetes/dashboard/src/app/backend/api"
+	"github.com/kubernetes/dashboard/src/app/backend/errors"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	client "k8s.io/client-go/kubernetes"
-	api "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // PersistentVolumeList contains a list of Persistent Volumes in the cluster.
 type PersistentVolumeList struct {
-	ListMeta common.ListMeta `json:"listMeta"`
+	ListMeta api.ListMeta       `json:"listMeta"`
+	Items    []PersistentVolume `json:"items"`
 
-	// Unordered list of Persistent Volumes
-	Items []PersistentVolume `json:"items"`
+	// List of non-critical errors, that occurred during resource retrieval.
+	Errors []error `json:"errors"`
 }
 
 // PersistentVolume provides the simplified presentation layer view of Kubernetes Persistent Volume resource.
 type PersistentVolume struct {
-	ObjectMeta common.ObjectMeta `json:"objectMeta"`
-	TypeMeta   common.TypeMeta   `json:"typeMeta"`
-
-	Capacity    api.ResourceList                 `json:"capacity"`
-	AccessModes []api.PersistentVolumeAccessMode `json:"accessModes"`
-	Status      api.PersistentVolumePhase        `json:"status"`
-	Claim       string                           `json:"claim"`
-	Reason      string                           `json:"reason"`
-	// No additional info in the list object.
+	ObjectMeta    api.ObjectMeta                   `json:"objectMeta"`
+	TypeMeta      api.TypeMeta                     `json:"typeMeta"`
+	Capacity      v1.ResourceList                  `json:"capacity"`
+	AccessModes   []v1.PersistentVolumeAccessMode  `json:"accessModes"`
+	ReclaimPolicy v1.PersistentVolumeReclaimPolicy `json:"reclaimPolicy"`
+	StorageClass  string                           `json:"storageClass"`
+	Status        v1.PersistentVolumePhase         `json:"status"`
+	Claim         string                           `json:"claim"`
+	Reason        string                           `json:"reason"`
 }
 
 // GetPersistentVolumeList returns a list of all Persistent Volumes in the cluster.
-func GetPersistentVolumeList(client *client.Clientset, dsQuery *dataselect.DataSelectQuery) (*PersistentVolumeList, error) {
+func GetPersistentVolumeList(client kubernetes.Interface, dsQuery *dataselect.DataSelectQuery) (*PersistentVolumeList, error) {
 	log.Print("Getting list persistent volumes")
 	channels := &common.ResourceChannels{
 		PersistentVolumeList: common.GetPersistentVolumeListChannel(client, 1),
@@ -56,37 +59,43 @@ func GetPersistentVolumeList(client *client.Clientset, dsQuery *dataselect.DataS
 
 // GetPersistentVolumeListFromChannels returns a list of all Persistent Volumes in the cluster
 // reading required resource list once from the channels.
-func GetPersistentVolumeListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (
-	*PersistentVolumeList, error) {
-
+func GetPersistentVolumeListFromChannels(channels *common.ResourceChannels, dsQuery *dataselect.DataSelectQuery) (*PersistentVolumeList, error) {
 	persistentVolumes := <-channels.PersistentVolumeList.List
-	if err := <-channels.PersistentVolumeList.Error; err != nil {
-		return nil, err
+	err := <-channels.PersistentVolumeList.Error
+
+	nonCriticalErrors, criticalError := errors.HandleError(err)
+	if criticalError != nil {
+		return nil, criticalError
 	}
 
-	result := getPersistentVolumeList(persistentVolumes.Items, dsQuery)
-
-	return result, nil
+	return toPersistentVolumeList(persistentVolumes.Items, nonCriticalErrors, dsQuery), nil
 }
 
-func getPersistentVolumeList(persistentVolumes []api.PersistentVolume, dsQuery *dataselect.DataSelectQuery) *PersistentVolumeList {
+func toPersistentVolumeList(persistentVolumes []v1.PersistentVolume, nonCriticalErrors []error,
+	dsQuery *dataselect.DataSelectQuery) *PersistentVolumeList {
+
 	result := &PersistentVolumeList{
 		Items:    make([]PersistentVolume, 0),
-		ListMeta: common.ListMeta{TotalItems: len(persistentVolumes)},
+		ListMeta: api.ListMeta{TotalItems: len(persistentVolumes)},
+		Errors:   nonCriticalErrors,
 	}
 
-	persistentVolumes = fromCells(dataselect.GenericDataSelect(toCells(persistentVolumes), dsQuery))
+	pvCells, filteredTotal := dataselect.GenericDataSelectWithFilter(toCells(persistentVolumes), dsQuery)
+	persistentVolumes = fromCells(pvCells)
+	result.ListMeta = api.ListMeta{TotalItems: filteredTotal}
 
 	for _, item := range persistentVolumes {
 		result.Items = append(result.Items,
 			PersistentVolume{
-				ObjectMeta:  common.NewObjectMeta(item.ObjectMeta),
-				TypeMeta:    common.NewTypeMeta(common.ResourceKindPersistentVolume),
-				Capacity:    item.Spec.Capacity,
-				AccessModes: item.Spec.AccessModes,
-				Status:      item.Status.Phase,
-				Claim:       getPersistentVolumeClaim(&item),
-				Reason:      item.Status.Reason,
+				ObjectMeta:    api.NewObjectMeta(item.ObjectMeta),
+				TypeMeta:      api.NewTypeMeta(api.ResourceKindPersistentVolume),
+				Capacity:      item.Spec.Capacity,
+				AccessModes:   item.Spec.AccessModes,
+				ReclaimPolicy: item.Spec.PersistentVolumeReclaimPolicy,
+				StorageClass:  item.Spec.StorageClassName,
+				Status:        item.Status.Phase,
+				Claim:         getPersistentVolumeClaim(&item),
+				Reason:        item.Status.Reason,
 			})
 	}
 

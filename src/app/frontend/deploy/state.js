@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 The Kubernetes Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,8 +13,7 @@
 // limitations under the License.
 
 /** Name of the state. Can be used in, e.g., $state.go method. */
-export const baseStateName = 'deploy';
+export const stateName = 'deploy';
 
-export const deployAppStateName = 'deployApp';
-
-export const deployFileStateName = 'deployFile';
+/** Absolute URL of the state. */
+export const stateUrl = '/deploy';
