@@ -125,16 +125,19 @@ func toCronJobDetail(cronjob *batchv2alpha1.CronJob, jobs []job.Job) *CronJobDet
 	cron.PodInfo.Warnings = make([]common.Event, 0)
 	for _, job := range jobs {
 		// will fix plus action
-		cron.PodInfo.Current = job.Pods.Current + cron.PodInfo.Current
+		cron.PodInfo.Current = job.Pods.Succeeded + cron.PodInfo.Current
 		cron.PodInfo.Desired = job.Pods.Desired + cron.PodInfo.Desired
 		cron.PodInfo.Running = job.Pods.Running + cron.PodInfo.Running
 		cron.PodInfo.Pending = job.Pods.Pending + cron.PodInfo.Pending
-		cron.PodInfo.Failed = job.Pods.Succeeded + cron.PodInfo.Succeeded
+		cron.PodInfo.Failed = job.Pods.Failed + cron.PodInfo.Failed
 		if job.Pods.Warnings == nil {
 			break
 		}
 		cron.PodInfo.Warnings = append(cron.PodInfo.Warnings, job.Pods.Warnings...)
 		cron.PodList.Pods = append(cron.PodList.Pods, job.PodList.Pods...)
+	}
+	if cron.PodInfo.Desired < int32(len(cron.PodList.Pods)) {
+		cron.PodInfo.Desired = int32(len(cron.PodList.Pods))
 	}
 	cron.PodList.ListMeta.TotalItems = len(cron.PodList.Pods)
 
