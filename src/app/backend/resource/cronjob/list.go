@@ -147,11 +147,11 @@ func toCronJob(cronJob *batch2.CronJob, jobs []job.Job) CronJob {
 	cron.Pods.Warnings = make([]common.Event, 0)
 	for _, job := range jobs {
 		// will fix plus action
-		cron.Pods.Current = job.Pods.Current + cron.Pods.Current
+		cron.Pods.Current = job.Pods.Succeeded + cron.Pods.Succeeded
 		cron.Pods.Desired = job.Pods.Desired + cron.Pods.Desired
 		cron.Pods.Running = job.Pods.Running + cron.Pods.Running
 		cron.Pods.Pending = job.Pods.Pending + cron.Pods.Pending
-		cron.Pods.Failed = job.Pods.Succeeded + cron.Pods.Succeeded
+		cron.Pods.Failed = job.Pods.Failed + cron.Pods.Failed
 		if job.Pods.Warnings != nil {
 			cron.Pods.Warnings = append(cron.Pods.Warnings, job.Pods.Warnings...)
 		}
