@@ -15,7 +15,7 @@
 package resourcequota
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
 	api "k8s.io/client-go/pkg/api/v1"
 )
 

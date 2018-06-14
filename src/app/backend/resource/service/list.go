@@ -20,8 +20,8 @@ import (
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
 )
 
 // Service is a representation of a service.

@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/metric"
 	api "k8s.io/client-go/pkg/api/v1"
 )
 

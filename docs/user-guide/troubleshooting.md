@@ -1,7 +1,7 @@
 <!--
 -----------------NOTICE------------------------
 This file is referenced in code as
-https://github.com/kubernetes/dashboard/blob/master/docs/user-guide/troubleshooting.md
+https://gerrit.cmss.com/BC-PaaS/backend/blob/master/docs/user-guide/troubleshooting.md
 Do not move it without providing redirects.
 -----------------------------------------------
 -->

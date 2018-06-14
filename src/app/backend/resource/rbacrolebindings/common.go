@@ -15,7 +15,7 @@
 package rbacrolebindings
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
 )
 
 // The code below allows to perform complex data section on []RbacRoleBinding

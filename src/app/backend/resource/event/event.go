@@ -18,7 +18,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
 	"k8s.io/apimachinery/pkg/types"
 	api "k8s.io/client-go/pkg/api/v1"
 )

@@ -17,7 +17,7 @@ package container
 import (
 	"io/ioutil"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/logs"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/logs"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	client "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"

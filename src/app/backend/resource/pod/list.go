@@ -17,11 +17,11 @@ package pod
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/event"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/metric"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8sClient "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"

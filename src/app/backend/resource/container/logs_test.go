@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/logs"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/logs"
 )
 
 func TestGetLogs(t *testing.T) {

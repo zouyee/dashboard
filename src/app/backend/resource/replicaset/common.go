@@ -15,9 +15,9 @@
 package replicaset
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/metric"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 

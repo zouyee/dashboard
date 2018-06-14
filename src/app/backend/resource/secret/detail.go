@@ -17,7 +17,7 @@ package secret
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	client "k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"

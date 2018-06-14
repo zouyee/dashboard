@@ -17,12 +17,12 @@ package config
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/configmap"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolumeclaim"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/secret"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/configmap"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/persistentvolumeclaim"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/secret"
 	"k8s.io/client-go/kubernetes"
 )
 

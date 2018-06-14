@@ -15,7 +15,7 @@
 package ingress
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 

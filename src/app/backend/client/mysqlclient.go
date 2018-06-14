@@ -9,7 +9,7 @@ import (
 	"time"
 	// mysql
 	"github.com/go-sql-driver/mysql"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/report"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/report"
 )
 
 var createTableStatements = []string{

@@ -17,8 +17,8 @@ package rbacrolebindings
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
 	client "k8s.io/client-go/kubernetes"
 	rbac "k8s.io/client-go/pkg/apis/rbac/v1alpha1"
 )

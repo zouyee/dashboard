@@ -17,16 +17,16 @@ package workload
 import (
 	"log"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/daemonset"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/deployment"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/job"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/replicaset"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/replicationcontroller"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/statefulset"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/daemonset"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/deployment"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/job"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/pod"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/replicaset"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/replicationcontroller"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/statefulset"
 	"k8s.io/client-go/kubernetes"
 )
 

@@ -15,8 +15,8 @@
 package service
 
 import (
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
 	api "k8s.io/client-go/pkg/api/v1"
 )
 

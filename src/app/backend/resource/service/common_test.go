@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	api "k8s.io/client-go/pkg/api/v1"
 )

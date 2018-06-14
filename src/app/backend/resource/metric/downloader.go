@@ -18,8 +18,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kubernetes/dashboard/src/app/backend/client"
-	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
 	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
 
