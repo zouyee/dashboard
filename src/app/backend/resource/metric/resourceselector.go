@@ -3,7 +3,7 @@ package metric
 import (
 	"fmt"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	api "k8s.io/client-go/pkg/api/v1"
 )

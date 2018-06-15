@@ -91,7 +91,7 @@ export default {
     /**
      * Name of the main backend package that is used in go build command.
      */
-    mainPackageName: 'gerrit.cmss.com/BC-PaaS/backend/src/app/backend',
+    mainPackageName: 'github.com/kubernetes/dashboard/src/app/backend',
     /**
      * Port number of the backend server. Only used during development.
      */
@@ -205,9 +205,9 @@ export default {
     backendSrc: path.join(basePath, 'src/app/backend'),
     backendTmp: path.join(basePath, '.tmp/backend'),
     backendTmpSrc:
-        path.join(basePath, '.tmp/backend/src/gerrit.cmss.com/BC-PaaS/backend/src/app/backend'),
+        path.join(basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/src/app/backend'),
     backendTmpSrcVendor:
-        path.join(basePath, '.tmp/backend/src/gerrit.cmss.com/BC-PaaS/backend/vendor'),
+        path.join(basePath, '.tmp/backend/src/github.com/kubernetes/dashboard/vendor'),
     backendVendor: path.join(basePath, 'vendor'),
     bowerComponents: path.join(basePath, 'bower_components'),
     build: path.join(basePath, 'build'),

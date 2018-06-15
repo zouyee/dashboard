@@ -15,7 +15,7 @@
 package horizontalpodautoscaler
 
 import (
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	k8sClient "k8s.io/client-go/kubernetes"
 	autoscaling "k8s.io/client-go/pkg/apis/autoscaling/v1"
 )

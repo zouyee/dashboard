@@ -23,8 +23,8 @@ import (
 	"os"
 	"strings"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/handler"
+	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/handler"
 	"github.com/prometheus/client_golang/prometheus"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -185,5 +185,5 @@ func handleFatalInitError(err error) {
 		"invalid apiserver certificates or service accounts configuration) or the "+
 		"--apiserver-host param points to a server that does not exist. Reason: %s\n"+
 		"Refer to the troubleshooting guide for more information: "+
-		"https://gerrit.cmss.com/BC-PaaS/backend/blob/master/docs/user-guide/troubleshooting.md", err)
+		"https://github.com/kubernetes/dashboard/blob/master/docs/user-guide/troubleshooting.md", err)
 }

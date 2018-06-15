@@ -11,7 +11,7 @@ the steps below.
    The property name is `deploy.version.release`. Follow versioning guidelines.
    Keep `package.json`, `bower.json` and `src/deploy/kubernetes-dashboard.yaml` versions in sync.
 1. Get the pull request reviewed and merged.
-1. Create a git [release tag](https://gerrit.cmss.com/BC-PaaS/backend/releases/) for the merged
+1. Create a git [release tag](https://github.com/kubernetes/dashboard/releases/) for the merged
    pull request. Release description should include changelog.
 1. Build and push production images to container registry. Use `gulp push-to-gcr:release`.
 1. Update addons on the Kubernetes core repository. Dashboard addon directory is

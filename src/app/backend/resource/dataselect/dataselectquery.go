@@ -15,8 +15,8 @@
 package dataselect
 
 import (
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/metric"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/metric"
 )
 
 // Options for GenericDataSelect which takes []GenericDataCell and returns selected data.

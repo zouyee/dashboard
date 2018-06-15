@@ -17,8 +17,8 @@ package metric
 import (
 	"encoding/json"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
 	"github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/model"
 	heapster "k8s.io/heapster/metrics/api/v1/types"

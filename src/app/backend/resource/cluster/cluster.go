@@ -17,13 +17,13 @@ package cluster
 import (
 	"log"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/namespace"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/node"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/persistentvolume"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/rbacroles"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/storageclass"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/namespace"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/node"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/persistentvolume"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/rbacroles"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/storageclass"
 	"k8s.io/client-go/kubernetes"
 )
 

@@ -15,7 +15,7 @@
 package thirdpartyresource
 
 import (
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 

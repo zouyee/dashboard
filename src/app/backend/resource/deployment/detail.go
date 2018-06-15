@@ -17,12 +17,12 @@ package deployment
 import (
 	"log"
 
-	heapster "gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/horizontalpodautoscaler"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/pod"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/replicaset"
+	heapster "github.com/kubernetes/dashboard/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/horizontalpodautoscaler"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/pod"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/replicaset"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	client "k8s.io/client-go/kubernetes"

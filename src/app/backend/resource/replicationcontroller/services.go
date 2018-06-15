@@ -15,9 +15,9 @@
 package replicationcontroller
 
 import (
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/service"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/service"
 	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	client "k8s.io/client-go/kubernetes"
 )

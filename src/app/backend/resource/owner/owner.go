@@ -17,8 +17,8 @@ package owner
 import (
 	"fmt"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/common"
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/event"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/common"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/event"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	api "k8s.io/client-go/pkg/api/v1"

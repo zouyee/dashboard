@@ -15,7 +15,7 @@
 package configmap
 
 import (
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/resource/dataselect"
+	"github.com/kubernetes/dashboard/src/app/backend/resource/dataselect"
 	api "k8s.io/client-go/pkg/api/v1"
 )
 

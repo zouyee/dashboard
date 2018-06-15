@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"gerrit.cmss.com/BC-PaaS/backend/src/app/backend/client"
+	"github.com/kubernetes/dashboard/src/app/backend/client"
 
 	heapster "k8s.io/heapster/metrics/api/v1/types"
 )
